@@ -1,0 +1,120 @@
+<?php
+
+namespace Lalalili\SurveyCore\Actions;
+
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
+use Lalalili\SurveyCore\Data\ResolvedToken;
+use Lalalili\SurveyCore\Enums\SurveyFieldType;
+use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
+use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
+use Lalalili\SurveyCore\Models\Survey;
+use Lalalili\SurveyCore\Models\SurveyField;
+
+class ValidateSurveySubmissionAction
+{
+    /**
+     * @param  array<string, mixed>  $visibleAnswers
+     */
+    public function execute(Survey $survey, array $visibleAnswers, ?ResolvedToken $tokenContext = null): void
+    {
+        if (! $survey->isAcceptingSubmissions()) {
+            throw new SurveyNotAvailableException("Survey '{$survey->title}' is not currently accepting submissions.");
+        }
+
+        $visibleFields = $survey->fields->filter(fn (SurveyField $f) => ! $f->is_hidden);
+
+        $rules = $this->buildRules($visibleFields);
+        $validator = Validator::make($visibleAnswers, $rules);
+
+        if ($validator->fails()) {
+            throw new SurveyValidationException($validator->errors()->toArray());
+        }
+
+        $this->validateChoiceOptions($visibleFields, $visibleAnswers);
+    }
+
+    /**
+     * @param  Collection<int, SurveyField>  $fields
+     * @return array<string, array<int, mixed>>
+     */
+    private function buildRules(Collection $fields): array
+    {
+        $rules = [];
+
+        foreach ($fields as $field) {
+            $fieldRules = [];
+
+            if ($field->is_required) {
+                $fieldRules[] = 'required';
+            } else {
+                $fieldRules[] = 'nullable';
+            }
+
+            $fieldRules = array_merge($fieldRules, $this->typeRules($field));
+
+            if (! empty($field->validation_rules)) {
+                $fieldRules = array_merge($fieldRules, $field->validation_rules);
+            }
+
+            $rules[$field->field_key] = $fieldRules;
+        }
+
+        return $rules;
+    }
+
+    /** @return array<int, string> */
+    private function typeRules(SurveyField $field): array
+    {
+        return match ($field->type) {
+            SurveyFieldType::Email          => ['email'],
+            SurveyFieldType::Date           => ['date'],
+            SurveyFieldType::Rating         => ['integer', 'min:1', 'max:5'],
+            SurveyFieldType::MultipleChoice => ['array'],
+            SurveyFieldType::ShortText, SurveyFieldType::LongText,
+            SurveyFieldType::Phone, SurveyFieldType::SingleChoice,
+            SurveyFieldType::Select => ['string'],
+            default                 => [],
+        };
+    }
+
+    /**
+     * @param  Collection<int, SurveyField>  $fields
+     * @param  array<string, mixed>           $answers
+     */
+    private function validateChoiceOptions(Collection $fields, array $answers): void
+    {
+        $errors = [];
+
+        foreach ($fields as $field) {
+            if (! $field->type->requiresOptions()) {
+                continue;
+            }
+
+            $value = $answers[$field->field_key] ?? null;
+
+            if ($value === null) {
+                continue;
+            }
+
+            $validOptions = $field->optionValues();
+
+            if (empty($validOptions)) {
+                continue;
+            }
+
+            if ($field->type === SurveyFieldType::MultipleChoice) {
+                $invalid = array_diff((array) $value, $validOptions);
+                if (! empty($invalid)) {
+                    $errors[$field->field_key][] = "Invalid option(s): " . implode(', ', $invalid);
+                }
+            } elseif (! in_array($value, $validOptions, true)) {
+                $errors[$field->field_key][] = "Invalid option: {$value}";
+            }
+        }
+
+        if (! empty($errors)) {
+            throw new SurveyValidationException($errors);
+        }
+    }
+}
