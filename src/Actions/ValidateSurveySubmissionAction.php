@@ -113,11 +113,13 @@ class ValidateSurveySubmissionAction
             }
 
             if ($field->type === SurveyFieldType::MultipleChoice) {
-                $invalid = array_diff((array) $value, $validOptions);
+                // Cast both sides to string so numeric keys don't cause false negatives
+                $submitted = array_map('strval', (array) $value);
+                $invalid = array_diff($submitted, $validOptions);
                 if (! empty($invalid)) {
                     $errors[$field->field_key][] = 'Invalid option(s): ' . implode(', ', $invalid);
                 }
-            } elseif (! in_array($value, $validOptions, true)) {
+            } elseif (! in_array((string) $value, $validOptions, true)) {
                 $errors[$field->field_key][] = "Invalid option: {$value}";
             }
         }

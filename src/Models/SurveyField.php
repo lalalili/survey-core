@@ -55,7 +55,8 @@ class SurveyField extends Model
     }
 
     /**
-     * Return valid option keys (the keys of the key→label map stored by KeyValue component).
+     * Return valid option keys as strings (the keys of the key→label map stored by KeyValue component).
+     * PHP's json_decode converts numeric-looking keys to int, so we always cast to string.
      *
      * @return array<int, string>
      */
@@ -65,7 +66,7 @@ class SurveyField extends Model
             return [];
         }
 
-        return array_keys($this->options_json);
+        return array_map('strval', array_keys($this->options_json));
     }
 
     /**
