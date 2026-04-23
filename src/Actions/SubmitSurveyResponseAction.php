@@ -38,12 +38,21 @@ class SubmitSurveyResponseAction
             // 1. Start with visible answers
             // 2. Strip any hidden field keys the frontend may have smuggled in
             // 3. Merge server-resolved hidden values
+            // Keys for is_hidden fields + conditionally hidden (branching) fields
             $hiddenKeys = $survey->fields
                 ->filter(fn (SurveyField $f) => $f->is_hidden)
                 ->pluck('field_key')
                 ->all();
 
             $safeVisible = array_diff_key($payload->visibleAnswers, array_flip($hiddenKeys));
+
+            // Strip answers for fields whose branching condition is not met
+            $conditionallyHiddenKeys = $survey->fields
+                ->filter(fn (SurveyField $f) => ! $f->is_hidden && ! $f->isConditionallyVisible($safeVisible))
+                ->pluck('field_key')
+                ->all();
+
+            $safeVisible = array_diff_key($safeVisible, array_flip($conditionallyHiddenKeys));
             $finalAnswers = array_merge($safeVisible, $hiddenMap?->values ?? []);
 
             $response = SurveyResponse::create([

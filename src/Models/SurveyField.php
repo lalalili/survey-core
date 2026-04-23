@@ -25,6 +25,9 @@ class SurveyField extends Model
         'validation_rules',
         'options_json',
         'sort_order',
+        'show_if_field_key',
+        'show_if_value',
+        'page',
     ];
 
     protected function casts(): array
@@ -37,6 +40,7 @@ class SurveyField extends Model
             'validation_rules' => 'array',
             'options_json' => 'array',
             'sort_order' => 'integer',
+            'page' => 'integer',
         ];
     }
 
@@ -50,14 +54,39 @@ class SurveyField extends Model
         return $this->hasMany(SurveyAnswer::class);
     }
 
-    /** @return array<int, string> */
+    /**
+     * Return valid option keys (the keys of the key→label map stored by KeyValue component).
+     *
+     * @return array<int, string>
+     */
     public function optionValues(): array
     {
         if (empty($this->options_json)) {
             return [];
         }
 
-        return array_column($this->options_json, 'value');
+        return array_keys($this->options_json);
+    }
+
+    /**
+     * Whether this field should be shown given the current answer set.
+     * A field with no condition is always visible.
+     *
+     * @param  array<string, mixed>  $answers  answers keyed by field_key
+     */
+    public function isConditionallyVisible(array $answers): bool
+    {
+        if (! $this->show_if_field_key) {
+            return true;
+        }
+
+        $current = $answers[$this->show_if_field_key] ?? null;
+
+        if (is_array($current)) {
+            return in_array($this->show_if_value, $current, true);
+        }
+
+        return (string) $current === (string) $this->show_if_value;
     }
 
     public function save(array $options = []): bool

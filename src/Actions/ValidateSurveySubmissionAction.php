@@ -22,16 +22,25 @@ class ValidateSurveySubmissionAction
             throw new SurveyNotAvailableException("Survey '{$survey->title}' is not currently accepting submissions.");
         }
 
-        $visibleFields = $survey->fields->filter(fn (SurveyField $f) => ! $f->is_hidden);
+        // Only validate fields that are:
+        // 1. Not statically hidden (is_hidden = false)
+        // 2. Conditionally visible given the submitted answers (branching)
+        $activeFields = $survey->fields->filter(function (SurveyField $f) use ($visibleAnswers) {
+            if ($f->is_hidden) {
+                return false;
+            }
 
-        $rules = $this->buildRules($visibleFields);
+            return $f->isConditionallyVisible($visibleAnswers);
+        });
+
+        $rules = $this->buildRules($activeFields);
         $validator = Validator::make($visibleAnswers, $rules);
 
         if ($validator->fails()) {
             throw new SurveyValidationException($validator->errors()->toArray());
         }
 
-        $this->validateChoiceOptions($visibleFields, $visibleAnswers);
+        $this->validateChoiceOptions($activeFields, $visibleAnswers);
     }
 
     /**
@@ -106,7 +115,7 @@ class ValidateSurveySubmissionAction
             if ($field->type === SurveyFieldType::MultipleChoice) {
                 $invalid = array_diff((array) $value, $validOptions);
                 if (! empty($invalid)) {
-                    $errors[$field->field_key][] = "Invalid option(s): " . implode(', ', $invalid);
+                    $errors[$field->field_key][] = 'Invalid option(s): ' . implode(', ', $invalid);
                 }
             } elseif (! in_array($value, $validOptions, true)) {
                 $errors[$field->field_key][] = "Invalid option: {$value}";

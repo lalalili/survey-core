@@ -87,4 +87,20 @@ return [
         'resolver' => \Lalalili\SurveyCore\Services\DefaultPersonalizationResolver::class,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Frontend Assets
+    |--------------------------------------------------------------------------
+    | Controls how the public survey page loads its stylesheet.
+    |
+    | 'cdn'       — loads Tailwind CSS via CDN <script> (zero-setup, good for dev)
+    | 'published' — uses the CSS published to public/vendor/survey-core/survey.css
+    |               Run: php artisan vendor:publish --tag=survey-core-assets
+    |
+    | Any other string is treated as an absolute URL for a custom stylesheet.
+    */
+    'frontend' => [
+        'css' => 'cdn',
+    ],
+
 ];

@@ -28,9 +28,21 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 '2026_04_23_000004_create_survey_tokens_table',
                 '2026_04_23_000005_create_survey_responses_table',
                 '2026_04_23_000006_create_survey_answers_table',
+                '2026_04_23_000007_add_branching_and_pages_to_survey_fields_table',
             ])
             ->runsMigrations()
             ->hasRoutes(['web']);
+    }
+
+    public function bootingPackage(): void
+    {
+        $this->publishes([
+            __DIR__ . '/../resources/dist' => public_path('vendor/survey-core'),
+        ], 'survey-core-assets');
+
+        $this->publishes([
+            __DIR__ . '/../resources/views' => resource_path('views/vendor/survey-core'),
+        ], 'survey-core-views');
     }
 
     public function registeringPackage(): void
