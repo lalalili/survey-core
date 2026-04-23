@@ -92,15 +92,17 @@ class SurveyField extends Model
 
     public function save(array $options = []): bool
     {
-        if (! $this->exists) {
-            if (empty($this->field_key)) {
-                $this->field_key = FieldKeyGenerator::generate($this->label ?? '');
-            }
-
-            if ($this->type === SurveyFieldType::Hidden) {
-                $this->is_hidden = true;
-            }
+        if (! $this->exists && empty($this->field_key)) {
+            $this->field_key = FieldKeyGenerator::generate($this->label ?? '');
         }
+
+        // type=Hidden always forces is_hidden
+        if ($this->type === SurveyFieldType::Hidden) {
+            $this->is_hidden = true;
+        }
+
+        // is_personalized is derived: true only when hidden AND a personalized_key is set
+        $this->is_personalized = $this->is_hidden && ! empty($this->personalized_key);
 
         return parent::save($options);
     }
