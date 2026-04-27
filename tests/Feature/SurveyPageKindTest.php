@@ -1,12 +1,31 @@
 <?php
 
+use Illuminate\Support\Facades\Route;
 use Lalalili\SurveyCore\Actions\SaveSurveyDraftSchemaAction;
 use Lalalili\SurveyCore\Actions\SyncSurveyBuilderSchemaToFieldsAction;
 use Lalalili\SurveyCore\Actions\ValidateSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Enums\SurveyPageKind;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
+use Lalalili\SurveyCore\Http\Controllers\PublicSurveyController;
 use Lalalili\SurveyCore\Models\Survey;
+use Lalalili\SurveyCore\SurveyCoreServiceProvider;
+
+$surveyPageKindTestCase = class_exists(Tests\TestCase::class)
+    ? Tests\TestCase::class
+    : null;
+
+if ($surveyPageKindTestCase !== null) {
+    uses($surveyPageKindTestCase);
+
+    beforeEach(function (): void {
+        $this->app->register(SurveyCoreServiceProvider::class);
+        $this->artisan('migrate', ['--path' => 'packages/survey-core/database/migrations'])->run();
+
+        Route::get('/survey/{publicKey}', [PublicSurveyController::class, 'show'])->name('survey.show');
+        Route::getRoutes()->refreshNameLookups();
+    });
+}
 
 if (! function_exists('pageKindSchema')) {
 function pageKindSchema(array $pages): array
