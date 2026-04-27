@@ -17,16 +17,18 @@ class ExportSurveyResponsesAction
     {
         $driver ??= config('survey-core.exports.default_driver', 'csv');
 
-        $survey->load(['fields', 'responses.answers.field', 'responses.recipient', 'responses.token']);
+        $survey->load(['fields', 'calculations', 'responses.answers.field', 'responses.recipient', 'responses.token']);
 
         $fields = $survey->fields;
+        $calculations = $survey->calculations;
 
         $headers = array_merge(
             ['Response ID', 'Submitted At', 'IP', 'Completion Status', 'Recipient Name', 'Recipient Email', 'Recipient External ID'],
             $fields->pluck('label')->all(),
+            $calculations->pluck('label')->all(),
         );
 
-        $rows = $survey->responses->map(function ($response) use ($fields) {
+        $rows = $survey->responses->map(function ($response) use ($fields, $calculations) {
             $answersByFieldId = $response->answers->keyBy('survey_field_id');
 
             $row = [
@@ -43,6 +45,10 @@ class ExportSurveyResponsesAction
                 $answer = $answersByFieldId->get($field->id);
                 $value = $answer?->getValue();
                 $row[] = is_array($value) ? implode(', ', $value) : $value;
+            }
+
+            foreach ($calculations as $calculation) {
+                $row[] = $response->calculations_json[$calculation->key] ?? null;
             }
 
             return $row;

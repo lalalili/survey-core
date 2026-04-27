@@ -11,4 +11,7 @@ Route::prefix(config('survey-core.route_prefix', 'survey'))
 
         Route::post('/{publicKey}/submit', [PublicSurveyController::class, 'submit'])
             ->name('survey.submit');
+
+        Route::post('/{publicKey}/upload', [PublicSurveyController::class, 'upload'])
+            ->name('survey.upload');
     });

@@ -1,0 +1,23 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class () extends Migration {
+    public function up(): void
+    {
+        Schema::table('surveys', function (Blueprint $table) {
+            $table->json('draft_schema')->nullable()->after('version');
+            $table->json('published_schema')->nullable()->after('draft_schema');
+            $table->timestamp('published_at')->nullable()->after('published_schema');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('surveys', function (Blueprint $table) {
+            $table->dropColumn(['draft_schema', 'published_schema', 'published_at']);
+        });
+    }
+};

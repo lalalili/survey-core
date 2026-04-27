@@ -10,10 +10,20 @@ enum SurveyFieldType: string
     case MultipleChoice = 'multiple_choice';
     case Select = 'select';
     case Rating = 'rating';
+    case Number = 'number';
+    case Nps = 'nps';
+    case MatrixSingle = 'matrix_single';
+    case MatrixMulti = 'matrix_multi';
+    case Ranking = 'ranking';
+    case FileUpload = 'file_upload';
+    case Signature = 'signature';
+    case Address = 'address';
     case Email = 'email';
     case Phone = 'phone';
     case Date = 'date';
     case Hidden = 'hidden';
+    case SectionTitle = 'section_title';
+    case DescriptionBlock = 'description_block';
 
     public function label(): string
     {
@@ -24,16 +34,26 @@ enum SurveyFieldType: string
             self::MultipleChoice => '多選',
             self::Select         => '下拉選單',
             self::Rating         => '評分',
+            self::Number         => '數字',
+            self::Nps            => 'NPS',
+            self::MatrixSingle   => '矩陣單選',
+            self::MatrixMulti    => '矩陣複選',
+            self::Ranking        => '排序',
+            self::FileUpload     => '檔案上傳',
+            self::Signature      => '簽名',
+            self::Address        => '地址',
             self::Email          => 'Email',
             self::Phone          => '電話',
             self::Date           => '日期',
             self::Hidden         => '隱藏欄位',
+            self::SectionTitle   => '區段標題',
+            self::DescriptionBlock => '說明文字',
         };
     }
 
     public function requiresOptions(): bool
     {
-        return in_array($this, [self::SingleChoice, self::MultipleChoice, self::Select]);
+        return in_array($this, [self::SingleChoice, self::MultipleChoice, self::Select, self::Ranking], true);
     }
 
     public function isAlwaysHidden(): bool
@@ -43,6 +63,11 @@ enum SurveyFieldType: string
 
     public function supportsMultipleValues(): bool
     {
-        return $this === self::MultipleChoice;
+        return in_array($this, [self::MultipleChoice, self::MatrixMulti, self::Ranking], true);
+    }
+
+    public function isContentBlock(): bool
+    {
+        return in_array($this, [self::SectionTitle, self::DescriptionBlock], true);
     }
 }

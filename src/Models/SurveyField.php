@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
+use Lalalili\SurveyCore\Support\ConditionGroupEvaluator;
 use Lalalili\SurveyCore\Support\FieldKeyGenerator;
 
 class SurveyField extends Model
@@ -23,24 +24,26 @@ class SurveyField extends Model
         'placeholder',
         'default_value',
         'validation_rules',
+        'settings_json',
         'options_json',
         'sort_order',
         'show_if_field_key',
         'show_if_value',
-        'page',
+        'survey_page_id',
     ];
 
     protected function casts(): array
     {
         return [
-            'type' => SurveyFieldType::class,
-            'is_required' => 'boolean',
-            'is_hidden' => 'boolean',
-            'is_personalized' => 'boolean',
+            'type'             => SurveyFieldType::class,
+            'is_required'      => 'boolean',
+            'is_hidden'        => 'boolean',
+            'is_personalized'  => 'boolean',
             'validation_rules' => 'array',
-            'options_json' => 'array',
-            'sort_order' => 'integer',
-            'page' => 'integer',
+            'settings_json'    => 'array',
+            'options_json'     => 'array',
+            'sort_order'       => 'integer',
+            'survey_page_id'   => 'integer',
         ];
     }
 
@@ -49,9 +52,43 @@ class SurveyField extends Model
         return $this->belongsTo(Survey::class);
     }
 
+    public function surveyPage(): BelongsTo
+    {
+        return $this->belongsTo(SurveyPage::class, 'survey_page_id');
+    }
+
     public function answers(): HasMany
     {
         return $this->hasMany(SurveyAnswer::class);
+    }
+
+    /**
+     * Return [value => label] dict for public rendering, normalising both storage formats:
+     * - list  : [{id, label, value, ...}]  (builder-managed, current)
+     * - dict  : {value: label}             (legacy / import)
+     *
+     * @return array<string, string>
+     */
+    public function optionsForDisplay(): array
+    {
+        if (empty($this->options_json)) {
+            return [];
+        }
+
+        if (array_is_list($this->options_json)) {
+            $result = [];
+            foreach ($this->options_json as $opt) {
+                if ((bool) ($opt['is_hidden'] ?? false)) {
+                    continue;
+                }
+
+                $result[(string) ($opt['value'] ?? '')] = (string) ($opt['label'] ?? '');
+            }
+
+            return $result;
+        }
+
+        return array_map('strval', $this->options_json);
     }
 
     /**
@@ -66,7 +103,74 @@ class SurveyField extends Model
             return [];
         }
 
+        if (array_is_list($this->options_json)) {
+            return collect($this->options_json)
+                ->pluck('value')
+                ->filter(fn (mixed $value): bool => $value !== null && $value !== '')
+                ->map(fn (mixed $value): string => (string) $value)
+                ->values()
+                ->all();
+        }
+
         return array_map('strval', array_keys($this->options_json));
+    }
+
+    /**
+     * @return list<array{id: string|null, label: string, value: string, capacity: int|null, is_hidden: bool}>
+     */
+    public function normalizedOptions(): array
+    {
+        if (empty($this->options_json)) {
+            return [];
+        }
+
+        if (array_is_list($this->options_json)) {
+            return collect($this->options_json)
+                ->map(fn (mixed $option): array => [
+                    'id' => data_get($option, 'id'),
+                    'label' => (string) data_get($option, 'label', ''),
+                    'value' => (string) data_get($option, 'value', ''),
+                    'capacity' => data_get($option, 'capacity') !== null ? (int) data_get($option, 'capacity') : null,
+                    'is_hidden' => (bool) data_get($option, 'is_hidden', false),
+                ])
+                ->filter(fn (array $option): bool => $option['value'] !== '')
+                ->values()
+                ->all();
+        }
+
+        return collect($this->options_json)
+            ->map(fn (mixed $label, mixed $value): array => [
+                'id' => null,
+                'label' => (string) $label,
+                'value' => (string) $value,
+                'capacity' => null,
+                'is_hidden' => false,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Return the configured jump action for a specific submitted option value.
+     * Only meaningful for list-format options_json (builder-managed fields).
+     *
+     * @return array{type: string, target_page_id?: string}|null
+     */
+    public function getOptionAction(string $value): ?array
+    {
+        if (empty($this->options_json) || ! array_is_list($this->options_json)) {
+            return null;
+        }
+
+        foreach ($this->options_json as $option) {
+            if ((string) ($option['value'] ?? '') === $value) {
+                $action = $option['action'] ?? null;
+
+                return is_array($action) && isset($action['type']) ? $action : null;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -77,6 +181,11 @@ class SurveyField extends Model
      */
     public function isConditionallyVisible(array $answers): bool
     {
+        $showIf = $this->settings_json['show_if'] ?? null;
+        if (is_array($showIf)) {
+            return ConditionGroupEvaluator::passes($showIf, $answers);
+        }
+
         if (! $this->show_if_field_key) {
             return true;
         }

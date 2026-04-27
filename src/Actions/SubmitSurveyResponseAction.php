@@ -10,6 +10,8 @@ use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyAnswer;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyResponse;
+use Lalalili\SurveyCore\Support\JumpLogicResolver;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class SubmitSurveyResponseAction
 {
@@ -17,15 +19,26 @@ class SubmitSurveyResponseAction
         private readonly ResolveSurveyTokenAction $resolveToken,
         private readonly HydratePersonalizedFieldsAction $hydrateFields,
         private readonly ValidateSurveySubmissionAction $validateSubmission,
+        private readonly CalculateSurveyResponseAction $calculateResponse,
+        private readonly EvaluateResponseQualityAction $evaluateQuality,
     ) {
     }
 
-    public function execute(Survey $survey, SubmissionPayload $payload, string $ip = '', string $userAgent = ''): SurveyResponse
+    /**
+     * @param  array{elapsed_ms?: int|null, honeypot_hit?: bool, ip?: string|null}  $qualityContext
+     */
+    public function execute(Survey $survey, SubmissionPayload $payload, string $ip = '', string $userAgent = '', array $qualityContext = []): SurveyResponse
     {
         // Validate against visible fields only
         $this->validateSubmission->execute($survey, $payload->visibleAnswers, $payload->tokenContext);
 
-        return DB::transaction(function () use ($survey, $payload, $ip, $userAgent) {
+        return DB::transaction(function () use ($survey, $payload, $ip, $userAgent, $qualityContext) {
+            $lockedSurvey = Survey::query()->lockForUpdate()->findOrFail($survey->id);
+
+            if (! $lockedSurvey->hasQuotaAvailable()) {
+                throw new \Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException($lockedSurvey->quota_message ?: '問卷已額滿。');
+            }
+
             $tokenContext = $payload->tokenContext;
             $recipient = $tokenContext?->recipient;
 
@@ -37,23 +50,37 @@ class SubmitSurveyResponseAction
             // Build final answer map:
             // 1. Start with visible answers
             // 2. Strip any hidden field keys the frontend may have smuggled in
-            // 3. Merge server-resolved hidden values
-            // Keys for is_hidden fields + conditionally hidden (branching) fields
+            // 3. Strip answers from pages skipped by jump logic
+            // 4. Merge server-resolved hidden values
+            $visitedPages = JumpLogicResolver::resolveVisitedPages($survey, $payload->visibleAnswers);
+
             $hiddenKeys = $survey->fields
-                ->filter(fn (SurveyField $f) => $f->is_hidden)
+                ->filter(fn (SurveyField $f) => $f->is_hidden || $f->type->isContentBlock())
                 ->pluck('field_key')
                 ->all();
 
             $safeVisible = array_diff_key($payload->visibleAnswers, array_flip($hiddenKeys));
 
+            // Strip answers from skipped pages (jump logic)
+            if ($visitedPages !== null) {
+                $skippedPageKeys = $survey->fields
+                    ->filter(fn (SurveyField $f) => ! in_array($f->survey_page_id, $visitedPages, true))
+                    ->pluck('field_key')
+                    ->all();
+                $safeVisible = array_diff_key($safeVisible, array_flip($skippedPageKeys));
+            }
+
             // Strip answers for fields whose branching condition is not met
             $conditionallyHiddenKeys = $survey->fields
-                ->filter(fn (SurveyField $f) => ! $f->is_hidden && ! $f->isConditionallyVisible($safeVisible))
+                ->filter(fn (SurveyField $f) => ! $f->is_hidden && ! $f->type->isContentBlock() && ! $f->isConditionallyVisible($safeVisible))
                 ->pluck('field_key')
                 ->all();
 
             $safeVisible = array_diff_key($safeVisible, array_flip($conditionallyHiddenKeys));
+            $this->validateOptionCapacity($survey, $safeVisible);
+
             $finalAnswers = array_merge($safeVisible, $hiddenMap?->values ?? []);
+            $calculations = $this->calculateResponse->execute($survey, $safeVisible);
 
             $response = SurveyResponse::create([
                 'survey_id'           => $survey->id,
@@ -62,6 +89,7 @@ class SubmitSurveyResponseAction
                 'submitted_at'        => now(),
                 'ip'                  => $ip,
                 'user_agent'          => $userAgent,
+                'calculations_json'   => $calculations === [] ? null : $calculations,
                 'completion_status'   => SurveyResponseCompletionStatus::Complete,
             ]);
 
@@ -86,7 +114,10 @@ class SubmitSurveyResponseAction
                 }
 
                 SurveyAnswer::create($answerData);
+                $this->attachUploadedFileToResponse($field, $value, $response);
             }
+
+            $this->evaluateQuality->execute($response->load('answers.field'), array_merge($qualityContext, ['ip' => $ip]));
 
             // Record token usage
             $tokenContext?->token->recordUsage();
@@ -95,5 +126,74 @@ class SubmitSurveyResponseAction
 
             return $response->load('answers');
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $answers
+     */
+    private function validateOptionCapacity(Survey $survey, array $answers): void
+    {
+        $fieldsByKey = $survey->fields->keyBy('field_key');
+        $errors = [];
+
+        foreach ($answers as $fieldKey => $value) {
+            $field = $fieldsByKey->get($fieldKey);
+
+            if (! $field instanceof SurveyField || ! $field->type->requiresOptions()) {
+                continue;
+            }
+
+            SurveyField::query()->whereKey($field->id)->lockForUpdate()->first();
+
+            $selectedValues = is_array($value)
+                ? array_map('strval', $value)
+                : [(string) $value];
+
+            foreach ($field->normalizedOptions() as $option) {
+                if ($option['capacity'] === null || $option['capacity'] < 1) {
+                    continue;
+                }
+
+                if (! in_array($option['value'], $selectedValues, true)) {
+                    continue;
+                }
+
+                $usedCount = SurveyAnswer::query()
+                    ->where('survey_field_id', $field->id)
+                    ->where(function ($query) use ($option): void {
+                        $query->where('answer_text', $option['value'])
+                            ->orWhereJsonContains('answer_json', $option['value']);
+                    })
+                    ->count();
+
+                if ($usedCount >= $option['capacity']) {
+                    $errors[$field->field_key][] = "{$option['label']} 已額滿。";
+                }
+            }
+        }
+
+        if ($errors !== []) {
+            throw new \Lalalili\SurveyCore\Exceptions\SurveyValidationException($errors);
+        }
+    }
+
+    private function attachUploadedFileToResponse(SurveyField $field, mixed $value, SurveyResponse $response): void
+    {
+        if ($field->type->value !== 'file_upload' || ! is_array($value) || empty($value['media_id'])) {
+            return;
+        }
+
+        $media = Media::query()
+            ->whereKey((int) $value['media_id'])
+            ->where('collection_name', 'survey_files')
+            ->first();
+
+        if (! $media instanceof Media) {
+            return;
+        }
+
+        $media->model_type = $response->getMorphClass();
+        $media->model_id = $response->getKey();
+        $media->save();
     }
 }

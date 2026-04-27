@@ -2,12 +2,17 @@
 
 namespace Lalalili\SurveyCore;
 
+use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Event;
+use Lalalili\SurveyCore\Actions\EvaluateResponseQualityAction;
 use Lalalili\SurveyCore\Actions\ExportSurveyResponsesAction;
 use Lalalili\SurveyCore\Actions\HydratePersonalizedFieldsAction;
 use Lalalili\SurveyCore\Actions\ResolveSurveyTokenAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
 use Lalalili\SurveyCore\Actions\ValidateSurveySubmissionAction;
 use Lalalili\SurveyCore\Contracts\PersonalizationResolver;
+use Lalalili\SurveyCore\Events\SurveySubmitted;
+use Lalalili\SurveyCore\Listeners\DispatchSurveySubmittedWebhook;
 use Lalalili\SurveyCore\Services\Exports\CsvSurveyExportDriver;
 use Lalalili\SurveyCore\Services\Exports\SurveyExportManager;
 use Spatie\LaravelPackageTools\Package;
@@ -29,6 +34,19 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 '2026_04_23_000005_create_survey_responses_table',
                 '2026_04_23_000006_create_survey_answers_table',
                 '2026_04_23_000007_add_branching_and_pages_to_survey_fields_table',
+                '2026_04_24_000008_add_builder_schema_to_surveys_table',
+                '2026_04_26_000009_create_survey_pages_table',
+                '2026_04_26_000010_replace_page_int_with_page_id_on_survey_fields_table',
+                '2026_04_27_000001_add_kind_to_survey_pages_table',
+                '2026_04_27_000002_create_survey_themes_table',
+                '2026_04_27_000003_add_settings_and_theme_to_surveys_table',
+                '2026_04_27_000004_create_survey_calculations_table',
+                '2026_04_27_000005_add_calculations_to_survey_responses_table',
+                '2026_04_27_000006_add_phase3_controls_to_surveys_table',
+                '2026_04_27_000007_add_quality_to_survey_responses_table',
+                '2026_04_27_000008_add_notes_to_survey_responses_table',
+                '2026_04_27_000009_create_survey_tags_tables',
+                '2026_04_28_000001_add_settings_to_survey_fields_table',
             ])
             ->runsMigrations()
             ->hasRoutes(['web']);
@@ -36,6 +54,8 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
 
     public function bootingPackage(): void
     {
+        Event::listen(SurveySubmitted::class, DispatchSurveySubmittedWebhook::class);
+
         $this->publishes([
             __DIR__ . '/../resources/dist' => public_path('vendor/survey-core'),
         ], 'survey-core-assets');
@@ -43,6 +63,25 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
         $this->publishes([
             __DIR__ . '/../resources/views' => resource_path('views/vendor/survey-core'),
         ], 'survey-core-views');
+
+        // Register SurveyVariableProvider when email-campaign is present
+        if (interface_exists(\Lalalili\EmailCampaign\Contracts\VariableProvider::class)) {
+            $registry = $this->app->make(\Lalalili\EmailCampaign\Support\VariableProviderRegistry::class);
+            $registry->register(\Lalalili\SurveyCore\Integrations\EmailCampaign\SurveyVariableProvider::class);
+        }
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \Lalalili\SurveyCore\Console\Commands\SurveyScheduleCommand::class,
+            ]);
+
+            $this->app->booted(function (): void {
+                $this->app->make(Schedule::class)
+                    ->command(\Lalalili\SurveyCore\Console\Commands\SurveyScheduleCommand::class)
+                    ->everyMinute()
+                    ->withoutOverlapping();
+            });
+        }
     }
 
     public function registeringPackage(): void
@@ -54,8 +93,8 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
 
         // Export manager with built-in CSV driver
         $this->app->singleton(SurveyExportManager::class, function () {
-            $manager = new SurveyExportManager;
-            $manager->extend('csv', fn () => new CsvSurveyExportDriver);
+            $manager = new SurveyExportManager();
+            $manager->extend('csv', fn () => new CsvSurveyExportDriver());
 
             return $manager;
         });
@@ -72,6 +111,8 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 $app->make(ResolveSurveyTokenAction::class),
                 $app->make(HydratePersonalizedFieldsAction::class),
                 $app->make(ValidateSurveySubmissionAction::class),
+                $app->make(\Lalalili\SurveyCore\Actions\CalculateSurveyResponseAction::class),
+                $app->make(EvaluateResponseQualityAction::class),
             );
         });
 

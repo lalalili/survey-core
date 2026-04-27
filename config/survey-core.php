@@ -67,6 +67,11 @@ return [
     */
     'default_allow_multiple_submissions' => false,
 
+    'security' => [
+        'min_submission_ms' => 3000,
+        'ip_blacklist' => [],
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Exports
@@ -85,6 +90,27 @@ return [
     */
     'personalization' => [
         'resolver' => \Lalalili\SurveyCore\Services\DefaultPersonalizationResolver::class,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Webhooks
+    |--------------------------------------------------------------------------
+    | A list of endpoint URLs that receive a POST payload whenever a survey
+    | response is submitted.  Each entry may be a plain URL string, or an
+    | associative array with 'url' and optional 'secret' (used to sign the
+    | payload with HMAC-SHA256 in the X-Survey-Signature header).
+    |
+    | Example:
+    |   'endpoints' => [
+    |       'https://example.com/hook',
+    |       ['url' => 'https://other.com/hook', 'secret' => 'my-secret'],
+    |   ],
+    */
+    'webhooks' => [
+        'endpoints' => [],
+        'timeout'   => 10,
+        'tries'     => 3,
     ],
 
     /*
