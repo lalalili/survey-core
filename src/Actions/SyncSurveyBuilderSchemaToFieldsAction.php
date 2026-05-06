@@ -21,8 +21,7 @@ class SyncSurveyBuilderSchemaToFieldsAction
 
         $managedKeys = collect($schema['pages'])
             ->flatMap(fn (array $page): array => $page['elements'])
-            ->reject(fn (array $element): bool => SurveyFieldType::from($element['type'])->isContentBlock())
-            ->map(fn (array $element): string => (string) $element['field_key'])
+            ->map(fn (array $element): string => $this->fieldKey($element))
             ->filter()
             ->values()
             ->all();
@@ -67,19 +66,16 @@ class SyncSurveyBuilderSchemaToFieldsAction
             foreach ($page['elements'] as $elementIndex => $element) {
                 $type = SurveyFieldType::from($element['type']);
 
-                if ($type->isContentBlock()) {
-                    continue;
-                }
-
                 $isHidden = (bool) ($element['is_hidden'] ?? false);
                 $personalizedKey = $element['personalized_key'] ?? null;
 
                 $legacyShowIf = $this->legacyShowIf($element);
+                $fieldKey = $this->fieldKey($element);
 
                 SurveyField::updateOrCreate(
                     [
                         'survey_id' => $survey->id,
-                        'field_key' => $element['field_key'],
+                        'field_key' => $fieldKey,
                     ],
                     [
                         'type'              => $type,
@@ -102,6 +98,25 @@ class SyncSurveyBuilderSchemaToFieldsAction
                 );
             }
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $element
+     */
+    private function fieldKey(array $element): string
+    {
+        $type = SurveyFieldType::from($element['type']);
+        $fieldKey = trim((string) ($element['field_key'] ?? ''));
+
+        if ($fieldKey !== '') {
+            return $fieldKey;
+        }
+
+        if ($type->isContentBlock()) {
+            return trim((string) $element['id']);
+        }
+
+        return '';
     }
 
     /**

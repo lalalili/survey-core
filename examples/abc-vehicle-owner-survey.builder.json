@@ -1,0 +1,564 @@
+{
+  "id": "example_abc_vehicle_owner_survey",
+  "title": "ABC 銷售滿意度與車輛使用體驗問卷",
+  "status": "draft",
+  "version": 1,
+  "settings": {
+    "progress": {
+      "mode": "bar",
+      "show_estimated_time": true
+    },
+    "show_question_numbers": true,
+    "allow_back": true,
+    "language": "zh-TW"
+  },
+  "pages": [
+    {
+      "id": "page_welcome",
+      "kind": "welcome",
+      "title": "歡迎頁",
+      "welcome_settings": {
+        "enabled": true,
+        "cta_label": "開始填寫",
+        "estimated_time_minutes": 5,
+        "subtitle": "ABC 銷售滿意度與車輛使用體驗問卷",
+        "content": "<p>親愛的客戶您好，感謝您成為 ABC 的車主！</p><p>誠摯邀請您撥冗 5 分鐘填寫服務與車輛使用滿意度問卷，您的寶貴意見將作為我們持續精進的動力。</p><p>為了感謝您的回饋，問卷完成並成功送出後，我們將致贈全省服務中心保修服務抵用金 NT$100，抵用金將直接存入車主帳戶。車主可於全台 ABC 服務中心進行定期保養、維修費用折抵，本抵用金使用不設消費金額上限，皆可折抵使用；結帳時最低需支付 NT$1，以完成發票開立作業。</p><p>註：</p><p>1. 相關資訊歡迎聯繫各展示服務中心，或撥打免付費客服專線 0800-123-456。</p><p>2. ABC 保留隨時調整、取消或終止本活動及其內容之權利，並擁有最終解釋權。</p><p>ABC 祝您行車平安，順心。</p>"
+      },
+      "elements": []
+    },
+    {
+      "id": "page_basic",
+      "kind": "question",
+      "title": "基本資料",
+      "elements": [
+        {
+          "id": "q_purchase_service_center",
+          "type": "select",
+          "field_key": "purchase_service_center",
+          "label": "您購車的服務據點：",
+          "description": "",
+          "required": true,
+          "placeholder": null,
+          "options": [
+            { "id": "opt_service_center_taipei", "label": "台北服務中心", "value": "taipei" },
+            { "id": "opt_service_center_hsinchu", "label": "新竹服務中心", "value": "hsinchu" },
+            { "id": "opt_service_center_taichung", "label": "台中服務中心", "value": "taichung" },
+            { "id": "opt_service_center_kaohsiung", "label": "高雄服務中心", "value": "kaohsiung" }
+          ],
+          "settings": {}
+        },
+        {
+          "id": "q_vehicle_plate_number",
+          "type": "short_text",
+          "field_key": "vehicle_plate_number",
+          "label": "您愛車的車牌號碼：",
+          "description": "",
+          "required": true,
+          "placeholder": "請輸入車牌號碼",
+          "options": [],
+          "settings": {}
+        }
+      ]
+    },
+    {
+      "id": "page_sales_core",
+      "kind": "question",
+      "title": "銷售滿意度",
+      "elements": [
+        {
+          "id": "q_sales_overall_satisfaction",
+          "type": "nps",
+          "field_key": "sales_overall_satisfaction",
+          "label": "1. 請問您對於此次購車過程整體滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_sales_vehicle_intro_satisfaction",
+          "type": "nps",
+          "field_key": "sales_vehicle_intro_satisfaction",
+          "label": "2. 請問您對於銷售顧問在車輛介紹及服務積極滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_sales_test_drive_experience",
+          "type": "single_choice",
+          "field_key": "sales_test_drive_experience",
+          "label": "3-1. 請問您本次購車是否有試乘/試駕體驗？",
+          "description": "",
+          "required": true,
+          "placeholder": null,
+          "options": [
+            { "id": "opt_test_drive_yes", "label": "是", "value": "yes" },
+            {
+              "id": "opt_test_drive_no",
+              "label": "否",
+              "value": "no",
+              "action": { "type": "go_to_page", "target_page_id": "page_sales_delivery" }
+            }
+          ],
+          "settings": {}
+        }
+      ]
+    },
+    {
+      "id": "page_sales_test_drive",
+      "kind": "question",
+      "title": "試乘/試駕體驗",
+      "elements": [
+        {
+          "id": "q_sales_test_drive_satisfaction",
+          "type": "nps",
+          "field_key": "sales_test_drive_satisfaction",
+          "label": "3-2. 請問您對於銷售顧問在試乘/試駕體驗說明及服務積極滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        }
+      ]
+    },
+    {
+      "id": "page_sales_delivery",
+      "kind": "question",
+      "title": "銷售服務與交車",
+      "elements": [
+        {
+          "id": "q_sales_charging_knowledge_satisfaction",
+          "type": "nps",
+          "field_key": "sales_charging_knowledge_satisfaction",
+          "label": "4. 請問您對於銷售顧問在充電服務等專業知識說明及服務積極滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_sales_pre_delivery_service_satisfaction",
+          "type": "nps",
+          "field_key": "sales_pre_delivery_service_satisfaction",
+          "label": "5. 請問您對於銷售顧問在交車前，相關家用充電、保險、分期、配件等手續辦理服務滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_sales_delivery_checklist_satisfaction",
+          "type": "nps",
+          "field_key": "sales_delivery_checklist_satisfaction",
+          "label": "6. 請問交車時對銷售顧問按照交車確認單，逐一說明車輛功能的滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_sales_service_center_intro_satisfaction",
+          "type": "nps",
+          "field_key": "sales_service_center_intro_satisfaction",
+          "label": "7. 請問交車時對銷售顧問介紹服務中心廠長，服務中心聯絡方式及服務時間的滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_sales_delivery_vehicle_condition_satisfaction",
+          "type": "nps",
+          "field_key": "sales_delivery_vehicle_condition_satisfaction",
+          "label": "8. 請問您對於交車當天車輛外觀、內裝狀況滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_sales_post_delivery_follow_up",
+          "type": "single_choice",
+          "field_key": "sales_post_delivery_follow_up",
+          "label": "9. 請問於交車後，服務人員是否主動關懷您車輛的使用狀況？",
+          "description": "",
+          "required": true,
+          "placeholder": null,
+          "options": [
+            { "id": "opt_post_delivery_follow_up_yes", "label": "是", "value": "yes" },
+            { "id": "opt_post_delivery_follow_up_no", "label": "否", "value": "no" }
+          ],
+          "settings": {}
+        },
+        {
+          "id": "q_sales_purchase_delivery_feedback",
+          "type": "long_text",
+          "field_key": "sales_purchase_delivery_feedback",
+          "label": "10. 本次購車、交車的過程中，若有任何建議，邀請您回饋",
+          "description": "",
+          "required": false,
+          "placeholder": "請簡述您的建議",
+          "options": [],
+          "settings": {}
+        }
+      ]
+    },
+    {
+      "id": "page_vehicle_intro",
+      "kind": "question",
+      "title": "感謝您的回饋",
+      "elements": [
+        {
+          "id": "vehicle_intro_copy",
+          "type": "description_block",
+          "field_key": null,
+          "label": "說明文字",
+          "description": "<h2>ABC 車輛使用體驗問卷</h2><p>感謝您的回饋，接下來的問卷為車輛使用體驗問卷。</p><p>恭喜您交車滿一個月！新世代車款功能豐富，在實際行駛一段時間後，您是否已完全掌握所有科技配備？或是發現了哪些讓我們能做得更好的地方？</p><p>為了確保這份駕馭樂趣能持續陪伴您，我們誠摯邀請您分享這段期間的真實用車感受。無論是功能操作上的小疑問，或是對產品表現的驚喜，您的回饋都是我們最珍視的參考。</p><p>我們會將您的意見直接轉達給技術與服務團隊。再耽誤您 2 分鐘填寫這份用車回饋，讓我們能隨時為您的下一段旅程做好準備。</p>",
+          "required": false,
+          "placeholder": null,
+          "options": [],
+          "settings": {}
+        }
+      ]
+    },
+    {
+      "id": "page_vehicle_experience_a",
+      "kind": "question",
+      "title": "車輛使用體驗（一）",
+      "elements": [
+        {
+          "id": "q_vehicle_exterior_score",
+          "type": "nps",
+          "field_key": "vehicle_exterior_score",
+          "label": "1. 請問您對於外觀（組裝、烤漆、車門操作、車外照明等）的滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_vehicle_exterior_has_issue",
+          "type": "single_choice",
+          "field_key": "vehicle_exterior_has_issue",
+          "label": "外觀使用上是否有問題？",
+          "description": "",
+          "required": true,
+          "placeholder": null,
+          "options": [
+            { "id": "opt_vehicle_exterior_no", "label": "無問題", "value": "no" },
+            { "id": "opt_vehicle_exterior_yes", "label": "有問題", "value": "yes" }
+          ],
+          "settings": {}
+        },
+        {
+          "id": "q_vehicle_exterior_issue_note",
+          "type": "long_text",
+          "field_key": "vehicle_exterior_issue_note",
+          "label": "請簡述外觀有問題事項",
+          "description": "",
+          "required": false,
+          "placeholder": "請簡述有問題事項",
+          "options": [],
+          "settings": {},
+          "show_if_field_key": "vehicle_exterior_has_issue",
+          "show_if_value": "yes"
+        },
+        {
+          "id": "q_vehicle_interior_score",
+          "type": "nps",
+          "field_key": "vehicle_interior_score",
+          "label": "2. 請問您對於內裝（車內氣味、組裝、耐磨抗污、靜肅性、置物空間等）的滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_vehicle_interior_has_issue",
+          "type": "single_choice",
+          "field_key": "vehicle_interior_has_issue",
+          "label": "內裝使用上是否有問題？",
+          "description": "",
+          "required": true,
+          "placeholder": null,
+          "options": [
+            { "id": "opt_vehicle_interior_no", "label": "無問題", "value": "no" },
+            { "id": "opt_vehicle_interior_yes", "label": "有問題", "value": "yes" }
+          ],
+          "settings": {}
+        },
+        {
+          "id": "q_vehicle_interior_issue_note",
+          "type": "long_text",
+          "field_key": "vehicle_interior_issue_note",
+          "label": "請簡述內裝有問題事項",
+          "description": "",
+          "required": false,
+          "placeholder": "請簡述有問題事項",
+          "options": [],
+          "settings": {},
+          "show_if_field_key": "vehicle_interior_has_issue",
+          "show_if_value": "yes"
+        },
+        {
+          "id": "q_vehicle_seat_score",
+          "type": "nps",
+          "field_key": "vehicle_seat_score",
+          "label": "3. 請問您對於座椅的滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_vehicle_seat_has_issue",
+          "type": "single_choice",
+          "field_key": "vehicle_seat_has_issue",
+          "label": "座椅使用上是否有問題？",
+          "description": "",
+          "required": true,
+          "placeholder": null,
+          "options": [
+            { "id": "opt_vehicle_seat_no", "label": "無問題", "value": "no" },
+            { "id": "opt_vehicle_seat_yes", "label": "有問題", "value": "yes" }
+          ],
+          "settings": {}
+        },
+        {
+          "id": "q_vehicle_seat_issue_note",
+          "type": "long_text",
+          "field_key": "vehicle_seat_issue_note",
+          "label": "請簡述座椅有問題事項",
+          "description": "",
+          "required": false,
+          "placeholder": "請簡述有問題事項",
+          "options": [],
+          "settings": {},
+          "show_if_field_key": "vehicle_seat_has_issue",
+          "show_if_value": "yes"
+        },
+        {
+          "id": "q_vehicle_air_conditioning_score",
+          "type": "nps",
+          "field_key": "vehicle_air_conditioning_score",
+          "label": "4. 請問您對於空調的滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_vehicle_air_conditioning_has_issue",
+          "type": "single_choice",
+          "field_key": "vehicle_air_conditioning_has_issue",
+          "label": "空調使用上是否有問題？",
+          "description": "",
+          "required": true,
+          "placeholder": null,
+          "options": [
+            { "id": "opt_vehicle_air_conditioning_no", "label": "無問題", "value": "no" },
+            { "id": "opt_vehicle_air_conditioning_yes", "label": "有問題", "value": "yes" }
+          ],
+          "settings": {}
+        },
+        {
+          "id": "q_vehicle_air_conditioning_issue_note",
+          "type": "long_text",
+          "field_key": "vehicle_air_conditioning_issue_note",
+          "label": "請簡述空調有問題事項",
+          "description": "",
+          "required": false,
+          "placeholder": "請簡述有問題事項",
+          "options": [],
+          "settings": {},
+          "show_if_field_key": "vehicle_air_conditioning_has_issue",
+          "show_if_value": "yes"
+        }
+      ]
+    },
+    {
+      "id": "page_vehicle_experience_b",
+      "kind": "question",
+      "title": "車輛使用體驗（二）",
+      "elements": [
+        {
+          "id": "q_vehicle_infotainment_score",
+          "type": "nps",
+          "field_key": "vehicle_infotainment_score",
+          "label": "5. 請問您對於車載系統（影音娛樂通訊、手機連結、面板控制與顯示、語音辨識、導航等）的滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_vehicle_infotainment_has_issue",
+          "type": "single_choice",
+          "field_key": "vehicle_infotainment_has_issue",
+          "label": "車載系統使用上是否有問題？",
+          "description": "",
+          "required": true,
+          "placeholder": null,
+          "options": [
+            { "id": "opt_vehicle_infotainment_no", "label": "無問題", "value": "no" },
+            { "id": "opt_vehicle_infotainment_yes", "label": "有問題", "value": "yes" }
+          ],
+          "settings": {}
+        },
+        {
+          "id": "q_vehicle_infotainment_issue_note",
+          "type": "long_text",
+          "field_key": "vehicle_infotainment_issue_note",
+          "label": "請簡述車載系統有問題事項",
+          "description": "",
+          "required": false,
+          "placeholder": "請簡述有問題事項",
+          "options": [],
+          "settings": {},
+          "show_if_field_key": "vehicle_infotainment_has_issue",
+          "show_if_value": "yes"
+        },
+        {
+          "id": "q_vehicle_driver_assistance_score",
+          "type": "nps",
+          "field_key": "vehicle_driver_assistance_score",
+          "label": "6. 請問您對於輔助駕駛系統（倒車攝影鏡頭、車道居中維持、主動車距巡航、自動緊急煞車、駕駛疲勞監測等）的滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_vehicle_driver_assistance_has_issue",
+          "type": "single_choice",
+          "field_key": "vehicle_driver_assistance_has_issue",
+          "label": "輔助駕駛系統使用上是否有問題？",
+          "description": "",
+          "required": true,
+          "placeholder": null,
+          "options": [
+            { "id": "opt_vehicle_driver_assistance_no", "label": "無問題", "value": "no" },
+            { "id": "opt_vehicle_driver_assistance_yes", "label": "有問題", "value": "yes" }
+          ],
+          "settings": {}
+        },
+        {
+          "id": "q_vehicle_driver_assistance_issue_note",
+          "type": "long_text",
+          "field_key": "vehicle_driver_assistance_issue_note",
+          "label": "請簡述輔助駕駛系統有問題事項",
+          "description": "",
+          "required": false,
+          "placeholder": "請簡述有問題事項",
+          "options": [],
+          "settings": {},
+          "show_if_field_key": "vehicle_driver_assistance_has_issue",
+          "show_if_value": "yes"
+        },
+        {
+          "id": "q_vehicle_powertrain_score",
+          "type": "nps",
+          "field_key": "vehicle_powertrain_score",
+          "label": "7. 請問您對於動力系統（含充電、續航力等）的滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_vehicle_powertrain_has_issue",
+          "type": "single_choice",
+          "field_key": "vehicle_powertrain_has_issue",
+          "label": "動力系統使用上是否有問題？",
+          "description": "",
+          "required": true,
+          "placeholder": null,
+          "options": [
+            { "id": "opt_vehicle_powertrain_no", "label": "無問題", "value": "no" },
+            { "id": "opt_vehicle_powertrain_yes", "label": "有問題", "value": "yes" }
+          ],
+          "settings": {}
+        },
+        {
+          "id": "q_vehicle_powertrain_issue_note",
+          "type": "long_text",
+          "field_key": "vehicle_powertrain_issue_note",
+          "label": "請簡述動力系統有問題事項",
+          "description": "",
+          "required": false,
+          "placeholder": "請簡述有問題事項",
+          "options": [],
+          "settings": {},
+          "show_if_field_key": "vehicle_powertrain_has_issue",
+          "show_if_value": "yes"
+        },
+        {
+          "id": "q_vehicle_driving_feel_score",
+          "type": "nps",
+          "field_key": "vehicle_driving_feel_score",
+          "label": "8. 請問您對於整體駕駛感受（車身穩定性、煞車、轉向、噪音、震動等）及其他的滿意度？",
+          "description": "1～10 分，10 分最高分",
+          "required": true,
+          "placeholder": null,
+          "options": [],
+          "settings": { "low_label": "1 分", "high_label": "10 分", "color_bands": false }
+        },
+        {
+          "id": "q_vehicle_driving_feel_has_issue",
+          "type": "single_choice",
+          "field_key": "vehicle_driving_feel_has_issue",
+          "label": "整體駕駛感受使用上是否有問題？",
+          "description": "",
+          "required": true,
+          "placeholder": null,
+          "options": [
+            { "id": "opt_vehicle_driving_feel_no", "label": "無問題", "value": "no" },
+            { "id": "opt_vehicle_driving_feel_yes", "label": "有問題", "value": "yes" }
+          ],
+          "settings": {}
+        },
+        {
+          "id": "q_vehicle_driving_feel_issue_note",
+          "type": "long_text",
+          "field_key": "vehicle_driving_feel_issue_note",
+          "label": "請簡述整體駕駛感受有問題事項",
+          "description": "",
+          "required": false,
+          "placeholder": "請簡述有問題事項",
+          "options": [],
+          "settings": {},
+          "show_if_field_key": "vehicle_driving_feel_has_issue",
+          "show_if_value": "yes"
+        },
+        {
+          "id": "q_vehicle_other_feedback",
+          "type": "long_text",
+          "field_key": "vehicle_other_feedback",
+          "label": "9. 車輛使用體驗的過程中若有其他任何建議，邀請您回饋",
+          "description": "",
+          "required": false,
+          "placeholder": "請簡述您的建議或遇到的問題",
+          "options": [],
+          "settings": {}
+        }
+      ]
+    }
+  ]
+}

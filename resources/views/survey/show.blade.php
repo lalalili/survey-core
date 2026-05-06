@@ -262,12 +262,11 @@
 
             @if($type === 'section_title')
             <div class="survey-field" data-field-key="{{ $fk }}">
-                <h2 class="text-lg font-semibold text-gray-900">{{ $field->label }}</h2>
-                @if($field->description)<p class="text-sm text-gray-500 mt-1">{{ $field->description }}</p>@endif
+                <h2 class="text-lg font-semibold text-gray-900">{{ $field->description }}</h2>
             </div>
             @elseif($type === 'description_block')
             <div class="survey-field" data-field-key="{{ $fk }}">
-                <p class="text-sm text-gray-700 whitespace-pre-line">{{ $field->label }}</p>
+                <div class="text-sm text-gray-700 survey-rich-content">{!! $field->description !!}</div>
             </div>
             @else
             <div class="survey-field bg-white rounded-lg border border-gray-200 p-5 shadow-sm"
@@ -592,12 +591,11 @@
 
             @if($type === 'section_title')
             <div class="survey-field" data-field-key="{{ $fk }}">
-                <h2 class="survey-section-title">{{ $field->label }}</h2>
-                @if($field->description)<p class="survey-field-description">{{ $field->description }}</p>@endif
+                <h2 class="survey-section-title">{{ $field->description }}</h2>
             </div>
             @elseif($type === 'description_block')
             <div class="survey-field" data-field-key="{{ $fk }}">
-                <p class="survey-description-block">{{ $field->label }}</p>
+                <div class="survey-description-block survey-rich-content">{!! $field->description !!}</div>
             </div>
             @else
             <div class="survey-field survey-field-card"
