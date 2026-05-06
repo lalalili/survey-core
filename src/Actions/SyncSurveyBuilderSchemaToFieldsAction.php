@@ -46,9 +46,9 @@ class SyncSurveyBuilderSchemaToFieldsAction
                     'page_key'  => (string) $page['id'],
                 ],
                 [
-                    'title'      => (string) ($page['title'] ?? 'Page ' . ($pageIndex + 1)),
-                    'kind'       => (string) ($page['kind'] ?? SurveyPageKind::Question->value),
-                    'sort_order' => $pageIndex + 1,
+                    'title'         => (string) ($page['title'] ?? 'Page ' . ($pageIndex + 1)),
+                    'kind'          => (string) ($page['kind'] ?? SurveyPageKind::Question->value),
+                    'sort_order'    => $pageIndex + 1,
                     'settings_json' => $this->pageSettings($page),
                 ],
             );
@@ -203,7 +203,7 @@ class SyncSurveyBuilderSchemaToFieldsAction
             ) {
                 return [
                     'field_key' => (string) $conditions[0]['field_key'],
-                    'value' => isset($conditions[0]['value']) ? (string) $conditions[0]['value'] : null,
+                    'value'     => isset($conditions[0]['value']) ? (string) $conditions[0]['value'] : null,
                 ];
             }
 
@@ -212,7 +212,7 @@ class SyncSurveyBuilderSchemaToFieldsAction
 
         return [
             'field_key' => isset($element['show_if_field_key']) ? (string) $element['show_if_field_key'] : null,
-            'value' => isset($element['show_if_value']) ? (string) $element['show_if_value'] : null,
+            'value'     => isset($element['show_if_value']) ? (string) $element['show_if_value'] : null,
         ];
     }
 
@@ -234,9 +234,9 @@ class SyncSurveyBuilderSchemaToFieldsAction
             SurveyCalculation::updateOrCreate(
                 ['survey_id' => $survey->id, 'key' => (string) $calculation['key']],
                 [
-                    'label' => (string) $calculation['label'],
-                    'initial_value' => (int) ($calculation['initial_value'] ?? 0),
-                    'output_format' => (string) ($calculation['output_format'] ?? 'number'),
+                    'label'          => (string) $calculation['label'],
+                    'initial_value'  => (int) ($calculation['initial_value'] ?? 0),
+                    'output_format'  => (string) ($calculation['output_format'] ?? 'number'),
                     'grade_map_json' => $calculation['grade_map_json'] ?? null,
                 ],
             );

@@ -18,6 +18,7 @@ enum SurveyFieldType: string
     case FileUpload = 'file_upload';
     case Signature = 'signature';
     case Address = 'address';
+    case CascadeSelect = 'cascade_select';
     case Email = 'email';
     case Phone = 'phone';
     case Date = 'date';
@@ -42,6 +43,7 @@ enum SurveyFieldType: string
             self::FileUpload     => '檔案上傳',
             self::Signature      => '簽名',
             self::Address        => '地址',
+            self::CascadeSelect  => '巢狀選擇',
             self::Email          => 'Email',
             self::Phone          => '電話',
             self::Date           => '日期',

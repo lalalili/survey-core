@@ -69,7 +69,7 @@ return [
 
     'security' => [
         'min_submission_ms' => 3000,
-        'ip_blacklist' => [],
+        'ip_blacklist'      => [],
     ],
 
     /*
@@ -111,6 +111,18 @@ return [
         'endpoints' => [],
         'timeout'   => 10,
         'tries'     => 3,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cloudflare Turnstile
+    |--------------------------------------------------------------------------
+    | Human verification widget. Obtain keys from Cloudflare Dashboard →
+    | Turnstile. Set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY in .env.
+    */
+    'turnstile' => [
+        'site_key'   => env('TURNSTILE_SITE_KEY'),
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),
     ],
 
     /*

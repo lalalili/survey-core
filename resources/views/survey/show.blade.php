@@ -43,6 +43,9 @@
             border-color: var(--survey-primary) !important;
         }
     </style>
+    @if(!empty(config('survey-core.turnstile.site_key')))
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    @endif
 </head>
 <body>
 
@@ -89,9 +92,21 @@
     $progressSettings = $survey->settings_json['progress'] ?? ['mode' => 'bar', 'show_estimated_time' => true];
     $progressMode = $progressSettings['mode'] ?? 'bar';
     $showEstimatedTime = (bool) ($progressSettings['show_estimated_time'] ?? true);
-    $welcomeSettings = $welcomePage?->settings_json['welcome'] ?? [];
+    $welcomeSettings  = $welcomePage?->settings_json['welcome'] ?? [];
     $thankYouSettings = $thankYouPage?->settings_json['thank_you'] ?? [];
-    $hasWelcomePage = $welcomePage !== null;
+    $hasWelcomePage   = $welcomePage !== null && ($welcomeSettings['enabled'] ?? true) !== false;
+    $hasThankYouPage  = $thankYouPage !== null && ($thankYouSettings['enabled'] ?? true) !== false;
+
+    // ── Access controls ──────────────────────────────────────────────────────
+    $surveyPassword   = $survey->settings_json['password'] ?? null;
+    $hasPassword      = !empty($surveyPassword);
+    $termsText        = $survey->settings_json['terms_text'] ?? null;
+    $hasTerms         = !empty($termsText);
+    $enableResponseNo = !empty($survey->settings_json['response_number']);
+
+    // ── Turnstile ────────────────────────────────────────────────────────────
+    $turnstileEnabled = !empty($survey->settings_json['anomaly']['turnstile']);
+    $turnstiteSiteKey = config('survey-core.turnstile.site_key');
 
     // ── BRANCHING (show_if) ──────────────────────────────────────────────────
     $branchingMap = $survey->fields
@@ -155,12 +170,35 @@
         @endif
     </div>
 
+    {{-- Password Gate --}}
+    @if($hasPassword)
+    <div id="password-gate" class="rounded-lg bg-white border border-gray-200 p-8 shadow-sm" style="background: var(--survey-surface); border-color: var(--survey-border); border-radius: var(--survey-radius);">
+        <h2 class="text-xl font-bold text-gray-900 mb-2" style="color: var(--survey-text);">此問卷設有密碼保護</h2>
+        <p class="text-sm text-gray-500 mb-5" style="color: var(--survey-text-muted);">請輸入密碼以繼續填寫</p>
+        <div class="flex gap-3">
+            <input id="password-input" type="password" placeholder="輸入密碼"
+                class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                style="border-color: var(--survey-border);">
+            <button type="button" id="btn-unlock" class="survey-themed-primary inline-flex items-center rounded-md bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:opacity-90">
+                解鎖
+            </button>
+        </div>
+        <p id="password-error" class="hidden mt-2 text-sm text-red-600">密碼不正確，請重試。</p>
+    </div>
+    <div id="after-gate" class="hidden">
+    @endif
+
     {{-- Welcome --}}
-    @if($welcomePage)
+    @if($hasWelcomePage && $welcomePage)
     <div id="welcome-screen" class="rounded-lg bg-white border border-gray-200 p-8 text-center shadow-sm" style="background: var(--survey-surface); border-color: var(--survey-border); border-radius: var(--survey-radius);">
+        @if(!empty($welcomePage->title))
         <h2 class="text-2xl font-bold text-gray-900" style="color: var(--survey-text);">{{ $welcomePage->title }}</h2>
+        @endif
         @if(!empty($welcomeSettings['subtitle']))
             <p class="mt-3 text-gray-600" style="color: var(--survey-text-muted);">{{ $welcomeSettings['subtitle'] }}</p>
+        @endif
+        @if(!empty($welcomeSettings['content']))
+            <div class="mt-4 text-left survey-rich-content" style="color: var(--survey-text);">{!! $welcomeSettings['content'] !!}</div>
         @endif
         @if($showEstimatedTime && (int) ($welcomeSettings['estimated_time_minutes'] ?? 0) > 0)
             <p class="mt-4 text-sm text-gray-500" style="color: var(--survey-text-muted);">預估填寫時間：約 {{ (int) $welcomeSettings['estimated_time_minutes'] }} 分鐘</p>
@@ -176,10 +214,14 @@
         <svg class="mx-auto h-12 w-12 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
         </svg>
-        <p class="mt-4 text-lg font-medium text-green-800" id="success-text">
-            {{ $thankYouSettings['message'] ?? $survey->submit_success_message ?? '感謝您的填寫！' }}
-        </p>
-        @if(!empty($thankYouSettings['redirect_url']))
+        <div class="mt-4 text-lg font-medium survey-rich-content" id="success-text">
+            @if($hasThankYouPage && !empty($thankYouSettings['message']))
+                {!! $thankYouSettings['message'] !!}
+            @else
+                {{ $survey->submit_success_message ?? '感謝您的填寫！' }}
+            @endif
+        </div>
+        @if($hasThankYouPage && !empty($thankYouSettings['redirect_url']))
             <a class="mt-4 inline-flex rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-800" href="{{ $thankYouSettings['redirect_url'] }}">繼續</a>
         @endif
     </div>
@@ -317,13 +359,20 @@
                     </select>
 
                 @elseif($type === 'rating')
-                    <div class="flex gap-3 mt-1 flex-wrap">
-                        @foreach(range(1, 5) as $star)
-                            <label class="flex items-center gap-1 cursor-pointer">
+                    @php
+                        $ratingCount = (int)($field->settings_json['count'] ?? 5);
+                        $ratingShape = $field->settings_json['shape'] ?? 'star';
+                        $ratingIcons = ['star' => '★', 'heart' => '♥', 'check' => '✔', 'thumb' => '👍'];
+                        $ratingIcon  = $ratingIcons[$ratingShape] ?? '★';
+                        $ratingId    = 'rating_' . $fk;
+                    @endphp
+                    <div class="survey-rating-stars mt-1" data-rating-id="{{ $ratingId }}">
+                        @foreach(range(1, $ratingCount) as $star)
+                            <label class="survey-rating-star-label" title="{{ $star }} 分">
                                 <input type="radio" name="answers[{{ $fk }}]" value="{{ $star }}"
                                     @if($field->is_required) required @endif
-                                    class="text-indigo-600 focus:ring-indigo-500">
-                                <span class="text-sm text-gray-700">{{ $star }}</span>
+                                    class="sr-only survey-rating-radio">
+                                <span class="survey-rating-star-icon">{{ $ratingIcon }}</span>
                             </label>
                         @endforeach
                     </div>
@@ -347,18 +396,31 @@
                         @endif
                     </div>
                 @elseif($type === 'nps')
-                    <div class="space-y-2">
-                        <div class="grid grid-cols-11 gap-1">
+                    @php
+                        $npsColorBands = !empty($field->settings_json['color_bands']);
+                        $npsLow  = $field->settings_json['low_label']  ?? '非常不推薦';
+                        $npsHigh = $field->settings_json['high_label'] ?? '非常推薦';
+                    @endphp
+                    <div class="survey-nps-wrap">
+                        <div class="survey-nps-row">
                             @foreach(range(0, 10) as $score)
-                                <label class="cursor-pointer">
-                                    <input type="radio" name="answers[{{ $fk }}]" value="{{ $score }}" class="peer sr-only" @if($field->is_required) required @endif>
-                                    <span class="block rounded-md border border-gray-300 py-2 text-center text-xs peer-checked:border-indigo-600 peer-checked:bg-indigo-600 peer-checked:text-white">{{ $score }}</span>
+                                @php
+                                    $npsClass = '';
+                                    if ($npsColorBands) {
+                                        if ($score <= 6) $npsClass = 'red';
+                                        elseif ($score <= 8) $npsClass = 'yellow';
+                                        else $npsClass = 'green';
+                                    }
+                                @endphp
+                                <label class="survey-nps-label">
+                                    <input type="radio" name="answers[{{ $fk }}]" value="{{ $score }}" class="sr-only survey-nps-radio" @if($field->is_required) required @endif>
+                                    <span class="survey-nps-pip {{ $npsClass }}">{{ $score }}</span>
                                 </label>
                             @endforeach
                         </div>
-                        <div class="flex justify-between text-xs text-gray-500">
-                            <span>{{ $field->settings_json['low_label'] ?? '非常不推薦' }}</span>
-                            <span>{{ $field->settings_json['high_label'] ?? '非常推薦' }}</span>
+                        <div class="survey-nps-labels">
+                            <span>{{ $npsLow }}</span>
+                            <span>{{ $npsHigh }}</span>
                         </div>
                     </div>
                 @elseif($type === 'matrix_single' || $type === 'matrix_multi')
@@ -431,6 +493,21 @@
         </div>
         @endforeach
 
+        {{-- Terms checkbox --}}
+        @if($hasTerms)
+        <div id="terms-row" class="rounded-lg bg-white border border-gray-200 p-4 shadow-sm" style="background: var(--survey-surface); border-color: var(--survey-border); border-radius: var(--survey-radius);">
+            <label class="flex items-start gap-3 cursor-pointer text-sm text-gray-700" style="color: var(--survey-text);">
+                <input type="checkbox" id="terms-checkbox" class="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600" style="accent-color: var(--survey-primary);">
+                <span>{{ $termsText }}</span>
+            </label>
+        </div>
+        @endif
+
+        {{-- Turnstile widget --}}
+        @if($turnstileEnabled && $turnstiteSiteKey)
+        <div class="cf-turnstile" data-sitekey="{{ $turnstiteSiteKey }}" data-callback="onTurnstileSuccess"></div>
+        @endif
+
         {{-- Navigation --}}
         <div class="flex justify-between pt-2">
             <button type="button" id="btn-prev"
@@ -445,7 +522,8 @@
                 </button>
                 @endif
                 <button type="submit" id="submit-btn"
-                    class="survey-themed-primary inline-flex items-center gap-2 rounded-md bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-60 @if($isMultiPage) hidden @endif">
+                    class="survey-themed-primary inline-flex items-center gap-2 rounded-md bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-60 @if($isMultiPage) hidden @endif"
+                    @if($hasTerms) disabled @endif>
                     <span id="submit-label">送出問卷</span>
                     <svg id="submit-spinner" class="hidden animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -455,6 +533,7 @@
             </div>
         </div>
     </form>
+    @if($hasPassword)</div>@endif
 </div>
 </div>
 
@@ -469,6 +548,20 @@
             <p class="survey-description">{{ $survey->description }}</p>
         @endif
     </div>
+
+    {{-- Password Gate (published mode) --}}
+    @if($hasPassword)
+    <div id="password-gate" class="survey-field-card" style="padding:1.5rem;margin-bottom:1.5rem;">
+        <p class="survey-field-label" style="font-size:1rem;margin-bottom:4px;">此問卷設有密碼保護</p>
+        <p class="survey-field-description" style="margin-bottom:12px;">請輸入密碼以繼續填寫</p>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <input id="password-input" type="password" placeholder="輸入密碼" class="survey-input" style="max-width:220px;">
+            <button type="button" id="btn-unlock" class="survey-btn survey-btn--primary" style="padding:0.5rem 1.25rem;">解鎖</button>
+        </div>
+        <p id="password-error" class="survey-field-error" style="display:none;margin-top:8px;">密碼不正確，請重試。</p>
+    </div>
+    <div id="after-gate" class="survey-hidden">
+    @endif
 
     <div id="success-message" class="survey-banner survey-banner--success survey-hidden">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -590,12 +683,20 @@
                     </select>
 
                 @elseif($type === 'rating')
-                    <div class="survey-rating">
-                        @foreach(range(1, 5) as $star)
-                            <label class="survey-choice-label">
+                    @php
+                        $ratingCount = (int)($field->settings_json['count'] ?? 5);
+                        $ratingShape = $field->settings_json['shape'] ?? 'star';
+                        $ratingIcons = ['star' => '★', 'heart' => '♥', 'check' => '✔', 'thumb' => '👍'];
+                        $ratingIcon  = $ratingIcons[$ratingShape] ?? '★';
+                        $ratingId    = 'rating_' . $fk;
+                    @endphp
+                    <div class="survey-rating-stars" data-rating-id="{{ $ratingId }}">
+                        @foreach(range(1, $ratingCount) as $star)
+                            <label class="survey-rating-star-label" title="{{ $star }} 分">
                                 <input type="radio" name="answers[{{ $fk }}]" value="{{ $star }}"
-                                    @if($field->is_required) required @endif>
-                                <span>{{ $star }}</span>
+                                    @if($field->is_required) required @endif
+                                    class="sr-only survey-rating-radio">
+                                <span class="survey-rating-star-icon">{{ $ratingIcon }}</span>
                             </label>
                         @endforeach
                     </div>
@@ -614,13 +715,32 @@
                         @if($field->is_required) required @endif
                         class="survey-input">
                 @elseif($type === 'nps')
-                    <div class="survey-rating">
-                        @foreach(range(0, 10) as $score)
-                            <label class="survey-choice-label">
-                                <input type="radio" name="answers[{{ $fk }}]" value="{{ $score }}" @if($field->is_required) required @endif>
-                                <span>{{ $score }}</span>
-                            </label>
-                        @endforeach
+                    @php
+                        $npsColorBands = !empty($field->settings_json['color_bands']);
+                        $npsLow  = $field->settings_json['low_label']  ?? '非常不推薦';
+                        $npsHigh = $field->settings_json['high_label'] ?? '非常推薦';
+                    @endphp
+                    <div class="survey-nps-wrap">
+                        <div class="survey-nps-row">
+                            @foreach(range(0, 10) as $score)
+                                @php
+                                    $npsClass = '';
+                                    if ($npsColorBands) {
+                                        if ($score <= 6) $npsClass = 'red';
+                                        elseif ($score <= 8) $npsClass = 'yellow';
+                                        else $npsClass = 'green';
+                                    }
+                                @endphp
+                                <label class="survey-nps-label">
+                                    <input type="radio" name="answers[{{ $fk }}]" value="{{ $score }}" class="sr-only survey-nps-radio" @if($field->is_required) required @endif>
+                                    <span class="survey-nps-pip {{ $npsClass }}">{{ $score }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                        <div class="survey-nps-labels">
+                            <span>{{ $npsLow }}</span>
+                            <span>{{ $npsHigh }}</span>
+                        </div>
                     </div>
                 @elseif($type === 'matrix_single' || $type === 'matrix_multi')
                     <div style="overflow-x:auto">
@@ -691,6 +811,22 @@
         </div>
         @endforeach
 
+        {{-- Terms checkbox (published mode) --}}
+        @if($hasTerms)
+        <div id="terms-row" class="survey-field-card" style="margin-bottom:1rem;">
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:0.875rem;color:#374151;">
+                <input type="checkbox" id="terms-checkbox"
+                    style="margin-top:2px;width:1rem;height:1rem;accent-color:var(--survey-primary);cursor:pointer;flex-shrink:0;">
+                <span>{{ $termsText }}</span>
+            </label>
+        </div>
+        @endif
+
+        {{-- Turnstile widget (published mode) --}}
+        @if($turnstileEnabled && $turnstiteSiteKey)
+        <div class="cf-turnstile" data-sitekey="{{ $turnstiteSiteKey }}" data-callback="onTurnstileSuccess" style="margin-bottom:1rem;"></div>
+        @endif
+
         <div class="survey-nav">
             <button type="button" id="btn-prev"
                 class="survey-btn survey-btn--secondary survey-hidden">
@@ -701,7 +837,8 @@
                 <button type="button" id="btn-next" class="survey-btn survey-btn--primary">下一頁</button>
                 @endif
                 <button type="submit" id="submit-btn"
-                    class="survey-btn survey-btn--primary @if($isMultiPage) survey-hidden @endif">
+                    class="survey-btn survey-btn--primary @if($isMultiPage) survey-hidden @endif"
+                    @if($hasTerms) disabled @endif>
                     <span id="submit-label">送出問卷</span>
                     <svg id="submit-spinner" class="survey-spinner" fill="none" viewBox="0 0 24 24">
                         <circle style="opacity:.25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -711,6 +848,7 @@
             </div>
         </div>
     </form>
+    @if($hasPassword)</div>@endif
 </div>
 
 @endif
@@ -723,8 +861,72 @@
     var BRANCHING     = @json($branchingMap);
     var JUMP_MAP      = @json($jumpMap);     // {field_key: {value: {type, target_page_id?}}}
     var PAGE_JUMP_MAP = @json($pageJumpMap);
-    var THANK_YOU_MESSAGE = @json($thankYouSettings['message'] ?? null);
+    var THANK_YOU_MESSAGE = @json($hasThankYouPage ? ($thankYouSettings['message'] ?? null) : null);
     var STARTED_AT = Date.now();
+
+    // ─── Access controls ──────────────────────────────────────────────────────
+    var SURVEY_PASSWORD = @json($surveyPassword);
+    var HAS_TERMS = {{ $hasTerms ? 'true' : 'false' }};
+    var ENABLE_RESPONSE_NO = {{ $enableResponseNo ? 'true' : 'false' }};
+    var HAS_TURNSTILE = {{ ($turnstileEnabled && $turnstiteSiteKey) ? 'true' : 'false' }};
+    var turnstileToken = null;
+
+    // Turnstile callback (called by widget on success)
+    window.onTurnstileSuccess = function (token) { turnstileToken = token; };
+
+    // Password gate
+    var passwordGate = document.getElementById('password-gate');
+    var afterGate    = document.getElementById('after-gate');
+    var btnUnlock    = document.getElementById('btn-unlock');
+    var passwordInput = document.getElementById('password-input');
+    var passwordError = document.getElementById('password-error');
+
+    if (passwordGate && SURVEY_PASSWORD) {
+        if (btnUnlock) {
+            btnUnlock.addEventListener('click', function () {
+                var val = passwordInput ? passwordInput.value : '';
+                if (val === SURVEY_PASSWORD) {
+                    passwordGate.style.display = 'none';
+                    if (afterGate) afterGate.classList.remove('hidden', 'survey-hidden');
+                    // Also remove inline display:none on afterGate
+                    if (afterGate) afterGate.style.display = '';
+                } else {
+                    if (passwordError) {
+                        passwordError.style.display = 'block';
+                        passwordError.classList.remove('hidden');
+                    }
+                }
+            });
+        }
+        if (passwordInput) {
+            passwordInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { if (btnUnlock) btnUnlock.click(); }
+            });
+        }
+    }
+
+    // Terms checkbox
+    var termsCheckbox = document.getElementById('terms-checkbox');
+    var submitBtnRef  = document.getElementById('submit-btn');
+    if (HAS_TERMS && termsCheckbox && submitBtnRef) {
+        termsCheckbox.addEventListener('change', function () {
+            submitBtnRef.disabled = !termsCheckbox.checked;
+        });
+    }
+
+    // Generate response number (SR-YYYYMMDD-XXXXXX)
+    function generateResponseNumber() {
+        if (!ENABLE_RESPONSE_NO) return null;
+        var now = new Date();
+        var y = now.getFullYear();
+        var m = String(now.getMonth() + 1).padStart(2, '0');
+        var d = String(now.getDate()).padStart(2, '0');
+        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        var rand = '';
+        for (var i = 0; i < 6; i++) rand += chars[Math.floor(Math.random() * chars.length)];
+        return 'SR-' + y + m + d + '-' + rand;
+    }
+    var RESPONSE_NUMBER = generateResponseNumber();
 
     // ─── History stack ────────────────────────────────────────────────────────
     var pageStack      = [];  // visited page keys (not including current)
@@ -1119,6 +1321,14 @@
         var spinner   = document.getElementById('submit-spinner');
         var label     = document.getElementById('submit-label');
 
+        if (HAS_TURNSTILE && !turnstileToken) {
+            var errorBanner = document.getElementById('error-banner');
+            var errorText   = document.getElementById('error-text');
+            if (errorText) { errorText.textContent = '請完成人機驗證後再送出。'; }
+            if (errorBanner) { show(errorBanner); }
+            return;
+        }
+
         if (submitBtn) { submitBtn.disabled = true; }
         if (spinner) { spinner.style.display = 'inline-block'; }
         if (label) { label.textContent = '送出中…'; }
@@ -1139,6 +1349,8 @@
                     answers: collectAnswers(),
                     _elapsed_ms: Date.now() - STARTED_AT,
                     _hp: (document.querySelector('[name="_hp"]') || {}).value || '',
+                    _response_number: RESPONSE_NUMBER,
+                    _turnstile_token: turnstileToken,
                 }),
             });
 
@@ -1148,7 +1360,11 @@
                 hide(document.getElementById('survey-form'));
                 show(document.getElementById('success-message'));
                 var successText = document.getElementById('success-text');
-                if (successText) { successText.textContent = data.message || THANK_YOU_MESSAGE || successText.textContent; }
+                if (successText) {
+                    var msg = data.message || THANK_YOU_MESSAGE || successText.innerHTML;
+                    if (RESPONSE_NUMBER) { msg = msg.replace(/\{\{response_number\}\}/g, RESPONSE_NUMBER); }
+                    successText.innerHTML = msg;
+                }
             } else if (res.status === 422 && data.errors) {
                 showFieldErrors(data.errors);
                 if (submitBtn) { submitBtn.disabled = false; }
@@ -1228,6 +1444,44 @@
     document.getElementById('survey-form').addEventListener('submit', function (e) {
         e.preventDefault();
         doSubmit();
+    });
+
+    // ─── Rating stars interaction ──────────────────────────────────────────────
+    document.querySelectorAll('.survey-rating-stars').forEach(function (wrap) {
+        var labels = wrap.querySelectorAll('.survey-rating-star-label');
+
+        function updateFill(upTo) {
+            labels.forEach(function (lbl, idx) {
+                lbl.classList.toggle('filled', idx < upTo);
+            });
+        }
+
+        function getCheckedIndex() {
+            var checked = wrap.querySelector('.survey-rating-radio:checked');
+            if (!checked) return 0;
+            return parseInt(checked.value, 10);
+        }
+
+        labels.forEach(function (lbl, idx) {
+            lbl.addEventListener('mouseenter', function () {
+                labels.forEach(function (l, i) {
+                    l.classList.toggle('hovered', i <= idx);
+                });
+                updateFill(idx + 1);
+            });
+
+            lbl.addEventListener('mouseleave', function () {
+                labels.forEach(function (l) { l.classList.remove('hovered'); });
+                updateFill(getCheckedIndex());
+            });
+
+            lbl.querySelector('.survey-rating-radio').addEventListener('change', function () {
+                updateFill(getCheckedIndex());
+            });
+        });
+
+        // Restore state on page show (multi-page)
+        updateFill(getCheckedIndex());
     });
 
     // ─── Init ─────────────────────────────────────────────────────────────────
