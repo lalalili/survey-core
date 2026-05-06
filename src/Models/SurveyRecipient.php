@@ -11,6 +11,7 @@ class SurveyRecipient extends Model
 {
     protected $fillable = [
         'survey_id',
+        'audience_list_row_id',
         'name',
         'email',
         'external_id',
@@ -29,6 +30,11 @@ class SurveyRecipient extends Model
     public function survey(): BelongsTo
     {
         return $this->belongsTo(Survey::class);
+    }
+
+    public function audienceListRow(): BelongsTo
+    {
+        return $this->belongsTo(AudienceListRow::class);
     }
 
     public function tokens(): HasMany

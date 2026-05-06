@@ -38,6 +38,8 @@
           "label": "您購車的服務據點：",
           "description": "",
           "required": true,
+          "is_hidden": true,
+          "personalized_key": "purchase_service_center",
           "placeholder": null,
           "options": [
             { "id": "opt_service_center_taipei", "label": "台北服務中心", "value": "taipei" },
@@ -54,6 +56,8 @@
           "label": "您愛車的車牌號碼：",
           "description": "",
           "required": true,
+          "is_hidden": true,
+          "personalized_key": "vehicle_plate_number",
           "placeholder": "請輸入車牌號碼",
           "options": [],
           "settings": {}

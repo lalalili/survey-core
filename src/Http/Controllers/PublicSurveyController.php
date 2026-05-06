@@ -53,6 +53,10 @@ class PublicSurveyController extends Controller
             }
         }
 
+        if ($this->requiresPersonalizedToken($survey) && ! $resolved) {
+            abort(403, '此問卷需要使用個人化連結填寫。');
+        }
+
         if ($view = $this->duplicateView($survey, request(), $resolved)) {
             return $view;
         }
@@ -89,6 +93,10 @@ class PublicSurveyController extends Controller
             } catch (InvalidSurveyTokenException $e) {
                 return response()->json(['message' => $e->getMessage()], 403);
             }
+        }
+
+        if ($this->requiresPersonalizedToken($survey) && ! $resolved) {
+            return response()->json(['message' => '此問卷需要使用個人化連結填寫。'], 403);
         }
 
         if ($this->hasDuplicateSubmission($survey, $request, $resolved)) {
@@ -254,6 +262,14 @@ class PublicSurveyController extends Controller
     private function duplicateCookieName(Survey $survey): string
     {
         return 'survey_dup_'.$survey->public_key;
+    }
+
+    private function requiresPersonalizedToken(Survey $survey): bool
+    {
+        $personalization = $survey->settings_json['personalization'] ?? [];
+
+        return ! empty($personalization['audience_list_id'])
+            && (bool) ($personalization['required'] ?? true);
     }
 
     /**

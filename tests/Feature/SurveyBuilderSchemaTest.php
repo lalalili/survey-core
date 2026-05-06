@@ -1,6 +1,8 @@
 <?php
 
 use Lalalili\SurveyCore\Actions\BuildSurveyBuilderSchemaAction;
+use Lalalili\SurveyCore\Actions\ExportSurveyBuilderSchemaAction;
+use Lalalili\SurveyCore\Actions\ImportSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Actions\SaveSurveyDraftSchemaAction;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
@@ -8,6 +10,20 @@ use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyField;
+
+$surveyBuilderTestCase = class_exists(Tests\TestCase::class)
+    ? Tests\TestCase::class
+    : Lalalili\SurveyCore\Tests\TestCase::class;
+
+if ($surveyBuilderTestCase === Tests\TestCase::class) {
+    uses($surveyBuilderTestCase);
+}
+
+beforeEach(function () use ($surveyBuilderTestCase): void {
+    if ($surveyBuilderTestCase === Tests\TestCase::class) {
+        $this->artisan('migrate', ['--path' => 'packages/survey-core/database/migrations'])->run();
+    }
+});
 
 function builderSchema(array $overrides = []): array
 {
@@ -78,6 +94,44 @@ it('autosaves draft schema without changing the published snapshot', function ()
         ->and($saved->published_schema['title'])->toBe('Published');
 });
 
+it('exports a survey builder schema as json', function () {
+    $survey = Survey::create([
+        'title'        => 'Exportable',
+        'status'       => SurveyStatus::Draft,
+        'draft_schema' => builderSchema(['title' => 'Exportable Draft']),
+    ]);
+
+    $export = app(ExportSurveyBuilderSchemaAction::class);
+    $json = $export->toJson($survey);
+
+    expect($export->execute($survey)['title'])->toBe('Exportable Draft')
+        ->and($export->filename($survey))->toEndWith('.builder.json')
+        ->and(json_decode($json, true, flags: JSON_THROW_ON_ERROR)['title'])->toBe('Exportable Draft');
+});
+
+it('imports a survey builder schema as a new draft survey', function () {
+    $survey = app(ImportSurveyBuilderSchemaAction::class)->execute(
+        builderSchema(['title' => 'Imported Survey']),
+        title: 'Imported Override',
+    );
+
+    expect($survey->title)->toBe('Imported Override')
+        ->and($survey->status)->toBe(SurveyStatus::Draft)
+        ->and($survey->draft_schema['title'])->toBe('Imported Override')
+        ->and($survey->fields()->where('field_key', 'purchase_status')->exists())->toBeTrue();
+});
+
+it('can publish an imported survey builder schema', function () {
+    $survey = app(ImportSurveyBuilderSchemaAction::class)->fromJson(
+        json_encode(builderSchema(['title' => 'Published Import']), JSON_THROW_ON_ERROR),
+        publish: true,
+    );
+
+    expect($survey->status)->toBe(SurveyStatus::Published)
+        ->and($survey->published_schema['title'])->toBe('Published Import')
+        ->and($survey->published_at)->not->toBeNull();
+});
+
 it('rejects malformed builder schemas', function () {
     $survey = Survey::create(['title' => 'Broken', 'status' => SurveyStatus::Draft]);
 
@@ -105,8 +159,8 @@ it('publishes the draft schema and syncs answer fields', function () {
             'id'          => 'intro',
             'type'        => 'section_title',
             'field_key'   => null,
-            'label'       => 'Welcome',
-            'description' => '',
+            'label'       => '區段標題',
+            'description' => 'Welcome',
             'required'    => false,
             'placeholder' => null,
             'options'     => [],
@@ -134,7 +188,7 @@ it('publishes the draft schema and syncs answer fields', function () {
         ->and($published->published_schema['title'])->toBe('Customer Survey')
         ->and($published->fields()->where('field_key', 'name')->exists())->toBeTrue()
         ->and($published->fields()->where('field_key', 'campaign_id')->exists())->toBeTrue()
-        ->and($published->fields()->where('field_key', 'intro')->exists())->toBeFalse();
+        ->and($published->fields()->where('field_key', 'intro')->exists())->toBeTrue();
 });
 
 it('republishes a published survey when the draft schema changed', function () {

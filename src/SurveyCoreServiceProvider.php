@@ -47,6 +47,9 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 '2026_04_27_000008_add_notes_to_survey_responses_table',
                 '2026_04_27_000009_create_survey_tags_tables',
                 '2026_04_28_000001_add_settings_to_survey_fields_table',
+                '2026_04_29_000001_create_audience_lists_table',
+                '2026_04_29_000002_create_audience_list_rows_table',
+                '2026_04_29_000003_add_audience_list_row_to_survey_recipients_table',
             ])
             ->runsMigrations()
             ->hasRoutes(['web']);
