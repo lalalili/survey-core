@@ -1590,6 +1590,14 @@
         }
     }
 
+    function clearDraft() {
+        try {
+            window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } catch (e) {
+            // Draft persistence is best-effort only.
+        }
+    }
+
     function updateRankingValues() {
         document.querySelectorAll('[data-ranking-list]').forEach(function (list) {
             var fieldKey = list.getAttribute('data-ranking-list');
@@ -1908,7 +1916,7 @@
             var data = await res.json();
 
             if (res.ok) {
-                window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+                clearDraft();
                 hide(document.getElementById('survey-form'));
                 show(document.getElementById('success-message'));
                 var successText = document.getElementById('success-text');
