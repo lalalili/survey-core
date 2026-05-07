@@ -49,7 +49,7 @@ function progressSchema(string $mode = 'bar', int $estimatedMinutes = 5): array
 }
 
 it('does not render progress markup when mode is none', function () {
-    $survey = Survey::create(['title' => 'None', 'status' => SurveyStatus::Published]);
+    $survey = Survey::create(['title' => 'None', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, progressSchema('none'));
     $survey->update(['status' => SurveyStatus::Published]);
 
@@ -59,7 +59,7 @@ it('does not render progress markup when mode is none', function () {
 });
 
 it('renders a progress element when mode is bar', function () {
-    $survey = Survey::create(['title' => 'Bar', 'status' => SurveyStatus::Published]);
+    $survey = Survey::create(['title' => 'Bar', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, progressSchema('bar'));
     $survey->update(['status' => SurveyStatus::Published]);
 
@@ -69,7 +69,7 @@ it('renders a progress element when mode is bar', function () {
 });
 
 it('renders page count text when mode is percent', function () {
-    $survey = Survey::create(['title' => 'Percent', 'status' => SurveyStatus::Published]);
+    $survey = Survey::create(['title' => 'Percent', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, progressSchema('percent'));
     $survey->update(['status' => SurveyStatus::Published]);
 
@@ -79,7 +79,7 @@ it('renders page count text when mode is percent', function () {
 });
 
 it('shows estimated time on the welcome screen', function () {
-    $survey = Survey::create(['title' => 'Estimate', 'status' => SurveyStatus::Published]);
+    $survey = Survey::create(['title' => 'Estimate', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, progressSchema('bar', 7));
     $survey->update(['status' => SurveyStatus::Published]);
 

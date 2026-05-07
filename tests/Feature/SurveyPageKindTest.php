@@ -108,7 +108,7 @@ it('syncs page kind to the survey_pages table', function () {
 });
 
 it('renders the welcome screen before the form', function () {
-    $survey = Survey::create(['title' => 'Runtime', 'status' => SurveyStatus::Published]);
+    $survey = Survey::create(['title' => 'Runtime', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, pageKindSchema([
         array_merge(kindQuestionPage('welcome', 'welcome'), [
             'welcome_settings' => ['cta_label' => '開始', 'estimated_time_minutes' => 3, 'subtitle' => '前言'],

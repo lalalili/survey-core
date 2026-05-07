@@ -11,7 +11,7 @@ use Lalalili\SurveyCore\Models\SurveyResponse;
 require __DIR__.'/Phase3TestSupport.php';
 
 it('does not render hidden options on the public page', function () {
-    $survey = Survey::create(['title' => 'Hidden Option', 'status' => SurveyStatus::Published]);
+    $survey = Survey::create(['title' => 'Hidden Option', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     SurveyField::create([
         'survey_id' => $survey->id,
         'type' => SurveyFieldType::SingleChoice,
@@ -31,7 +31,7 @@ it('does not render hidden options on the public page', function () {
 });
 
 it('keeps historical answers for hidden option values readable', function () {
-    $survey = Survey::create(['title' => 'History', 'status' => SurveyStatus::Published]);
+    $survey = Survey::create(['title' => 'History', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     $field = SurveyField::create([
         'survey_id' => $survey->id,
         'type' => SurveyFieldType::SingleChoice,

@@ -10,6 +10,7 @@ use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
 use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyAnswer;
+use Lalalili\SurveyCore\Models\SurveyCollector;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Support\JumpLogicResolver;
@@ -27,12 +28,19 @@ class SubmitSurveyResponseAction
     /**
      * @param  array{elapsed_ms?: int|null, honeypot_hit?: bool, ip?: string|null}  $qualityContext
      */
-    public function execute(Survey $survey, SubmissionPayload $payload, string $ip = '', string $userAgent = '', array $qualityContext = []): SurveyResponse
+    public function execute(
+        Survey $survey,
+        SubmissionPayload $payload,
+        string $ip = '',
+        string $userAgent = '',
+        array $qualityContext = [],
+        ?SurveyCollector $collector = null,
+    ): SurveyResponse
     {
         // Validate against visible fields only
         $this->validateSubmission->execute($survey, $payload->visibleAnswers, $payload->tokenContext);
 
-        return DB::transaction(function () use ($survey, $payload, $ip, $userAgent, $qualityContext) {
+        return DB::transaction(function () use ($survey, $payload, $ip, $userAgent, $qualityContext, $collector) {
             $lockedSurvey = Survey::query()->lockForUpdate()->findOrFail($survey->id);
 
             if (! $lockedSurvey->hasQuotaAvailable()) {
@@ -86,6 +94,7 @@ class SubmitSurveyResponseAction
                 'survey_id' => $survey->id,
                 'survey_recipient_id' => $recipient?->id,
                 'survey_token_id' => $tokenContext?->token->id,
+                'survey_collector_id' => $collector?->id,
                 'submitted_at' => now(),
                 'ip' => $ip,
                 'user_agent' => $userAgent,

@@ -2,6 +2,9 @@
 
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyAnswer;
+use Lalalili\SurveyCore\Models\SurveyCollector;
+use Lalalili\SurveyCore\Models\SurveyResponseConsent;
+use Lalalili\SurveyCore\Models\SurveyResponseEvent;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyRecipient;
 use Lalalili\SurveyCore\Models\SurveyResponse;
@@ -23,6 +26,9 @@ return [
         'token' => SurveyToken::class,
         'response' => SurveyResponse::class,
         'answer' => SurveyAnswer::class,
+        'collector' => SurveyCollector::class,
+        'response_event' => SurveyResponseEvent::class,
+        'response_consent' => SurveyResponseConsent::class,
     ],
 
     /*
@@ -37,6 +43,9 @@ return [
         'survey_tokens' => 'survey_tokens',
         'survey_responses' => 'survey_responses',
         'survey_answers' => 'survey_answers',
+        'survey_collectors' => 'survey_collectors',
+        'survey_response_events' => 'survey_response_events',
+        'survey_response_consents' => 'survey_response_consents',
     ],
 
     /*
@@ -47,6 +56,10 @@ return [
     'route_prefix' => 'survey',
 
     'route_middleware' => ['web'],
+
+    'collectors' => [
+        'route_prefix' => 's',
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -76,8 +89,15 @@ return [
     'default_allow_multiple_submissions' => false,
 
     'security' => [
+        'rate_limit' => '60,1',
+        'turnstile_verify' => true,
+        'sanitize_html' => true,
         'min_submission_ms' => 3000,
         'ip_blacklist' => [],
+    ],
+
+    'analytics' => [
+        'retention_days' => 365,
     ],
 
     /*

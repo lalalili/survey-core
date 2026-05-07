@@ -55,7 +55,7 @@ it('merges theme overrides over tokens', function () {
 });
 
 it('uses default CSS variables when no theme is set', function () {
-    $survey = Survey::create(['title' => 'Default Theme', 'status' => SurveyStatus::Published]);
+    $survey = Survey::create(['title' => 'Default Theme', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, pageKindSchema([kindQuestionPage('page_1')]));
     $survey->update(['status' => SurveyStatus::Published]);
 
@@ -66,7 +66,7 @@ it('uses default CSS variables when no theme is set', function () {
 
 it('renders CSS variables from the selected theme', function () {
     $theme = SurveyTheme::create(['name' => 'Theme', 'tokens_json' => ['primary' => '#123456'], 'is_system' => true]);
-    $survey = Survey::create(['title' => 'Themed', 'status' => SurveyStatus::Published]);
+    $survey = Survey::create(['title' => 'Themed', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     $schema = pageKindSchema([kindQuestionPage('page_1')]);
     $schema['theme_id'] = $theme->id;
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, $schema);
@@ -79,7 +79,7 @@ it('renders CSS variables from the selected theme', function () {
 
 it('applies theme overrides to CSS variables', function () {
     $theme = SurveyTheme::create(['name' => 'Theme', 'tokens_json' => ['primary' => '#123456'], 'is_system' => true]);
-    $survey = Survey::create(['title' => 'Override', 'status' => SurveyStatus::Published]);
+    $survey = Survey::create(['title' => 'Override', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     $schema = pageKindSchema([kindQuestionPage('page_1')]);
     $schema['theme_id'] = $theme->id;
     $schema['theme_overrides'] = ['primary' => '#abcdef'];

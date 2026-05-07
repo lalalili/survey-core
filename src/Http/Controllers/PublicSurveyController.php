@@ -6,7 +6,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Hash;
 use Lalalili\SurveyCore\Actions\ResolveSurveyTokenAction;
+use Lalalili\SurveyCore\Actions\RecordSurveyResponseEventAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
 use Lalalili\SurveyCore\Data\ResolvedToken;
 use Lalalili\SurveyCore\Data\SubmissionPayload;
@@ -22,9 +24,12 @@ use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
 use Lalalili\SurveyCore\Http\Requests\SubmitSurveyRequest;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyAnswer;
+use Lalalili\SurveyCore\Models\SurveyCollector;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyPage;
 use Lalalili\SurveyCore\Models\SurveyResponse;
+use Lalalili\SurveyCore\Models\SurveyResponseConsent;
+use Lalalili\SurveyCore\Services\TurnstileVerifier;
 use Lalalili\SurveyCore\Support\ConditionGroupEvaluator;
 
 class PublicSurveyController extends Controller
@@ -38,13 +43,110 @@ class PublicSurveyController extends Controller
             'calculations',
         ])->where('public_key', $publicKey)->firstOrFail();
 
+        return $this->renderSurvey($survey, request(), $resolveToken);
+    }
+
+    public function showCollector(string $collectorSlug, ResolveSurveyTokenAction $resolveToken): Response|JsonResponse
+    {
+        $collector = SurveyCollector::with([
+            'survey.pages' => fn ($q) => $q->orderBy('sort_order'),
+            'survey.fields' => fn ($q) => $q->orderBy('sort_order'),
+            'survey.theme',
+            'survey.calculations',
+        ])->where('slug', $collectorSlug)->firstOrFail();
+
+        abort_unless($collector->isActive(), 404);
+
+        return $this->renderSurvey($collector->survey, request(), $resolveToken, $collector);
+    }
+
+    public function unlock(string $publicKey, Request $request): JsonResponse
+    {
+        $survey = Survey::where('public_key', $publicKey)->firstOrFail();
+
+        return $this->unlockSurvey($survey, $request);
+    }
+
+    public function unlockCollector(string $collectorSlug, Request $request): JsonResponse
+    {
+        $collector = SurveyCollector::with('survey')->where('slug', $collectorSlug)->firstOrFail();
+
+        abort_unless($collector->isActive(), 404);
+
+        return $this->unlockSurvey($collector->survey, $request);
+    }
+
+    public function event(
+        string $publicKey,
+        Request $request,
+        ResolveSurveyTokenAction $resolveToken,
+        RecordSurveyResponseEventAction $recordEvent,
+    ): JsonResponse {
+        $survey = Survey::where('public_key', $publicKey)->firstOrFail();
+        $resolved = null;
+
+        if ($rawToken = $request->query('t')) {
+            try {
+                $resolved = $resolveToken->execute($survey, (string) $rawToken);
+            } catch (InvalidSurveyTokenException) {
+                $resolved = null;
+            }
+        }
+
+        if ($this->requiresToken($survey) && ! $resolved) {
+            return response()->json(['message' => '此問卷需要使用個性化連結填寫。'], 403);
+        }
+
+        if ($this->requiresPassword($survey) && ! $this->hasUnlockedPassword($survey, $request)) {
+            return response()->json(['message' => '此問卷需要密碼。'], 403);
+        }
+
+        $validated = $request->validate([
+            'event' => ['required', 'string', 'in:viewed,started,page_viewed,submitted,abandoned'],
+            'page_key' => ['nullable', 'string', 'max:120'],
+            'response_id' => ['nullable', 'integer'],
+            'collector' => ['nullable', 'string', 'max:120'],
+            'metadata' => ['nullable', 'array'],
+        ]);
+
+        $collector = $this->resolveCollector($survey, $request);
+        $response = null;
+
+        if (! empty($validated['response_id'])) {
+            $response = SurveyResponse::query()
+                ->where('survey_id', $survey->id)
+                ->whereKey((int) $validated['response_id'])
+                ->first();
+        }
+
+        $recordEvent->execute(
+            survey: $survey,
+            event: (string) $validated['event'],
+            collector: $collector,
+            response: $response,
+            recipient: $resolved?->recipient,
+            pageKey: $validated['page_key'] ?? null,
+            metadata: array_merge((array) ($validated['metadata'] ?? []), [
+                'token_present' => $request->query('t') !== null,
+            ]),
+        );
+
+        return response()->json(['recorded' => true]);
+    }
+
+    private function renderSurvey(
+        Survey $survey,
+        Request $request,
+        ResolveSurveyTokenAction $resolveToken,
+        ?SurveyCollector $collector = null,
+    ): Response|JsonResponse {
         if ($view = $this->availabilityView($survey)) {
             return $view;
         }
 
         $resolved = null;
 
-        if ($rawToken = request()->query('t')) {
+        if ($rawToken = $request->query('t')) {
             try {
                 $resolved = $resolveToken->execute($survey, (string) $rawToken);
                 SurveyTokenResolved::dispatch($resolved->token, $resolved->recipient);
@@ -53,11 +155,11 @@ class PublicSurveyController extends Controller
             }
         }
 
-        if ($this->requiresPersonalizedToken($survey) && ! $resolved) {
+        if ($this->requiresToken($survey) && ! $resolved) {
             abort(403, '此問卷需要使用個性化連結填寫。');
         }
 
-        if ($view = $this->duplicateView($survey, request(), $resolved)) {
+        if ($view = $this->duplicateView($survey, $request, $resolved)) {
             return $view;
         }
 
@@ -65,8 +167,9 @@ class PublicSurveyController extends Controller
 
         $theme = $survey->resolvedThemeTokens();
         $optionUsage = $this->optionUsage($survey);
+        $passwordUnlocked = ! $this->requiresPassword($survey) || $this->hasUnlockedPassword($survey, $request);
 
-        return response()->view('survey-core::survey.show', compact('survey', 'resolved', 'theme', 'optionUsage'));
+        return response()->view('survey-core::survey.show', compact('survey', 'resolved', 'theme', 'optionUsage', 'collector', 'passwordUnlocked'));
     }
 
     public function submit(
@@ -74,6 +177,8 @@ class PublicSurveyController extends Controller
         SubmitSurveyRequest $request,
         ResolveSurveyTokenAction $resolveToken,
         SubmitSurveyResponseAction $submitResponse,
+        TurnstileVerifier $turnstile,
+        RecordSurveyResponseEventAction $recordEvent,
     ): JsonResponse {
         $survey = Survey::with(['fields', 'pages', 'calculations'])->where('public_key', $publicKey)->firstOrFail();
 
@@ -95,13 +200,23 @@ class PublicSurveyController extends Controller
             }
         }
 
-        if ($this->requiresPersonalizedToken($survey) && ! $resolved) {
+        if ($this->requiresToken($survey) && ! $resolved) {
             return response()->json(['message' => '此問卷需要使用個性化連結填寫。'], 403);
+        }
+
+        if ($this->requiresPassword($survey) && ! $this->hasUnlockedPassword($survey, $request)) {
+            return response()->json(['message' => '此問卷需要密碼。'], 403);
+        }
+
+        if ($message = $this->securityValidationMessage($survey, $request, $turnstile)) {
+            return response()->json(['message' => $message], 422);
         }
 
         if ($this->hasDuplicateSubmission($survey, $request, $resolved)) {
             return response()->json(['message' => $survey->uniqueness_message ?: '您已填寫過此問卷。'], 403);
         }
+
+        $collector = $this->resolveCollector($survey, $request);
 
         $payload = new SubmissionPayload(
             visibleAnswers: $request->answers(),
@@ -118,12 +233,19 @@ class PublicSurveyController extends Controller
                     'elapsed_ms' => $request->integer('_elapsed_ms') ?: null,
                     'honeypot_hit' => filled($request->input('_hp')),
                 ],
+                collector: $collector,
             );
         } catch (SurveyNotAvailableException $e) {
             return response()->json(['message' => $e->getMessage()], 403);
         } catch (SurveyValidationException $e) {
             return response()->json(['message' => 'Validation failed.', 'errors' => $e->getErrors()], 422);
         }
+
+        $this->recordConsent($survey, $response, $request);
+
+        $recordEvent->execute(survey: $survey, event: 'submitted', collector: $collector, response: $response, metadata: [
+            'elapsed_ms' => $request->integer('_elapsed_ms') ?: null,
+        ]);
 
         $jsonResponse = response()->json([
             'message' => $this->thankYouMessage($survey, $response->calculations_json ?? []),
@@ -145,6 +267,10 @@ class PublicSurveyController extends Controller
 
         if (! $survey->isAcceptingSubmissions()) {
             return response()->json(['message' => 'Survey is not currently accepting submissions.'], 403);
+        }
+
+        if ($this->requiresPassword($survey) && ! $this->hasUnlockedPassword($survey, $request)) {
+            return response()->json(['message' => '此問卷需要密碼。'], 403);
         }
 
         $fieldKey = (string) $request->input('field_key');
@@ -274,6 +400,116 @@ class PublicSurveyController extends Controller
 
         return ! empty($personalization['audience_list_id'])
             && (bool) ($personalization['required'] ?? true);
+    }
+
+    private function requiresToken(Survey $survey): bool
+    {
+        return ! $survey->allow_anonymous || $this->requiresPersonalizedToken($survey);
+    }
+
+    private function requiresPassword(Survey $survey): bool
+    {
+        return filled($survey->settings_json['password'] ?? null);
+    }
+
+    private function hasUnlockedPassword(Survey $survey, Request $request): bool
+    {
+        if (is_string($request->input('_password')) && $this->passwordMatches($survey, (string) $request->input('_password'))) {
+            return true;
+        }
+
+        if (! $request->hasSession()) {
+            return false;
+        }
+
+        return (bool) $request->session()->get($this->passwordSessionKey($survey), false);
+    }
+
+    private function unlockSurvey(Survey $survey, Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'password' => ['required', 'string'],
+        ]);
+
+        if (! $this->passwordMatches($survey, (string) $validated['password'])) {
+            return response()->json(['message' => '密碼不正確。'], 422);
+        }
+
+        $request->session()->put($this->passwordSessionKey($survey), true);
+
+        return response()->json(['unlocked' => true]);
+    }
+
+    private function passwordSessionKey(Survey $survey): string
+    {
+        return 'survey-core.password.'.$survey->id;
+    }
+
+    private function passwordMatches(Survey $survey, string $password): bool
+    {
+        $stored = (string) ($survey->settings_json['password'] ?? '');
+
+        if ($stored === '') {
+            return true;
+        }
+
+        if (str_starts_with($stored, '$2y$') || str_starts_with($stored, '$argon2')) {
+            return Hash::check($password, $stored);
+        }
+
+        return hash_equals($stored, $password);
+    }
+
+    private function securityValidationMessage(Survey $survey, SubmitSurveyRequest $request, TurnstileVerifier $turnstile): ?string
+    {
+        $minSubmissionMs = (int) ($survey->settings_json['security']['min_submission_ms'] ?? config('survey-core.security.min_submission_ms', 0));
+
+        if ($minSubmissionMs > 0 && $request->integer('_elapsed_ms') > 0 && $request->integer('_elapsed_ms') < $minSubmissionMs) {
+            return '送出速度過快，請確認內容後再送出。';
+        }
+
+        if (filled($survey->settings_json['terms_text'] ?? null) && ! $request->boolean('_terms_accepted')) {
+            return '請先同意條款後再送出。';
+        }
+
+        if (! empty($survey->settings_json['anomaly']['turnstile']) && ! $turnstile->verify($request->string('_turnstile_token')->toString(), $request->ip())) {
+            return '人機驗證失敗，請重新驗證後再送出。';
+        }
+
+        return null;
+    }
+
+    private function resolveCollector(Survey $survey, Request $request): ?SurveyCollector
+    {
+        $slug = $request->query('collector') ?? $request->input('collector');
+
+        if (! is_string($slug) || $slug === '') {
+            return null;
+        }
+
+        return SurveyCollector::query()
+            ->where('survey_id', $survey->id)
+            ->where('slug', $slug)
+            ->where('status', 'active')
+            ->first();
+    }
+
+    private function recordConsent(Survey $survey, SurveyResponse $response, SubmitSurveyRequest $request): void
+    {
+        if (blank($survey->settings_json['terms_text'] ?? null)) {
+            return;
+        }
+
+        SurveyResponseConsent::create([
+            'survey_response_id' => $response->id,
+            'type' => 'terms',
+            'version' => $survey->settings_json['terms_version'] ?? null,
+            'accepted_at' => now(),
+            'metadata_json' => [
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ],
+        ]);
     }
 
     /**

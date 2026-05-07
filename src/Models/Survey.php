@@ -38,6 +38,7 @@ use Lalalili\SurveyCore\Enums\SurveyUniquenessMode;
  * @property-read Collection<int, SurveyRecipient> $recipients
  * @property-read Collection<int, SurveyToken> $tokens
  * @property-read Collection<int, SurveyResponse> $responses
+ * @property-read Collection<int, SurveyCollector> $collectors
  * @property-read Collection<int, SurveyTag> $tags
  * @property-read SurveyTheme|null $theme
  * @property-read Collection<int, SurveyCalculation> $calculations
@@ -124,6 +125,14 @@ class Survey extends Model
     public function responses(): HasMany
     {
         return $this->hasMany(SurveyResponse::class);
+    }
+
+    /**
+     * @return HasMany<SurveyCollector, $this>
+     */
+    public function collectors(): HasMany
+    {
+        return $this->hasMany(SurveyCollector::class);
     }
 
     /**

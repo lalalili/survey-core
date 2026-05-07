@@ -3,7 +3,10 @@
 namespace Lalalili\SurveyCore;
 
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Lalalili\SurveyCore\Actions\CalculateSurveyResponseAction;
 use Lalalili\SurveyCore\Actions\EvaluateResponseQualityAction;
 use Lalalili\SurveyCore\Actions\ExportSurveyResponsesAction;
@@ -52,6 +55,10 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 '2026_04_29_000001_create_audience_lists_table',
                 '2026_04_29_000002_create_audience_list_rows_table',
                 '2026_04_29_000003_add_audience_list_row_to_survey_recipients_table',
+                '2026_05_08_000001_create_survey_collectors_table',
+                '2026_05_08_000002_add_collector_to_survey_responses_table',
+                '2026_05_08_000003_create_survey_response_events_table',
+                '2026_05_08_000004_create_survey_response_consents_table',
             ])
             ->runsMigrations()
             ->hasRoutes(['web']);
@@ -60,6 +67,17 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
     public function bootingPackage(): void
     {
         Event::listen(SurveySubmitted::class, DispatchSurveySubmittedWebhook::class);
+
+        RateLimiter::for('survey-core-submissions', function (Request $request): Limit {
+            [$attempts, $decayMinutes] = array_pad(
+                explode(',', (string) config('survey-core.security.rate_limit', '60,1'), 2),
+                2,
+                '1',
+            );
+
+            return Limit::perMinutes(max(1, (int) $decayMinutes), max(1, (int) $attempts))
+                ->by($request->ip() ?: 'guest');
+        });
 
         $this->publishes([
             __DIR__.'/../resources/dist' => public_path('vendor/survey-core'),

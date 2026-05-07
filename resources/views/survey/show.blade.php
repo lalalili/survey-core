@@ -205,8 +205,11 @@
     $hasThankYouPage  = $thankYouPage !== null && ($thankYouSettings['enabled'] ?? true) !== false;
 
     // ── Access controls ──────────────────────────────────────────────────────
-    $surveyPassword   = $survey->settings_json['password'] ?? null;
-    $hasPassword      = !empty($surveyPassword);
+    $hasPassword      = !empty($survey->settings_json['password'] ?? null) && empty($passwordUnlocked);
+    $surveyQuery      = array_filter([
+        't' => request()->query('t'),
+        'collector' => $collector?->slug ?? null,
+    ], fn ($value) => $value !== null && $value !== '');
     $termsText        = $survey->settings_json['terms_text'] ?? null;
     $hasTerms         = !empty($termsText);
     $enableResponseNo = !empty($survey->settings_json['response_number']);
@@ -1009,9 +1012,14 @@
     var PAGE_JUMP_MAP = @json($pageJumpMap);
     var THANK_YOU_MESSAGE = @json($hasThankYouPage ? ($thankYouSettings['message'] ?? null) : null);
     var STARTED_AT = Date.now();
+    var SURVEY_QUERY = @json($surveyQuery);
+    var PASSWORD_URL = @json(isset($collector) && $collector ? route('survey.collector.password', $collector->slug) : route('survey.password', $survey->public_key));
+    var SUBMIT_URL = @json(route('survey.submit', $survey->public_key));
+    var UPLOAD_URL = @json(route('survey.upload', $survey->public_key));
+    var EVENTS_URL = @json(route('survey.events', $survey->public_key));
 
     // ─── Access controls ──────────────────────────────────────────────────────
-    var SURVEY_PASSWORD = @json($surveyPassword);
+    var HAS_PASSWORD_GATE = {{ $hasPassword ? 'true' : 'false' }};
     var HAS_TERMS = {{ $hasTerms ? 'true' : 'false' }};
     var ENABLE_RESPONSE_NO = {{ $enableResponseNo ? 'true' : 'false' }};
     var HAS_TURNSTILE = {{ ($turnstileEnabled && $turnstiteSiteKey) ? 'true' : 'false' }};
@@ -1027,11 +1035,48 @@
     var passwordInput = document.getElementById('password-input');
     var passwordError = document.getElementById('password-error');
 
-    if (passwordGate && SURVEY_PASSWORD) {
+    function appendSurveyQuery(url) {
+        var params = new URLSearchParams(SURVEY_QUERY || {});
+        var queryString = params.toString();
+        if (!queryString) return url;
+        return url + (url.indexOf('?') === -1 ? '?' : '&') + queryString;
+    }
+
+    function csrfToken() {
+        return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    async function recordSurveyEvent(eventName, extra) {
+        try {
+            await fetch(appendSurveyQuery(EVENTS_URL), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken(),
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify(Object.assign({ event: eventName }, extra || {})),
+            });
+        } catch (e) {
+            // Analytics events must never block the respondent.
+        }
+    }
+
+    if (passwordGate && HAS_PASSWORD_GATE) {
         if (btnUnlock) {
-            btnUnlock.addEventListener('click', function () {
+            btnUnlock.addEventListener('click', async function () {
                 var val = passwordInput ? passwordInput.value : '';
-                if (val === SURVEY_PASSWORD) {
+                var res = await fetch(PASSWORD_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken(),
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ password: val }),
+                });
+
+                if (res.ok) {
                     passwordGate.style.display = 'none';
                     if (afterGate) afterGate.classList.remove('hidden', 'survey-hidden');
                     // Also remove inline display:none on afterGate
@@ -1394,7 +1439,7 @@
         body.append('field_key', fieldKey);
         body.append('file', file);
 
-        var res = await fetch('{{ route("survey.upload", $survey->public_key) }}', {
+        var res = await fetch(appendSurveyQuery(UPLOAD_URL), {
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
             body: body,
@@ -1571,9 +1616,8 @@
         if (spinner) { spinner.style.display = 'inline-block'; }
         if (label) { label.textContent = '送出中…'; }
 
-        var token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        var url   = '{{ route("survey.submit", $survey->public_key) }}'
-            + '{{ request()->has("t") ? "?t=" . request()->query("t") : "" }}';
+        var token = csrfToken();
+        var url = appendSurveyQuery(SUBMIT_URL);
 
         try {
             var res  = await fetch(url, {
@@ -1589,6 +1633,8 @@
                     _hp: (document.querySelector('[name="_hp"]') || {}).value || '',
                     _response_number: RESPONSE_NUMBER,
                     _turnstile_token: turnstileToken,
+                    _terms_accepted: termsCheckbox ? termsCheckbox.checked : false,
+                    collector: SURVEY_QUERY.collector || null,
                 }),
             });
 
@@ -1683,7 +1729,10 @@
             show(document.getElementById('survey-form'));
             show(document.getElementById('page-indicator'));
             if (currentPageKey) { showPage(currentPageKey); }
+            recordSurveyEvent('started', { page_key: currentPageKey });
         });
+    } else {
+        recordSurveyEvent('started', { page_key: currentPageKey });
     }
 
     document.getElementById('survey-form').addEventListener('submit', function (e) {

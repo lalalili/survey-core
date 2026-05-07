@@ -18,6 +18,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int $survey_id
  * @property int|null $survey_recipient_id
  * @property int|null $survey_token_id
+ * @property int|null $survey_collector_id
  * @property Carbon|null $submitted_at
  * @property string|null $ip
  * @property string|null $user_agent
@@ -29,8 +30,11 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property-read Survey $survey
  * @property-read SurveyRecipient|null $recipient
  * @property-read SurveyToken|null $token
+ * @property-read SurveyCollector|null $collector
  * @property-read Collection<int, SurveyAnswer> $answers
  * @property-read Collection<int, SurveyTag> $tags
+ * @property-read Collection<int, SurveyResponseEvent> $events
+ * @property-read Collection<int, SurveyResponseConsent> $consents
  */
 class SurveyResponse extends Model implements HasMedia
 {
@@ -40,6 +44,7 @@ class SurveyResponse extends Model implements HasMedia
         'survey_id',
         'survey_recipient_id',
         'survey_token_id',
+        'survey_collector_id',
         'submitted_at',
         'ip',
         'user_agent',
@@ -86,11 +91,35 @@ class SurveyResponse extends Model implements HasMedia
     }
 
     /**
+     * @return BelongsTo<SurveyCollector, $this>
+     */
+    public function collector(): BelongsTo
+    {
+        return $this->belongsTo(SurveyCollector::class, 'survey_collector_id');
+    }
+
+    /**
      * @return HasMany<SurveyAnswer, $this>
      */
     public function answers(): HasMany
     {
         return $this->hasMany(SurveyAnswer::class);
+    }
+
+    /**
+     * @return HasMany<SurveyResponseEvent, $this>
+     */
+    public function events(): HasMany
+    {
+        return $this->hasMany(SurveyResponseEvent::class);
+    }
+
+    /**
+     * @return HasMany<SurveyResponseConsent, $this>
+     */
+    public function consents(): HasMany
+    {
+        return $this->hasMany(SurveyResponseConsent::class);
     }
 
     /**

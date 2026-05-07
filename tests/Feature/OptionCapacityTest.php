@@ -14,7 +14,7 @@ require __DIR__.'/Phase3TestSupport.php';
 
 function phase3CapacitySurvey(?int $capacity = 3): array
 {
-    $survey = Survey::create(['title' => 'Capacity', 'status' => SurveyStatus::Published]);
+    $survey = Survey::create(['title' => 'Capacity', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     $field = SurveyField::create([
         'survey_id' => $survey->id,
         'type' => SurveyFieldType::SingleChoice,
@@ -76,7 +76,7 @@ it('keeps non-full options enabled', function () {
 });
 
 it('counts array answers for multiple choice capacity', function () {
-    $survey = Survey::create(['title' => 'Multi Capacity', 'status' => SurveyStatus::Published]);
+    $survey = Survey::create(['title' => 'Multi Capacity', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     $field = SurveyField::create([
         'survey_id' => $survey->id,
         'type' => SurveyFieldType::MultipleChoice,

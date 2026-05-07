@@ -92,6 +92,7 @@ it('interpolates calculations and routes to a branched thank-you page', function
     $survey = Survey::create([
         'title' => 'Thanks',
         'status' => SurveyStatus::Published,
+        'allow_anonymous' => true,
         'settings_json' => ['thank_you_branches' => [[
             'condition' => ['calc_key' => 'score', 'op' => '>=', 'value' => 80],
             'page_id' => 'thanks_high',

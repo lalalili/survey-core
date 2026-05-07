@@ -18,6 +18,7 @@ function phase3UniqueSurvey(SurveyUniquenessMode $mode): Survey
     $survey = Survey::create([
         'title' => 'Unique',
         'status' => SurveyStatus::Published,
+        'allow_anonymous' => true,
         'uniqueness_mode' => $mode,
         'uniqueness_message' => '請勿重複填寫',
     ]);

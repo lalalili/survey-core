@@ -1,6 +1,6 @@
 # survey-core
 
-Laravel 問卷系統核心套件。提供完整的問卷引擎（token 機制、個性化欄位、多頁問卷、跳題邏輯、CSV 匯出），無任何 Filament 依賴，可在純 Laravel 專案中使用。
+Laravel 問卷系統核心套件。提供完整的問卷引擎（token 機制、個性化欄位、多頁問卷、跳題邏輯、安全提交、collector 追蹤、事件漏斗、CSV 匯出），無任何 Filament 依賴，可在純 Laravel 專案中使用。
 
 ## 功能
 
@@ -9,7 +9,9 @@ Laravel 問卷系統核心套件。提供完整的問卷引擎（token 機制、
 - **跳題邏輯**：`show_if_field_key` + `show_if_value`，前後端雙重驗證
 - **多頁問卷**：題目依 `page` 欄位分組，前端逐頁填寫，單次提交
 - CSV 匯出（可擴充至 xlsx 等格式）
-- Events hook 點（SurveyViewed / SurveyTokenResolved / SurveySubmitted / SurveyClosed）
+- 商用安全基礎：後端密碼驗證、Turnstile server-side verification、terms consent 記錄、匿名/token 強制規則、route throttle、最短填寫時間檢查
+- Collector 與事件漏斗：`web_link` / `email_invite` / `qr_code` / `embed_iframe` 等回收入口可用獨立 slug，提交與事件可保存 collector attribution
+- Events hook 點（SurveyViewed / SurveyStarted / SurveyTokenResolved / SurveySubmitted / SurveyClosed）
 
 ## 安裝
 
@@ -34,9 +36,15 @@ php artisan vendor:publish --tag=survey-core-config
 |---|---|---|
 | `route_prefix` | 公開填寫頁 URL 前綴 | `survey` |
 | `route_middleware` | 套用在公開頁的 middleware | `['web']` |
+| `collectors.route_prefix` | collector 短連結 URL 前綴 | `s` |
 | `token_length` | Token 長度（最小 32） | `64` |
 | `token_lifetime_minutes` | Token 有效期（分鐘，null = 永不過期） | `null` |
 | `default_max_submissions` | 每個 token 最多提交次數（null = 不限） | `null` |
+| `security.rate_limit` | submit/upload/events/password route throttle 設定 | `60,1` |
+| `security.turnstile_verify` | 是否啟用 Turnstile server-side verification | `true` |
+| `security.sanitize_html` | rich content sanitize 開關（供後續 schema pipeline 使用） | `true` |
+| `security.min_submission_ms` | 最短填寫時間檢查門檻 | `3000` |
+| `analytics.retention_days` | 事件資料保留天數預設值 | `365` |
 | `exports.default_driver` | 匯出驅動（`csv`） | `csv` |
 | `personalization.resolver` | 個性化 resolver 類別（可替換） | `DefaultPersonalizationResolver` |
 | `frontend.css` | 公開頁 CSS 來源（`cdn`、`published`、或自訂 URL） | `cdn` |
@@ -68,9 +76,46 @@ php artisan vendor:publish --tag=survey-core-views
 ```
 GET  /survey/{publicKey}           → 問卷填寫頁
 POST /survey/{publicKey}/submit    → 提交答案
+POST /survey/{publicKey}/upload    → 上傳檔案題附件
+POST /survey/{publicKey}/events    → 記錄 started/page_viewed/submitted/abandoned 等漏斗事件
+POST /survey/{publicKey}/password  → 後端驗證問卷密碼
+GET  /s/{collectorSlug}            → Collector 入口，轉入公開問卷並綁定 attribution
+POST /s/{collectorSlug}/password   → Collector 入口的密碼驗證
 ```
 
 Token 透過 query string 傳入：`?t={token}`
+
+若 `surveys.allow_anonymous = false` 或問卷設定要求個性化 token，公開頁、提交與事件 API 都會拒絕未帶有效 token 的請求。
+
+### Collector
+
+Collector 用於行銷活動、Email invite、QR code、嵌入 iframe 等不同回收入口。每個 collector 有獨立 slug 與 tracking 設定：
+
+```php
+use Lalalili\SurveyCore\Models\SurveyCollector;
+
+$collector = SurveyCollector::create([
+    'survey_id' => $survey->id,
+    'type' => 'qr_code',
+    'name' => '春季活動 QR',
+    'slug' => 'spring-event-qr',
+    'tracking_json' => [
+        'utm_source' => 'event',
+        'utm_campaign' => 'spring-2026',
+    ],
+]);
+
+$url = route('survey.collector.show', $collector->slug);
+```
+
+提交回應會寫入 `survey_responses.survey_collector_id`，事件漏斗會寫入 `survey_response_events.survey_collector_id`。
+
+### 安全設定
+
+- 密碼保護透過 `POST /survey/{publicKey}/password` 或 `POST /s/{collectorSlug}/password` 在後端驗證，不會把明文密碼輸出到 HTML/JS。
+- Turnstile 啟用條件為問卷 `settings_json.anomaly.turnstile = true` 且 `TURNSTILE_SECRET_KEY` 可用。提交時後端會呼叫 Cloudflare siteverify。
+- 若設定 `settings_json.terms_text`，提交必須帶 `_terms_accepted = true`，並在 `survey_response_consents` 記錄同意版本與時間。
+- `settings_json.security.min_submission_ms` 可覆寫全域最短填寫時間門檻。
 
 ### Actions
 
