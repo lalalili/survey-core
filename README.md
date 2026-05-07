@@ -10,6 +10,7 @@ Laravel 問卷系統核心套件。提供完整的問卷引擎（token 機制、
 - **多頁問卷**：題目依 `page` 欄位分組，前端逐頁填寫，單次提交
 - CSV 匯出（可擴充至 xlsx 等格式）
 - 商用安全基礎：後端密碼驗證、Turnstile server-side verification、terms consent 記錄、匿名/token 強制規則、route throttle、最短填寫時間檢查
+- Rich HTML sanitizer：Builder schema 儲存/發布時會清理 survey description、terms、welcome content、thank-you message 與題目 description
 - Collector 與事件漏斗：`web_link` / `email_invite` / `qr_code` / `embed_iframe` 等回收入口可用獨立 slug，提交與事件可保存 collector attribution
 - Analytics action：彙總總回應、開始/提交/完成率、每日趨勢、collector 成效、選擇題/NPS/rating 單題分佈
 - 商用題型基礎：`email` / `phone` / `address` / `ranking` 可由 Filament Builder 建立，ranking 公開端支援拖曳排序與上下移動，後端套用基本驗證
@@ -44,7 +45,7 @@ php artisan vendor:publish --tag=survey-core-config
 | `default_max_submissions` | 每個 token 最多提交次數（null = 不限） | `null` |
 | `security.rate_limit` | submit/upload/events/password route throttle 設定 | `60,1` |
 | `security.turnstile_verify` | 是否啟用 Turnstile server-side verification | `true` |
-| `security.sanitize_html` | rich content sanitize 開關（供後續 schema pipeline 使用） | `true` |
+| `security.sanitize_html` | Builder schema rich content 白名單 sanitize 開關 | `true` |
 | `security.min_submission_ms` | 最短填寫時間檢查門檻 | `3000` |
 | `analytics.retention_days` | 事件資料保留天數預設值 | `365` |
 | `exports.default_driver` | 匯出驅動（`csv`） | `csv` |

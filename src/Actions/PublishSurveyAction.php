@@ -13,6 +13,7 @@ class PublishSurveyAction
     public function __construct(
         private readonly BuildSurveyBuilderSchemaAction $buildSchema,
         private readonly ValidateSurveyBuilderSchemaAction $validateSchema,
+        private readonly SanitizeSurveyBuilderSchemaAction $sanitizeSchema,
         private readonly SyncSurveyBuilderSchemaToFieldsAction $syncSchemaToFields,
         private readonly SurveyBuilderSurveySettings $surveySettings,
     ) {}
@@ -25,9 +26,10 @@ class PublishSurveyAction
 
         return DB::transaction(function () use ($survey): Survey {
             $schema = $this->validateSchema->execute($survey->draft_schema ?? $this->buildSchema->execute($survey));
+            $schema = $this->sanitizeSchema->execute($schema);
             $schema = $this->surveySettings->normalizeSchema($schema);
             $publishedSchema = is_array($survey->published_schema)
-                ? $this->surveySettings->normalizeSchema($this->validateSchema->execute($survey->published_schema))
+                ? $this->surveySettings->normalizeSchema($this->sanitizeSchema->execute($this->validateSchema->execute($survey->published_schema)))
                 : null;
 
             if ($survey->status === SurveyStatus::Published && $publishedSchema === $schema) {

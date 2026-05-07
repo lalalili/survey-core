@@ -10,6 +10,7 @@ class SaveSurveyDraftSchemaAction
 {
     public function __construct(
         private readonly ValidateSurveyBuilderSchemaAction $validateSchema,
+        private readonly SanitizeSurveyBuilderSchemaAction $sanitizeSchema,
         private readonly SyncSurveyBuilderSchemaToFieldsAction $syncSchemaToFields,
         private readonly SurveyBuilderSurveySettings $surveySettings,
     ) {}
@@ -20,6 +21,7 @@ class SaveSurveyDraftSchemaAction
     public function execute(Survey $survey, array $schema): Survey
     {
         $schema = $this->validateSchema->execute($schema);
+        $schema = $this->sanitizeSchema->execute($schema);
         $schema = $this->surveySettings->normalizeSchema($schema);
 
         return DB::transaction(function () use ($survey, $schema): Survey {

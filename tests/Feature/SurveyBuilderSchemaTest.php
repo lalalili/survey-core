@@ -203,6 +203,71 @@ it('syncs survey-level settings through the builder schema', function () {
         ->and($saved->draft_schema['settings'])->not->toHaveKey('close_at');
 });
 
+it('sanitizes rich html in builder schema before saving and publishing', function (): void {
+    config()->set('survey-core.security.sanitize_html', true);
+
+    $survey = Survey::create(['title' => 'Unsafe HTML', 'status' => SurveyStatus::Draft, 'version' => 1]);
+    $unsafeHtml = '<p>Hello <strong>safe</strong><script>bad()</script><a href="javascript:alert(1)" onclick="bad()">bad link</a><a href="https://example.com" target="_blank">safe link</a></p>';
+
+    $schema = builderSchema([
+        'settings' => [
+            'description' => $unsafeHtml,
+            'terms_text' => $unsafeHtml,
+        ],
+    ]);
+    $schema['pages'] = [
+        [
+            'id' => 'welcome',
+            'kind' => 'welcome',
+            'title' => 'Welcome',
+            'welcome_settings' => ['content' => $unsafeHtml],
+            'elements' => [],
+        ],
+        [
+            'id' => 'page_1',
+            'kind' => 'question',
+            'title' => 'Page 1',
+            'elements' => [[
+                'id' => 'content',
+                'type' => 'description_block',
+                'field_key' => null,
+                'label' => 'Content',
+                'description' => $unsafeHtml,
+                'required' => false,
+                'placeholder' => null,
+                'options' => [],
+                'settings' => [],
+            ]],
+        ],
+        [
+            'id' => 'thanks',
+            'kind' => 'thank_you',
+            'title' => 'Thanks',
+            'thank_you_settings' => ['message' => $unsafeHtml],
+            'elements' => [],
+        ],
+    ];
+
+    $saved = app(SaveSurveyDraftSchemaAction::class)->execute($survey, $schema);
+    $published = app(PublishSurveyAction::class)->execute($saved->refresh());
+
+    $combined = implode("\n", [
+        $published->description,
+        $published->settings_json['terms_text'],
+        $published->draft_schema['pages'][0]['welcome_settings']['content'],
+        $published->published_schema['pages'][1]['elements'][0]['description'],
+        $published->pages()->where('page_key', 'thanks')->first()->settings_json['thank_you']['message'],
+    ]);
+
+    expect($combined)
+        ->toContain('<strong>safe</strong>')
+        ->toContain('href="https://example.com"')
+        ->toContain('rel="noopener noreferrer"')
+        ->not->toContain('<script>')
+        ->not->toContain('javascript:')
+        ->not->toContain('onclick=');
+});
+
 it('creates a blank survey that opens directly in the builder', function () {
     $survey = app(CreateBlankSurveyBuilderSurveyAction::class)->execute();
 
