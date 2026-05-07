@@ -11,6 +11,7 @@ Laravel 問卷系統核心套件。提供完整的問卷引擎（token 機制、
 - CSV 匯出（可擴充至 xlsx 等格式）
 - 商用安全基礎：後端密碼驗證、Turnstile server-side verification、terms consent 記錄、匿名/token 強制規則、route throttle、最短填寫時間檢查
 - Collector 與事件漏斗：`web_link` / `email_invite` / `qr_code` / `embed_iframe` 等回收入口可用獨立 slug，提交與事件可保存 collector attribution
+- Analytics action：彙總總回應、開始/提交/完成率、每日趨勢、collector 成效、選擇題/NPS/rating 單題分佈
 - Events hook 點（SurveyViewed / SurveyStarted / SurveyTokenResolved / SurveySubmitted / SurveyClosed）
 
 ## 安裝
@@ -124,6 +125,7 @@ use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Actions\GenerateSurveyTokenAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
 use Lalalili\SurveyCore\Actions\ExportSurveyResponsesAction;
+use Lalalili\SurveyCore\Actions\ComputeSurveyAnalyticsAction;
 
 // 發佈問卷
 app(PublishSurveyAction::class)->execute($survey);
@@ -134,6 +136,9 @@ $url = route('survey.show', $survey->public_key) . '?t=' . $token->token;
 
 // 匯出（回傳 StreamedResponse）
 return app(ExportSurveyResponsesAction::class)->execute($survey);
+
+// 分析資料（可供 Filament、API 或自訂報表共用）
+$analytics = app(ComputeSurveyAnalyticsAction::class)->execute($survey);
 ```
 
 ### 個性化 resolver 替換
