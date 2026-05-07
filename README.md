@@ -8,6 +8,7 @@ Laravel 問卷系統核心套件。提供完整的問卷引擎（token 機制、
 - 個性化 token 連結：收件人 URL 攜帶 token，後端解析並注入個性化欄位值
 - **跳題邏輯**：`show_if_field_key` + `show_if_value`，前後端雙重驗證
 - **多頁問卷**：題目依 `page` 欄位分組，前端逐頁填寫，單次提交
+- 公開端 localStorage 草稿續答：依 public key / token / collector 隔離草稿，送出成功後清除
 - CSV 匯出（可擴充至 xlsx 等格式）
 - 商用安全基礎：後端密碼驗證、Turnstile server-side verification、terms consent 記錄、匿名/token 強制規則、route throttle、最短填寫時間檢查
 - Rich HTML sanitizer：Builder schema 儲存/發布時會清理 survey description、terms、welcome content、thank-you message 與題目 description

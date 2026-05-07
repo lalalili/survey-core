@@ -1084,6 +1084,12 @@
     var THANK_YOU_MESSAGE = @json($hasThankYouPage ? ($thankYouSettings['message'] ?? null) : null);
     var STARTED_AT = Date.now();
     var SURVEY_QUERY = @json($surveyQuery);
+    var DRAFT_STORAGE_KEY = [
+        'lalalili-survey-draft',
+        @json($survey->public_key),
+        SURVEY_QUERY.t || 'anonymous',
+        SURVEY_QUERY.collector || 'direct',
+    ].join(':');
     var PASSWORD_URL = @json(isset($collector) && $collector ? route('survey.collector.password', $collector->slug) : route('survey.password', $survey->public_key));
     var SUBMIT_URL = @json(route('survey.submit', $survey->public_key));
     var UPLOAD_URL = @json(route('survey.upload', $survey->public_key));
@@ -1115,6 +1121,14 @@
 
     function csrfToken() {
         return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    }
+
+    function selectorEscape(value) {
+        if (window.CSS && typeof window.CSS.escape === 'function') {
+            return window.CSS.escape(value);
+        }
+
+        return value.replace(/["\\]/g, '\\$&');
     }
 
     async function recordSurveyEvent(eventName, extra) {
@@ -1477,6 +1491,105 @@
         return answers;
     }
 
+    function applyScalarAnswer(fieldKey, value) {
+        var radio = document.querySelector('input[type="radio"][name="answers[' + fieldKey + ']"][value="' + selectorEscape(String(value)) + '"]');
+        if (radio) {
+            radio.checked = true;
+            return;
+        }
+
+        var input = document.querySelector('[name="answers[' + fieldKey + ']"]');
+        if (input) {
+            input.value = value === null || value === undefined ? '' : String(value);
+        }
+    }
+
+    function applyArrayAnswer(fieldKey, values) {
+        var rankingList = document.querySelector('[data-ranking-list="' + fieldKey + '"]');
+        if (rankingList) {
+            values.forEach(function (option) {
+                var item = rankingList.querySelector('[data-ranking-option="' + selectorEscape(String(option)) + '"]');
+                var hiddenValue = rankingList.querySelector('[data-ranking-value]');
+                if (!item) { return; }
+
+                if (hiddenValue) {
+                    rankingList.insertBefore(item, hiddenValue);
+                } else {
+                    rankingList.appendChild(item);
+                }
+            });
+
+            updateRankingValues();
+            return;
+        }
+
+        document.querySelectorAll('[name="answers[' + fieldKey + '][]"]').forEach(function (input) {
+            input.checked = values.map(String).includes(String(input.value));
+        });
+    }
+
+    function applyObjectAnswer(fieldKey, value) {
+        Object.keys(value || {}).forEach(function (childKey) {
+            var childValue = value[childKey];
+
+            if (Array.isArray(childValue)) {
+                document.querySelectorAll('[name="answers[' + fieldKey + '][' + childKey + '][]"]').forEach(function (input) {
+                    input.checked = childValue.map(String).includes(String(input.value));
+                });
+
+                return;
+            }
+
+            var input = document.querySelector('[name="answers[' + fieldKey + '][' + childKey + ']"]');
+            if (input) {
+                input.value = childValue === null || childValue === undefined ? '' : String(childValue);
+            }
+        });
+    }
+
+    function restoreDraft() {
+        try {
+            var raw = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+            if (!raw) { return; }
+
+            var draft = JSON.parse(raw);
+            var answers = draft && draft.answers ? draft.answers : {};
+
+            Object.keys(answers).forEach(function (fieldKey) {
+                var value = answers[fieldKey];
+
+                if (Array.isArray(value)) {
+                    applyArrayAnswer(fieldKey, value);
+                } else if (value !== null && typeof value === 'object') {
+                    applyObjectAnswer(fieldKey, value);
+                } else {
+                    applyScalarAnswer(fieldKey, value);
+                }
+            });
+
+            if (draft.page_key && ALL_PAGE_KEYS.includes(draft.page_key)) {
+                currentPageKey = draft.page_key;
+            }
+
+            updateRankingValues();
+            evaluateBranching();
+        } catch (e) {
+            window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+        }
+    }
+
+    function persistDraft() {
+        try {
+            window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
+                answers: collectAnswers(),
+                page_key: currentPageKey,
+                updated_at: Date.now(),
+            }));
+        } catch (e) {
+            // Draft persistence is best-effort only.
+        }
+    }
+
     function updateRankingValues() {
         document.querySelectorAll('[data-ranking-list]').forEach(function (list) {
             var fieldKey = list.getAttribute('data-ranking-list');
@@ -1795,6 +1908,7 @@
             var data = await res.json();
 
             if (res.ok) {
+                window.localStorage.removeItem(DRAFT_STORAGE_KEY);
                 hide(document.getElementById('survey-form'));
                 show(document.getElementById('success-message'));
                 var successText = document.getElementById('success-text');
@@ -1832,6 +1946,7 @@
     initCascadeSelects();
     initSignaturePads();
     initRankingLists();
+    restoreDraft();
 
     document.addEventListener('change', function (event) {
         if (event.target && event.target.matches('[data-file-upload-field]')) { void updateFileUploadMeta(event.target); }
@@ -1843,13 +1958,18 @@
         }
         evaluateBranching();
         if (IS_MULTI_PAGE) { updateNavButtons(); }
+        persistDraft();
     });
-    document.addEventListener('input', evaluateBranching);
+    document.addEventListener('input', function () {
+        evaluateBranching();
+        persistDraft();
+    });
     document.addEventListener('click', function (event) {
         var button = event.target && event.target.closest('[data-ranking-move]');
         if (!button) { return; }
 
         moveRankingItem(button, button.getAttribute('data-ranking-move'));
+        persistDraft();
     });
 
     var prevBtn = document.getElementById('btn-prev');
@@ -1860,6 +1980,7 @@
             if (pageStack.length > 0) {
                 currentPageKey = pageStack.pop();
                 showPage(currentPageKey);
+                persistDraft();
             }
         });
     }
@@ -1875,11 +1996,12 @@
                 return;
             }
 
-            if (nextKey !== null) {
-                pageStack.push(currentPageKey);
-                showPage(nextKey);
-            }
-        });
+        if (nextKey !== null) {
+            pageStack.push(currentPageKey);
+            showPage(nextKey);
+            persistDraft();
+        }
+    });
     }
 
     var startBtn = document.getElementById('btn-start');

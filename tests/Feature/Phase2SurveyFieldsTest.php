@@ -129,6 +129,19 @@ it('renders ranking fields as a sortable public list', function (): void {
         ->assertDontSee('data-ranking-field', false);
 });
 
+it('renders local storage draft persistence on the public form', function (): void {
+    $survey = phase2Survey();
+    $survey->update(['allow_anonymous' => true]);
+    phase2Field($survey, SurveyFieldType::ShortText, ['field_key' => 'name']);
+
+    $this->get(route('survey.show', $survey->public_key))
+        ->assertSuccessful()
+        ->assertSee('DRAFT_STORAGE_KEY', false)
+        ->assertSee('window.localStorage.setItem', false)
+        ->assertSee('window.localStorage.removeItem', false)
+        ->assertSee('lalalili-survey-draft', false);
+});
+
 it('validates signature and address structured answers', function (): void {
     $survey = phase2Survey();
     phase2Field($survey, SurveyFieldType::Signature, ['field_key' => 'signature']);
