@@ -108,6 +108,27 @@ it('rejects incomplete required ranking and accepts complete ranking', function 
     );
 })->throws(SurveyValidationException::class);
 
+it('renders ranking fields as a sortable public list', function (): void {
+    $survey = phase2Survey();
+    $survey->update(['allow_anonymous' => true]);
+
+    phase2Field($survey, SurveyFieldType::Ranking, [
+        'field_key' => 'rank',
+        'options_json' => [
+            ['id' => 'a', 'label' => 'A', 'value' => 'a'],
+            ['id' => 'b', 'label' => 'B', 'value' => 'b'],
+        ],
+    ]);
+
+    $this->get(route('survey.show', $survey->public_key))
+        ->assertSuccessful()
+        ->assertSee('data-ranking-list="rank"', false)
+        ->assertSee('data-ranking-item', false)
+        ->assertSee('data-ranking-move="up"', false)
+        ->assertSee('data-ranking-move="down"', false)
+        ->assertDontSee('data-ranking-field', false);
+});
+
 it('validates signature and address structured answers', function (): void {
     $survey = phase2Survey();
     phase2Field($survey, SurveyFieldType::Signature, ['field_key' => 'signature']);

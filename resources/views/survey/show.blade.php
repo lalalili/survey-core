@@ -147,6 +147,71 @@
             font-size: 0.75rem;
             color: #9ca3af;
         }
+
+        .survey-ranking-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .survey-ranking-item {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+            border: 1px solid var(--survey-border);
+            border-radius: var(--survey-radius);
+            background: #fff;
+            padding: 0.625rem 0.75rem;
+            transition: border-color 120ms, box-shadow 120ms, transform 120ms;
+        }
+
+        .survey-ranking-item[draggable="true"] {
+            cursor: grab;
+        }
+
+        .survey-ranking-item.is-dragging {
+            opacity: 0.55;
+            transform: scale(0.99);
+        }
+
+        .survey-ranking-position {
+            min-width: 1.75rem;
+            border-radius: 999px;
+            background: var(--survey-surface);
+            color: var(--survey-text-muted);
+            font-size: 0.75rem;
+            font-weight: 700;
+            line-height: 1.75rem;
+            text-align: center;
+        }
+
+        .survey-ranking-label {
+            flex: 1;
+            font-size: 0.875rem;
+            color: var(--survey-text);
+        }
+
+        .survey-ranking-handle,
+        .survey-ranking-move {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            border: 1px solid var(--survey-border);
+            border-radius: 0.375rem;
+            background: #fff;
+            color: var(--survey-text-muted);
+            font-size: 0.875rem;
+        }
+
+        .survey-ranking-move:not(:disabled) {
+            cursor: pointer;
+        }
+
+        .survey-ranking-move:disabled {
+            opacity: 0.35;
+        }
     </style>
     @if(!empty(config('survey-core.turnstile.site_key')))
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
@@ -583,12 +648,15 @@
                         </table>
                     </div>
                 @elseif($type === 'ranking')
-                    <div class="space-y-2">
+                    <div class="survey-ranking-list space-y-2" data-ranking-list="{{ $fk }}">
                         @foreach($field->optionsForDisplay() as $optVal => $optLabel)
-                            <label class="flex items-center gap-2">
-                                <input type="number" min="1" max="{{ count($field->optionsForDisplay()) }}" data-ranking-field="{{ $fk }}" data-ranking-option="{{ $optVal }}" class="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm">
-                                <span class="text-sm text-gray-700">{{ $optLabel }}</span>
-                            </label>
+                            <div class="survey-ranking-item flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2" draggable="true" data-ranking-item data-ranking-option="{{ $optVal }}">
+                                <span class="survey-ranking-position" data-ranking-position></span>
+                                <span class="survey-ranking-handle" aria-hidden="true">☰</span>
+                                <span class="survey-ranking-label text-sm text-gray-700">{{ $optLabel }}</span>
+                                <button type="button" class="survey-ranking-move" data-ranking-move="up" aria-label="上移">↑</button>
+                                <button type="button" class="survey-ranking-move" data-ranking-move="down" aria-label="下移">↓</button>
+                            </div>
                         @endforeach
                         <input type="hidden" name="answers[{{ $fk }}]" data-ranking-value="{{ $fk }}">
                     </div>
@@ -920,12 +988,15 @@
                         </table>
                     </div>
                 @elseif($type === 'ranking')
-                    <div class="survey-choices">
+                    <div class="survey-ranking-list" data-ranking-list="{{ $fk }}">
                         @foreach($field->optionsForDisplay() as $optVal => $optLabel)
-                            <label class="survey-choice-label">
-                                <input type="number" min="1" max="{{ count($field->optionsForDisplay()) }}" data-ranking-field="{{ $fk }}" data-ranking-option="{{ $optVal }}">
-                                <span>{{ $optLabel }}</span>
-                            </label>
+                            <div class="survey-ranking-item" draggable="true" data-ranking-item data-ranking-option="{{ $optVal }}">
+                                <span class="survey-ranking-position" data-ranking-position></span>
+                                <span class="survey-ranking-handle" aria-hidden="true">☰</span>
+                                <span class="survey-ranking-label">{{ $optLabel }}</span>
+                                <button type="button" class="survey-ranking-move" data-ranking-move="up" aria-label="上移">↑</button>
+                                <button type="button" class="survey-ranking-move" data-ranking-move="down" aria-label="下移">↓</button>
+                            </div>
                         @endforeach
                         <input type="hidden" name="answers[{{ $fk }}]" data-ranking-value="{{ $fk }}">
                     </div>
@@ -1407,23 +1478,106 @@
     }
 
     function updateRankingValues() {
-        var grouped = {};
-        document.querySelectorAll('[data-ranking-field]').forEach(function (input) {
-            var fieldKey = input.getAttribute('data-ranking-field');
-            if (!grouped[fieldKey]) { grouped[fieldKey] = []; }
-            var rank = parseInt(input.value || '0', 10);
-            if (rank > 0) {
-                grouped[fieldKey].push({ rank: rank, option: input.getAttribute('data-ranking-option') });
-            }
-        });
-
-        Object.keys(grouped).forEach(function (fieldKey) {
+        document.querySelectorAll('[data-ranking-list]').forEach(function (list) {
+            var fieldKey = list.getAttribute('data-ranking-list');
             var target = document.querySelector('[data-ranking-value="' + fieldKey + '"]');
             if (!target) { return; }
-            target.value = grouped[fieldKey]
-                .sort(function (a, b) { return a.rank - b.rank; })
-                .map(function (entry) { return entry.option; })
+
+            var items = Array.prototype.slice.call(list.querySelectorAll('[data-ranking-item]'));
+            target.value = items
+                .map(function (item) { return item.getAttribute('data-ranking-option'); })
+                .filter(Boolean)
                 .join(',');
+
+            items.forEach(function (item, index) {
+                var position = item.querySelector('[data-ranking-position]');
+                var upButton = item.querySelector('[data-ranking-move="up"]');
+                var downButton = item.querySelector('[data-ranking-move="down"]');
+
+                if (position) { position.textContent = String(index + 1); }
+                if (upButton) { upButton.disabled = index === 0; }
+                if (downButton) { downButton.disabled = index === items.length - 1; }
+            });
+        });
+    }
+
+    function getRankingDropTarget(list, pointerY) {
+        var items = Array.prototype.slice
+            .call(list.querySelectorAll('[data-ranking-item]:not(.is-dragging)'));
+
+        return items.reduce(function (closest, item) {
+            var box = item.getBoundingClientRect();
+            var offset = pointerY - box.top - box.height / 2;
+
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: item };
+            }
+
+            return closest;
+        }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+    }
+
+    function moveRankingItem(button, direction) {
+        var item = button.closest('[data-ranking-item]');
+        if (!item) { return; }
+
+        var sibling = direction === 'up' ? item.previousElementSibling : item.nextElementSibling;
+        while (sibling && !sibling.matches('[data-ranking-item]')) {
+            sibling = direction === 'up' ? sibling.previousElementSibling : sibling.nextElementSibling;
+        }
+
+        if (direction === 'up' && sibling) {
+            item.parentElement.insertBefore(item, sibling);
+        }
+
+        if (direction === 'down' && sibling) {
+            item.parentElement.insertBefore(sibling, item);
+        }
+
+        updateRankingValues();
+    }
+
+    function initRankingLists() {
+        updateRankingValues();
+
+        document.querySelectorAll('[data-ranking-item]').forEach(function (item) {
+            item.addEventListener('dragstart', function (event) {
+                item.classList.add('is-dragging');
+                if (event.dataTransfer) {
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', item.getAttribute('data-ranking-option') || '');
+                }
+            });
+
+            item.addEventListener('dragend', function () {
+                item.classList.remove('is-dragging');
+                updateRankingValues();
+            });
+        });
+
+        document.querySelectorAll('[data-ranking-list]').forEach(function (list) {
+            list.addEventListener('dragover', function (event) {
+                var dragging = list.querySelector('.is-dragging');
+                if (!dragging) { return; }
+
+                event.preventDefault();
+                var target = getRankingDropTarget(list, event.clientY);
+                if (target) {
+                    list.insertBefore(dragging, target);
+                } else {
+                    var hiddenValue = list.querySelector('[data-ranking-value]');
+                    if (hiddenValue) {
+                        list.insertBefore(dragging, hiddenValue);
+                    } else {
+                        list.appendChild(dragging);
+                    }
+                }
+            });
+
+            list.addEventListener('drop', function (event) {
+                event.preventDefault();
+                updateRankingValues();
+            });
         });
     }
 
@@ -1677,9 +1831,9 @@
     // ─── Event wiring ─────────────────────────────────────────────────────────
     initCascadeSelects();
     initSignaturePads();
+    initRankingLists();
 
     document.addEventListener('change', function (event) {
-        if (event.target && event.target.matches('[data-ranking-field]')) { updateRankingValues(); }
         if (event.target && event.target.matches('[data-file-upload-field]')) { void updateFileUploadMeta(event.target); }
         if (event.target && event.target.matches('[data-cascade-level]')) {
             var cascadeContainer = event.target.closest('[data-cascade-field]');
@@ -1691,6 +1845,12 @@
         if (IS_MULTI_PAGE) { updateNavButtons(); }
     });
     document.addEventListener('input', evaluateBranching);
+    document.addEventListener('click', function (event) {
+        var button = event.target && event.target.closest('[data-ranking-move]');
+        if (!button) { return; }
+
+        moveRankingItem(button, button.getAttribute('data-ranking-move'));
+    });
 
     var prevBtn = document.getElementById('btn-prev');
     var nextBtn = document.getElementById('btn-next');
