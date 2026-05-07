@@ -111,6 +111,8 @@ $url = route('survey.collector.show', $collector->slug);
 
 提交回應會寫入 `survey_responses.survey_collector_id`，事件漏斗會寫入 `survey_response_events.survey_collector_id`。
 
+若安裝 `lalalili/survey-filament`，可在問卷檢視/編輯頁的「回收管道」關聯管理器建立與管理 collectors。
+
 ### 安全設定
 
 - 密碼保護透過 `POST /survey/{publicKey}/password` 或 `POST /s/{collectorSlug}/password` 在後端驗證，不會把明文密碼輸出到 HTML/JS。
