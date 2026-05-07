@@ -6,23 +6,24 @@ use Lalalili\SurveyCore\Contracts\PersonalizationResolver;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyPageKind;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
+use Lalalili\SurveyCore\Http\Controllers\PublicSurveyController;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyCalculation;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyPage;
-use Lalalili\SurveyCore\Http\Controllers\PublicSurveyController;
 use Lalalili\SurveyCore\Services\DefaultPersonalizationResolver;
+use Tests\TestCase;
 
-$phase2BuilderTestCase = class_exists(Tests\TestCase::class)
-    ? Tests\TestCase::class
+$phase2BuilderTestCase = class_exists(TestCase::class)
+    ? TestCase::class
     : Lalalili\SurveyCore\Tests\TestCase::class;
 
-if ($phase2BuilderTestCase === Tests\TestCase::class) {
+if ($phase2BuilderTestCase === TestCase::class) {
     uses($phase2BuilderTestCase);
 }
 
 beforeEach(function () use ($phase2BuilderTestCase): void {
-    if ($phase2BuilderTestCase === Tests\TestCase::class) {
+    if ($phase2BuilderTestCase === TestCase::class) {
         $this->artisan('migrate', ['--path' => 'packages/survey-core/database/migrations'])->run();
     }
 

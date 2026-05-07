@@ -42,6 +42,111 @@
             background: var(--survey-primary) !important;
             border-color: var(--survey-primary) !important;
         }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+
+        .survey-rating-stars {
+            display: flex;
+            gap: 0.25rem;
+            margin-top: 0.25rem;
+            flex-wrap: wrap;
+        }
+
+        .survey-rating-star-label {
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .survey-rating-star-icon {
+            display: inline-block;
+            font-size: 2rem;
+            color: #d1d5db;
+            transition: color 120ms, transform 120ms;
+            user-select: none;
+        }
+
+        .survey-rating-star-label:hover .survey-rating-star-icon,
+        .survey-rating-star-label.hovered .survey-rating-star-icon {
+            transform: scale(1.18);
+        }
+
+        .survey-rating-star-label.filled .survey-rating-star-icon {
+            color: #f59e0b;
+        }
+
+        .survey-rating-star-label.hovered .survey-rating-star-icon {
+            color: #fbbf24;
+        }
+
+        .survey-nps-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+            margin-top: 0.25rem;
+        }
+
+        .survey-nps-row {
+            display: flex;
+            gap: 0.3rem;
+            flex-wrap: wrap;
+        }
+
+        .survey-nps-label {
+            flex: 1;
+            min-width: 2.25rem;
+            cursor: pointer;
+        }
+
+        .survey-nps-pip {
+            display: block;
+            text-align: center;
+            padding: 0.5rem 0;
+            border: 1.5px solid #d1d5db;
+            border-radius: 0.375rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            font-family: ui-monospace, monospace;
+            color: #6b7280;
+            background: #fff;
+            transition: all 130ms;
+            user-select: none;
+        }
+
+        .survey-nps-label:hover .survey-nps-pip {
+            border-color: var(--survey-primary);
+            background: #eef2ff;
+            color: var(--survey-primary);
+        }
+
+        .survey-nps-radio:checked + .survey-nps-pip {
+            border-color: var(--survey-primary);
+            background: var(--survey-primary);
+            color: #fff;
+        }
+
+        .survey-nps-pip.red { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+        .survey-nps-pip.yellow { background: #fffbeb; border-color: #fde68a; color: #b45309; }
+        .survey-nps-pip.green { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+        .survey-nps-radio:checked + .survey-nps-pip.red { background: #dc2626; border-color: #dc2626; color: #fff; }
+        .survey-nps-radio:checked + .survey-nps-pip.yellow { background: #d97706; border-color: #d97706; color: #fff; }
+        .survey-nps-radio:checked + .survey-nps-pip.green { background: #16a34a; border-color: #16a34a; color: #fff; }
+
+        .survey-nps-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
     </style>
     @if(!empty(config('survey-core.turnstile.site_key')))
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
@@ -63,18 +168,20 @@
         $welcomePage = $surveyPages->first(fn ($p) => ($p->kind?->value ?? 'question') === 'welcome');
         $thankYouPage = $surveyPages->first(fn ($p) => ($p->kind?->value ?? 'question') === 'thank_you');
         $questionPages = $surveyPages->filter(fn ($p) => ($p->kind?->value ?? 'question') === 'question')->values();
+        $allQuestionPageKeys = $questionPages->pluck('page_key')->values()->all();
 
         $renderPages = $questionPages->map(fn ($p) => [
             'key'    => $p->page_key,
             'title'  => $p->title,
             'fields' => ($fieldsByPageId[$p->id] ?? collect())->sortBy('sort_order')->values(),
-        ]);
+        ])->filter(fn ($page) => $page['fields']->isNotEmpty())->values();
 
-        $pagesData = $questionPages->map(fn ($p) => ['id' => $p->page_key, 'title' => $p->title])->values()->all();
+        $pagesData = $renderPages->map(fn ($page) => ['id' => $page['key'], 'title' => $page['title']])->values()->all();
     } else {
         // Fallback: group by integer page field (legacy / un-synced surveys)
         $allFields = $survey->fields->where('is_hidden', false)->sortBy('sort_order');
         $grouped   = $allFields->groupBy(fn ($f) => $f->page ?? 1)->sortKeys();
+        $allQuestionPageKeys = $grouped->keys()->map(fn ($num) => 'page_' . $num)->values()->all();
 
         $renderPages = $grouped->map(fn ($fields, $num) => [
             'key'    => 'page_' . $num,
@@ -394,6 +501,26 @@
                             <span class="text-sm text-gray-500">{{ $field->settings_json['unit'] }}</span>
                         @endif
                     </div>
+                @elseif($type === 'cascade_select')
+                    @php
+                        $cascadeLevels = $field->settings_json['cascade_levels'] ?? [];
+                        $cascadeData = $field->settings_json['cascade_data'] ?? [];
+                    @endphp
+                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2"
+                         data-cascade-field="{{ $fk }}"
+                         data-cascade-data='@json($cascadeData)'>
+                        @foreach($cascadeLevels as $levelIndex => $level)
+                            @php $levelId = (string) ($level['id'] ?? 'level_' . ($levelIndex + 1)); @endphp
+                            <select
+                                name="answers[{{ $fk }}][{{ $levelId }}]"
+                                data-cascade-level="{{ $levelIndex }}"
+                                @if($field->is_required) required @endif
+                                @if($levelIndex > 0) disabled @endif
+                                class="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                                <option value="">{{ $level['label'] ?? '請選擇' }}</option>
+                            </select>
+                        @endforeach
+                    </div>
                 @elseif($type === 'nps')
                     @php
                         $npsColorBands = !empty($field->settings_json['color_bands']);
@@ -712,6 +839,26 @@
                         step="{{ $field->settings_json['step'] ?? '1' }}"
                         @if($field->is_required) required @endif
                         class="survey-input">
+                @elseif($type === 'cascade_select')
+                    @php
+                        $cascadeLevels = $field->settings_json['cascade_levels'] ?? [];
+                        $cascadeData = $field->settings_json['cascade_data'] ?? [];
+                    @endphp
+                    <div class="survey-choices"
+                         data-cascade-field="{{ $fk }}"
+                         data-cascade-data='@json($cascadeData)'>
+                        @foreach($cascadeLevels as $levelIndex => $level)
+                            @php $levelId = (string) ($level['id'] ?? 'level_' . ($levelIndex + 1)); @endphp
+                            <select
+                                name="answers[{{ $fk }}][{{ $levelId }}]"
+                                data-cascade-level="{{ $levelIndex }}"
+                                @if($field->is_required) required @endif
+                                @if($levelIndex > 0) disabled @endif
+                                class="survey-select">
+                                <option value="">{{ $level['label'] ?? '請選擇' }}</option>
+                            </select>
+                        @endforeach
+                    </div>
                 @elseif($type === 'nps')
                     @php
                         $npsColorBands = !empty($field->settings_json['color_bands']);
@@ -856,6 +1003,7 @@
     // ─── Config ──────────────────────────────────────────────────────────────
     var IS_MULTI_PAGE = {{ $isMultiPage ? 'true' : 'false' }};
     var PAGES_DATA    = @json($pagesData);   // [{id, title}, ...]
+    var ALL_PAGE_KEYS = @json($allQuestionPageKeys);
     var BRANCHING     = @json($branchingMap);
     var JUMP_MAP      = @json($jumpMap);     // {field_key: {value: {type, target_page_id?}}}
     var PAGE_JUMP_MAP = @json($pageJumpMap);
@@ -953,6 +1101,25 @@
     }
 
     // ─── Jump logic ───────────────────────────────────────────────────────────
+    function nextRenderablePageKey(pageKey) {
+        if (!pageKey) { return null; }
+
+        var visibleIdx = PAGES_DATA.findIndex(function (p) { return p.id === pageKey; });
+        if (visibleIdx !== -1) { return pageKey; }
+
+        var allIdx = ALL_PAGE_KEYS.findIndex(function (id) { return id === pageKey; });
+        if (allIdx === -1) { return null; }
+
+        for (var i = allIdx + 1; i < ALL_PAGE_KEYS.length; i += 1) {
+            var nextKey = ALL_PAGE_KEYS[i];
+            if (PAGES_DATA.some(function (p) { return p.id === nextKey; })) {
+                return nextKey;
+            }
+        }
+
+        return null;
+    }
+
     // Returns: page_key | 'END_SURVEY' | null (no next page)
     function resolveNextPageKey(fromPageKey) {
         var fromIdx = PAGES_DATA.findIndex(function (p) { return p.id === fromPageKey; });
@@ -973,7 +1140,7 @@
 
             if (action && action.type === 'end_survey') { return 'END_SURVEY'; }
 
-            if (action && action.type === 'go_to_page') { nextKey = action.target_page_id || null; }
+            if (action && action.type === 'go_to_page') { nextKey = nextRenderablePageKey(action.target_page_id || null); }
         }
 
         var pageRules = PAGE_JUMP_MAP[fromPageKey] || [];
@@ -982,7 +1149,7 @@
             if (!conditionGroupPasses(rule.condition || {})) { continue; }
 
             if (rule.action && rule.action.type === 'end_survey') { return 'END_SURVEY'; }
-            if (rule.action && rule.action.type === 'go_to_page') { return rule.action.target_page_id || null; }
+            if (rule.action && rule.action.type === 'go_to_page') { return nextRenderablePageKey(rule.action.target_page_id || null); }
         }
 
         return nextKey;
@@ -1247,6 +1414,79 @@
         if (size) { size.value = String(data.size || file.size); }
     }
 
+    function parseCascadeData(raw) {
+        if (!raw) { return []; }
+        try {
+            var parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+
+    function cascadeChildren(nodes, selectedValues, depth) {
+        var current = Array.isArray(nodes) ? nodes : [];
+
+        for (var i = 0; i < depth; i += 1) {
+            var selected = selectedValues[i];
+            var found = current.find(function (node) {
+                return String(node.id || node.label || '') === String(selected || '');
+            });
+
+            current = found && Array.isArray(found.children) ? found.children : [];
+        }
+
+        return current;
+    }
+
+    function populateCascadeSelect(select, nodes) {
+        var placeholder = select.options[0] ? select.options[0].textContent : '請選擇';
+        select.innerHTML = '';
+
+        var empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = placeholder || '請選擇';
+        select.appendChild(empty);
+
+        nodes.forEach(function (node) {
+            var value = String(node.id || node.label || '');
+            if (!value) { return; }
+
+            var option = document.createElement('option');
+            option.value = value;
+            option.textContent = String(node.label || value);
+            select.appendChild(option);
+        });
+    }
+
+    function updateCascade(container, changedLevel) {
+        var data = parseCascadeData(container.getAttribute('data-cascade-data'));
+        var selects = Array.from(container.querySelectorAll('[data-cascade-level]'))
+            .sort(function (a, b) {
+                return Number(a.getAttribute('data-cascade-level')) - Number(b.getAttribute('data-cascade-level'));
+            });
+        var selectedValues = selects.map(function (select) { return select.value; });
+
+        selects.forEach(function (select, index) {
+            if (index === 0 && select.options.length <= 1) {
+                populateCascadeSelect(select, data);
+            }
+
+            if (index <= changedLevel) { return; }
+
+            select.value = '';
+            var nodes = cascadeChildren(data, selectedValues, index);
+            populateCascadeSelect(select, nodes);
+            select.disabled = nodes.length === 0 || !selectedValues[index - 1];
+        });
+    }
+
+    function initCascadeSelects() {
+        document.querySelectorAll('[data-cascade-field]').forEach(function (container) {
+            updateCascade(container, -1);
+        });
+    }
+
     function initSignaturePads() {
         document.querySelectorAll('[data-signature-canvas]').forEach(function (canvas) {
             var fieldKey = canvas.getAttribute('data-signature-canvas');
@@ -1389,11 +1629,18 @@
     }
 
     // ─── Event wiring ─────────────────────────────────────────────────────────
+    initCascadeSelects();
     initSignaturePads();
 
     document.addEventListener('change', function (event) {
         if (event.target && event.target.matches('[data-ranking-field]')) { updateRankingValues(); }
         if (event.target && event.target.matches('[data-file-upload-field]')) { void updateFileUploadMeta(event.target); }
+        if (event.target && event.target.matches('[data-cascade-level]')) {
+            var cascadeContainer = event.target.closest('[data-cascade-field]');
+            if (cascadeContainer) {
+                updateCascade(cascadeContainer, Number(event.target.getAttribute('data-cascade-level')));
+            }
+        }
         evaluateBranching();
         if (IS_MULTI_PAGE) { updateNavButtons(); }
     });

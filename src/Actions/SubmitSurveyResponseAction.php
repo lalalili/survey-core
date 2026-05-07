@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\DB;
 use Lalalili\SurveyCore\Data\SubmissionPayload;
 use Lalalili\SurveyCore\Enums\SurveyResponseCompletionStatus;
 use Lalalili\SurveyCore\Events\SurveySubmitted;
+use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
+use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyAnswer;
 use Lalalili\SurveyCore\Models\SurveyField;
@@ -16,13 +18,11 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 class SubmitSurveyResponseAction
 {
     public function __construct(
-        private readonly ResolveSurveyTokenAction $resolveToken,
         private readonly HydratePersonalizedFieldsAction $hydrateFields,
         private readonly ValidateSurveySubmissionAction $validateSubmission,
         private readonly CalculateSurveyResponseAction $calculateResponse,
         private readonly EvaluateResponseQualityAction $evaluateQuality,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  array{elapsed_ms?: int|null, honeypot_hit?: bool, ip?: string|null}  $qualityContext
@@ -36,7 +36,7 @@ class SubmitSurveyResponseAction
             $lockedSurvey = Survey::query()->lockForUpdate()->findOrFail($survey->id);
 
             if (! $lockedSurvey->hasQuotaAvailable()) {
-                throw new \Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException($lockedSurvey->quota_message ?: '問卷已額滿。');
+                throw new SurveyNotAvailableException($lockedSurvey->quota_message ?: '問卷已額滿。');
             }
 
             $tokenContext = $payload->tokenContext;
@@ -79,18 +79,18 @@ class SubmitSurveyResponseAction
             $safeVisible = array_diff_key($safeVisible, array_flip($conditionallyHiddenKeys));
             $this->validateOptionCapacity($survey, $safeVisible);
 
-            $finalAnswers = array_merge($safeVisible, $hiddenMap?->values ?? []);
+            $finalAnswers = array_merge($safeVisible, $hiddenMap->values ?? []);
             $calculations = $this->calculateResponse->execute($survey, $safeVisible);
 
             $response = SurveyResponse::create([
-                'survey_id'           => $survey->id,
+                'survey_id' => $survey->id,
                 'survey_recipient_id' => $recipient?->id,
-                'survey_token_id'     => $tokenContext?->token->id,
-                'submitted_at'        => now(),
-                'ip'                  => $ip,
-                'user_agent'          => $userAgent,
-                'calculations_json'   => $calculations === [] ? null : $calculations,
-                'completion_status'   => SurveyResponseCompletionStatus::Complete,
+                'survey_token_id' => $tokenContext?->token->id,
+                'submitted_at' => now(),
+                'ip' => $ip,
+                'user_agent' => $userAgent,
+                'calculations_json' => $calculations === [] ? null : $calculations,
+                'completion_status' => SurveyResponseCompletionStatus::Complete,
             ]);
 
             $fieldsByKey = $survey->fields->keyBy('field_key');
@@ -104,7 +104,7 @@ class SubmitSurveyResponseAction
 
                 $answerData = [
                     'survey_response_id' => $response->id,
-                    'survey_field_id'    => $field->id,
+                    'survey_field_id' => $field->id,
                 ];
 
                 if (is_array($value)) {
@@ -173,7 +173,7 @@ class SubmitSurveyResponseAction
         }
 
         if ($errors !== []) {
-            throw new \Lalalili\SurveyCore\Exceptions\SurveyValidationException($errors);
+            throw new SurveyValidationException($errors);
         }
     }
 

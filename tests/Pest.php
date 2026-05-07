@@ -1,3 +1,5 @@
 <?php
 
-uses(Lalalili\SurveyCore\Tests\TestCase::class)->in('Feature', 'Unit');
+use Lalalili\SurveyCore\Tests\TestCase;
+
+uses(TestCase::class)->in('Feature', 'Unit');

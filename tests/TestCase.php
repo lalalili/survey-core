@@ -2,8 +2,8 @@
 
 namespace Lalalili\SurveyCore\Tests;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Lalalili\SurveyCore\SurveyCoreServiceProvider;

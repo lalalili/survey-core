@@ -17,17 +17,18 @@ use Lalalili\SurveyCore\Models\SurveyPage;
 use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Services\DefaultPersonalizationResolver;
 use Lalalili\SurveyCore\Support\JumpLogicResolver;
+use Tests\TestCase;
 
-$phase2SurveyFieldsTestCase = class_exists(Tests\TestCase::class)
-    ? Tests\TestCase::class
+$phase2SurveyFieldsTestCase = class_exists(TestCase::class)
+    ? TestCase::class
     : Lalalili\SurveyCore\Tests\TestCase::class;
 
-if ($phase2SurveyFieldsTestCase === Tests\TestCase::class) {
+if ($phase2SurveyFieldsTestCase === TestCase::class) {
     uses($phase2SurveyFieldsTestCase);
 }
 
 beforeEach(function () use ($phase2SurveyFieldsTestCase): void {
-    if ($phase2SurveyFieldsTestCase === Tests\TestCase::class) {
+    if ($phase2SurveyFieldsTestCase === TestCase::class) {
         $this->artisan('migrate', ['--path' => 'packages/survey-core/database/migrations'])->run();
     }
 

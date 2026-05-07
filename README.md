@@ -1,11 +1,11 @@
 # survey-core
 
-Laravel 問卷系統核心套件。提供完整的問卷引擎（token 機制、個人化欄位、多頁問卷、跳題邏輯、CSV 匯出），無任何 Filament 依賴，可在純 Laravel 專案中使用。
+Laravel 問卷系統核心套件。提供完整的問卷引擎（token 機制、個性化欄位、多頁問卷、跳題邏輯、CSV 匯出），無任何 Filament 依賴，可在純 Laravel 專案中使用。
 
 ## 功能
 
 - 問卷與題目管理（狀態機：Draft → Published → Closed）
-- 個人化 token 連結：收件人 URL 攜帶 token，後端解析並注入隱藏欄位值
+- 個性化 token 連結：收件人 URL 攜帶 token，後端解析並注入個性化欄位值
 - **跳題邏輯**：`show_if_field_key` + `show_if_value`，前後端雙重驗證
 - **多頁問卷**：題目依 `page` 欄位分組，前端逐頁填寫，單次提交
 - CSV 匯出（可擴充至 xlsx 等格式）
@@ -38,7 +38,7 @@ php artisan vendor:publish --tag=survey-core-config
 | `token_lifetime_minutes` | Token 有效期（分鐘，null = 永不過期） | `null` |
 | `default_max_submissions` | 每個 token 最多提交次數（null = 不限） | `null` |
 | `exports.default_driver` | 匯出驅動（`csv`） | `csv` |
-| `personalization.resolver` | 個人化 resolver 類別（可替換） | `DefaultPersonalizationResolver` |
+| `personalization.resolver` | 個性化 resolver 類別（可替換） | `DefaultPersonalizationResolver` |
 | `frontend.css` | 公開頁 CSS 來源（`cdn`、`published`、或自訂 URL） | `cdn` |
 
 ### 前端資產
@@ -83,7 +83,7 @@ use Lalalili\SurveyCore\Actions\ExportSurveyResponsesAction;
 // 發佈問卷
 app(PublishSurveyAction::class)->execute($survey);
 
-// 產生 token（建立個人化連結）
+// 產生 token（建立個性化連結）
 $token = app(GenerateSurveyTokenAction::class)->execute($survey, $recipient);
 $url = route('survey.show', $survey->public_key) . '?t=' . $token->token;
 
@@ -91,7 +91,7 @@ $url = route('survey.show', $survey->public_key) . '?t=' . $token->token;
 return app(ExportSurveyResponsesAction::class)->execute($survey);
 ```
 
-### 個人化 resolver 替換
+### 個性化 resolver 替換
 
 ```php
 // config/survey-core.php

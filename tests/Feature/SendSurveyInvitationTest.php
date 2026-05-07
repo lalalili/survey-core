@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Queue;
 use Lalalili\SurveyCore\Actions\SendSurveyInvitationAction;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Enums\SurveyTokenStatus;
@@ -12,14 +11,14 @@ use Lalalili\SurveyCore\Models\SurveyToken;
 
 beforeEach(function () {
     $this->survey = Survey::create([
-        'title'  => 'Invitation Test Survey',
+        'title' => 'Invitation Test Survey',
         'status' => SurveyStatus::Published,
     ]);
 
     $this->recipient = SurveyRecipient::create([
         'survey_id' => $this->survey->id,
-        'name'      => 'Alice',
-        'email'     => 'alice@example.com',
+        'name' => 'Alice',
+        'email' => 'alice@example.com',
     ]);
 
     $this->action = app(SendSurveyInvitationAction::class);
@@ -43,9 +42,9 @@ it('reuses an existing active token instead of creating a new one', function () 
     Mail::fake();
 
     $existingToken = SurveyToken::create([
-        'survey_id'           => $this->survey->id,
+        'survey_id' => $this->survey->id,
         'survey_recipient_id' => $this->recipient->id,
-        'status'              => SurveyTokenStatus::Active,
+        'status' => SurveyTokenStatus::Active,
     ]);
 
     $token = $this->action->execute($this->recipient);
@@ -58,9 +57,9 @@ it('deactivates old tokens and issues a new one on resend', function () {
     Mail::fake();
 
     $oldToken = SurveyToken::create([
-        'survey_id'           => $this->survey->id,
+        'survey_id' => $this->survey->id,
         'survey_recipient_id' => $this->recipient->id,
-        'status'              => SurveyTokenStatus::Active,
+        'status' => SurveyTokenStatus::Active,
     ]);
 
     $newToken = $this->action->execute($this->recipient, resend: true);
@@ -78,6 +77,6 @@ it('embeds the token in the survey URL passed to the mailable', function () {
     $token = $this->action->execute($this->recipient);
 
     Mail::assertQueued(SurveyInvitationMail::class, function (SurveyInvitationMail $mail) use ($token) {
-        return str_contains($mail->surveyUrl, '?t=' . $token->token);
+        return str_contains($mail->surveyUrl, '?t='.$token->token);
     });
 });

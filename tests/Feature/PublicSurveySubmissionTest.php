@@ -16,32 +16,32 @@ function makeSurvey(SurveyStatus $status = SurveyStatus::Published): Survey
     $survey = Survey::create(['title' => 'Test', 'status' => $status]);
 
     SurveyField::create([
-        'survey_id'   => $survey->id,
-        'type'        => SurveyFieldType::ShortText,
-        'label'       => 'Name',
-        'field_key'   => 'name',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Name',
+        'field_key' => 'name',
         'is_required' => true,
-        'sort_order'  => 1,
+        'sort_order' => 1,
     ]);
 
     SurveyField::create([
-        'survey_id'    => $survey->id,
-        'type'         => SurveyFieldType::SingleChoice,
-        'label'        => 'Color',
-        'field_key'    => 'color',
-        'is_required'  => false,
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::SingleChoice,
+        'label' => 'Color',
+        'field_key' => 'color',
+        'is_required' => false,
         'options_json' => [['value' => 'red'], ['value' => 'blue']],
-        'sort_order'   => 2,
+        'sort_order' => 2,
     ]);
 
     SurveyField::create([
-        'survey_id'    => $survey->id,
-        'type'         => SurveyFieldType::MultipleChoice,
-        'label'        => 'Tags',
-        'field_key'    => 'tags',
-        'is_required'  => false,
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::MultipleChoice,
+        'label' => 'Tags',
+        'field_key' => 'tags',
+        'is_required' => false,
         'options_json' => [['value' => 'a'], ['value' => 'b'], ['value' => 'c']],
-        'sort_order'   => 3,
+        'sort_order' => 3,
     ]);
 
     return $survey->load('fields');
@@ -87,8 +87,8 @@ it('rejects submission to a closed survey', function () {
 
 it('rejects submission outside the time window', function () {
     $survey = Survey::create([
-        'title'   => 'Timed',
-        'status'  => SurveyStatus::Published,
+        'title' => 'Timed',
+        'status' => SurveyStatus::Published,
         'ends_at' => now()->subDay(),
     ]);
     $survey->load('fields');
@@ -164,9 +164,9 @@ it('field_key remains stable when sort_order changes', function () {
     $survey = Survey::create(['title' => 'Stable', 'status' => SurveyStatus::Draft]);
 
     $field = SurveyField::create([
-        'survey_id'  => $survey->id,
-        'type'       => SurveyFieldType::ShortText,
-        'label'      => 'Email Address',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Email Address',
         'sort_order' => 1,
     ]);
 

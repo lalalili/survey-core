@@ -18,9 +18,10 @@ class SyncSurveyBuilderSchemaToFieldsAction
     public function execute(Survey $survey, array $schema): void
     {
         $survey->loadMissing('fields');
+        $pages = is_array($schema['pages'] ?? null) ? $schema['pages'] : [];
 
-        $managedKeys = collect($schema['pages'])
-            ->flatMap(fn (array $page): array => $page['elements'])
+        $managedKeys = collect($pages)
+            ->flatMap(fn (array $page): array => is_array($page['elements'] ?? null) ? $page['elements'] : [])
             ->map(fn (array $element): string => $this->fieldKey($element))
             ->filter()
             ->values()
@@ -38,16 +39,16 @@ class SyncSurveyBuilderSchemaToFieldsAction
         // Upsert survey_pages — one per schema page, keyed by page.id (= page_key).
         $pageKeyToId = [];
 
-        foreach ($schema['pages'] as $pageIndex => $page) {
+        foreach ($pages as $pageIndex => $page) {
             $pageRecord = SurveyPage::updateOrCreate(
                 [
                     'survey_id' => $survey->id,
-                    'page_key'  => (string) $page['id'],
+                    'page_key' => (string) $page['id'],
                 ],
                 [
-                    'title'         => (string) ($page['title'] ?? 'Page ' . ($pageIndex + 1)),
-                    'kind'          => (string) ($page['kind'] ?? SurveyPageKind::Question->value),
-                    'sort_order'    => $pageIndex + 1,
+                    'title' => (string) ($page['title'] ?? 'Page '.($pageIndex + 1)),
+                    'kind' => (string) ($page['kind'] ?? SurveyPageKind::Question->value),
+                    'sort_order' => $pageIndex + 1,
                     'settings_json' => $this->pageSettings($page),
                 ],
             );
@@ -56,14 +57,16 @@ class SyncSurveyBuilderSchemaToFieldsAction
         }
 
         // Delete pages no longer in schema (hidden fields on them get survey_page_id = null via FK).
-        $currentPageKeys = array_column($schema['pages'], 'id');
+        $currentPageKeys = array_column($pages, 'id');
         $survey->pages()->whereNotIn('page_key', $currentPageKeys)->delete();
 
         // Upsert fields, assigning survey_page_id from the map.
-        foreach ($schema['pages'] as $pageIndex => $page) {
+        foreach ($pages as $pageIndex => $page) {
             $surveyPageId = $pageKeyToId[(string) $page['id']] ?? null;
 
-            foreach ($page['elements'] as $elementIndex => $element) {
+            $elements = is_array($page['elements'] ?? null) ? $page['elements'] : [];
+
+            foreach ($elements as $elementIndex => $element) {
                 $type = SurveyFieldType::from($element['type']);
 
                 $isHidden = (bool) ($element['is_hidden'] ?? false);
@@ -78,22 +81,22 @@ class SyncSurveyBuilderSchemaToFieldsAction
                         'field_key' => $fieldKey,
                     ],
                     [
-                        'type'              => $type,
-                        'label'             => $element['label'],
-                        'description'       => $element['description'] ?? null,
-                        'is_required'       => (bool) $element['required'],
-                        'is_hidden'         => $isHidden,
-                        'is_personalized'   => $isHidden && ! empty($personalizedKey),
-                        'personalized_key'  => $personalizedKey,
-                        'placeholder'       => $element['placeholder'] ?? null,
-                        'default_value'     => $element['settings']['default_value'] ?? null,
-                        'validation_rules'  => $element['validation_rules'] ?? $element['settings']['validation_rules'] ?? null,
-                        'settings_json'     => $this->fieldSettings($element),
-                        'options_json'      => $this->builderOptionsToFieldOptions($element),
-                        'sort_order'        => ($pageIndex * 1000) + $elementIndex + 1,
-                        'survey_page_id'    => $surveyPageId,
+                        'type' => $type,
+                        'label' => $element['label'],
+                        'description' => $element['description'] ?? null,
+                        'is_required' => (bool) $element['required'],
+                        'is_hidden' => $isHidden,
+                        'is_personalized' => $isHidden && ! empty($personalizedKey),
+                        'personalized_key' => $personalizedKey,
+                        'placeholder' => $element['placeholder'] ?? null,
+                        'default_value' => $element['settings']['default_value'] ?? null,
+                        'validation_rules' => $element['validation_rules'] ?? $element['settings']['validation_rules'] ?? null,
+                        'settings_json' => $this->fieldSettings($element),
+                        'options_json' => $this->builderOptionsToFieldOptions($element),
+                        'sort_order' => ($pageIndex * 1000) + $elementIndex + 1,
+                        'survey_page_id' => $surveyPageId,
                         'show_if_field_key' => $legacyShowIf['field_key'],
-                        'show_if_value'     => $legacyShowIf['value'],
+                        'show_if_value' => $legacyShowIf['value'],
                     ],
                 );
             }
@@ -138,11 +141,11 @@ class SyncSurveyBuilderSchemaToFieldsAction
 
             $value = (string) ($option['value'] ?? '');
             if ($value === '') {
-                $value = Str::slug($label, '_') ?: 'opt_' . ($index + 1);
+                $value = Str::slug($label, '_') ?: 'opt_'.($index + 1);
             }
 
             $entry = [
-                'id'    => (string) ($option['id'] ?? 'opt_' . ($index + 1)),
+                'id' => (string) ($option['id'] ?? 'opt_'.($index + 1)),
                 'label' => $label,
                 'value' => $value,
             ];
@@ -183,7 +186,7 @@ class SyncSurveyBuilderSchemaToFieldsAction
         $settings = is_array($element['settings'] ?? null) ? $element['settings'] : [];
         unset($settings['default_value'], $settings['validation_rules']);
 
-        foreach (['matrix_rows', 'matrix_cols', 'validation_rules', 'show_if'] as $key) {
+        foreach (['matrix_rows', 'matrix_cols', 'cascade_levels', 'cascade_data', 'validation_rules', 'show_if'] as $key) {
             if (isset($element[$key])) {
                 $settings[$key] = $element[$key];
             }
@@ -206,7 +209,8 @@ class SyncSurveyBuilderSchemaToFieldsAction
         $showIf = $element['show_if'] ?? null;
 
         if (is_array($showIf)) {
-            $conditions = collect($showIf['conditions'] ?? [])
+            $rawConditions = is_array($showIf['conditions'] ?? null) ? $showIf['conditions'] : [];
+            $conditions = collect($rawConditions)
                 ->filter(fn (mixed $condition): bool => is_array($condition))
                 ->values();
 
@@ -218,7 +222,7 @@ class SyncSurveyBuilderSchemaToFieldsAction
             ) {
                 return [
                     'field_key' => (string) $conditions[0]['field_key'],
-                    'value'     => isset($conditions[0]['value']) ? (string) $conditions[0]['value'] : null,
+                    'value' => isset($conditions[0]['value']) ? (string) $conditions[0]['value'] : null,
                 ];
             }
 
@@ -227,7 +231,7 @@ class SyncSurveyBuilderSchemaToFieldsAction
 
         return [
             'field_key' => isset($element['show_if_field_key']) ? (string) $element['show_if_field_key'] : null,
-            'value'     => isset($element['show_if_value']) ? (string) $element['show_if_value'] : null,
+            'value' => isset($element['show_if_value']) ? (string) $element['show_if_value'] : null,
         ];
     }
 
@@ -236,7 +240,8 @@ class SyncSurveyBuilderSchemaToFieldsAction
      */
     private function syncCalculations(Survey $survey, array $schema): void
     {
-        $keys = collect($schema['calculations'] ?? [])
+        $rawCalculations = is_array($schema['calculations'] ?? null) ? $schema['calculations'] : [];
+        $keys = collect($rawCalculations)
             ->pluck('key')
             ->filter()
             ->map(fn (mixed $key): string => (string) $key)
@@ -245,13 +250,17 @@ class SyncSurveyBuilderSchemaToFieldsAction
 
         $survey->calculations()->whereNotIn('key', $keys)->delete();
 
-        foreach (($schema['calculations'] ?? []) as $calculation) {
+        foreach ($rawCalculations as $calculation) {
+            if (! is_array($calculation)) {
+                continue;
+            }
+
             SurveyCalculation::updateOrCreate(
                 ['survey_id' => $survey->id, 'key' => (string) $calculation['key']],
                 [
-                    'label'          => (string) $calculation['label'],
-                    'initial_value'  => (int) ($calculation['initial_value'] ?? 0),
-                    'output_format'  => (string) ($calculation['output_format'] ?? 'number'),
+                    'label' => (string) $calculation['label'],
+                    'initial_value' => (int) ($calculation['initial_value'] ?? 0),
+                    'output_format' => (string) ($calculation['output_format'] ?? 'number'),
                     'grade_map_json' => $calculation['grade_map_json'] ?? null,
                 ],
             );

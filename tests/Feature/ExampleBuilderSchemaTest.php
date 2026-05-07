@@ -4,17 +4,18 @@ use Lalalili\SurveyCore\Actions\SyncSurveyBuilderSchemaToFieldsAction;
 use Lalalili\SurveyCore\Actions\ValidateSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Models\Survey;
+use Tests\TestCase;
 
-$exampleBuilderTestCase = class_exists(Tests\TestCase::class)
-    ? Tests\TestCase::class
+$exampleBuilderTestCase = class_exists(TestCase::class)
+    ? TestCase::class
     : Lalalili\SurveyCore\Tests\TestCase::class;
 
-if ($exampleBuilderTestCase === Tests\TestCase::class) {
+if ($exampleBuilderTestCase === TestCase::class) {
     uses($exampleBuilderTestCase);
 }
 
 beforeEach(function () use ($exampleBuilderTestCase): void {
-    if ($exampleBuilderTestCase === Tests\TestCase::class) {
+    if ($exampleBuilderTestCase === TestCase::class) {
         $this->artisan('migrate', ['--path' => 'packages/survey-core/database/migrations'])->run();
     }
 });

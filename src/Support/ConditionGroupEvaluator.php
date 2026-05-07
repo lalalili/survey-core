@@ -10,7 +10,8 @@ final class ConditionGroupEvaluator
      */
     public static function passes(array $group, array $answers): bool
     {
-        $conditions = collect($group['conditions'] ?? [])
+        $rawConditions = is_array($group['conditions'] ?? null) ? $group['conditions'] : [];
+        $conditions = collect($rawConditions)
             ->filter(fn (mixed $condition): bool => is_array($condition))
             ->values();
 

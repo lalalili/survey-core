@@ -5,25 +5,25 @@ use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Models\Survey;
 
 if (! function_exists('kindQuestionPage')) {
-function kindQuestionPage(string $id, string $kind = 'question', bool $required = false): array
-{
-    return [
-        'id' => $id,
-        'kind' => $kind,
-        'title' => $id,
-        'elements' => [[
-            'id' => 'q_'.$id,
-            'type' => 'short_text',
-            'field_key' => 'field_'.$id,
-            'label' => 'Field '.$id,
-            'description' => '',
-            'required' => $required,
-            'placeholder' => null,
-            'options' => [],
-            'settings' => [],
-        ]],
-    ];
-}
+    function kindQuestionPage(string $id, string $kind = 'question', bool $required = false): array
+    {
+        return [
+            'id' => $id,
+            'kind' => $kind,
+            'title' => $id,
+            'elements' => [[
+                'id' => 'q_'.$id,
+                'type' => 'short_text',
+                'field_key' => 'field_'.$id,
+                'label' => 'Field '.$id,
+                'description' => '',
+                'required' => $required,
+                'placeholder' => null,
+                'options' => [],
+                'settings' => [],
+            ]],
+        ];
+    }
 }
 
 function progressSchema(string $mode = 'bar', int $estimatedMinutes = 5): array

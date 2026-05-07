@@ -61,7 +61,7 @@ class ValidateSurveySubmissionAction
 
     /**
      * @param  Collection<int, SurveyField>  $fields
-     * @return array<string, array<int, mixed>>
+     * @return array<string, list<mixed>>
      */
     private function buildRules(Collection $fields): array
     {
@@ -79,7 +79,7 @@ class ValidateSurveySubmissionAction
             $fieldRules = array_merge($fieldRules, $this->typeRules($field));
 
             if (! empty($field->validation_rules)) {
-                $fieldRules = array_merge($fieldRules, $field->validation_rules);
+                $fieldRules = array_merge($fieldRules, array_values($field->validation_rules));
             }
 
             $rules[$field->field_key] = $fieldRules;
@@ -92,30 +92,31 @@ class ValidateSurveySubmissionAction
     private function typeRules(SurveyField $field): array
     {
         return match ($field->type) {
-            SurveyFieldType::Email          => ['email'],
-            SurveyFieldType::Date           => ['date'],
-            SurveyFieldType::Number         => array_values(array_filter([
+            SurveyFieldType::Email => ['email'],
+            SurveyFieldType::Date => ['date'],
+            SurveyFieldType::Number => array_values(array_filter([
                 'numeric',
                 isset($field->settings_json['min']) ? 'min:'.$field->settings_json['min'] : null,
                 isset($field->settings_json['max']) ? 'max:'.$field->settings_json['max'] : null,
             ])),
             SurveyFieldType::Nps => ['integer', 'min:0', 'max:10'],
-            SurveyFieldType::Rating         => ['integer', 'min:1', 'max:5'],
+            SurveyFieldType::Rating => ['integer', 'min:1', 'max:5'],
             SurveyFieldType::MultipleChoice, SurveyFieldType::MatrixSingle,
             SurveyFieldType::MatrixMulti, SurveyFieldType::Ranking,
+            SurveyFieldType::CascadeSelect,
             SurveyFieldType::FileUpload, SurveyFieldType::Signature,
             SurveyFieldType::Address => ['array'],
             SurveyFieldType::ShortText, SurveyFieldType::LongText,
             SurveyFieldType::Phone, SurveyFieldType::SingleChoice,
             SurveyFieldType::Select, SurveyFieldType::SectionTitle,
             SurveyFieldType::DescriptionBlock => ['string'],
-            default                           => [],
+            default => [],
         };
     }
 
     /**
      * @param  Collection<int, SurveyField>  $fields
-     * @param  array<string, mixed>           $answers
+     * @param  array<string, mixed>  $answers
      */
     private function validateChoiceOptions(Collection $fields, array $answers): void
     {
@@ -147,7 +148,7 @@ class ValidateSurveySubmissionAction
                 $submitted = array_map('strval', (array) $value);
                 $invalid = array_diff($submitted, $validOptions);
                 if (! empty($invalid)) {
-                    $errors[$field->field_key][] = 'Invalid option(s): ' . implode(', ', $invalid);
+                    $errors[$field->field_key][] = 'Invalid option(s): '.implode(', ', $invalid);
                 }
             } elseif (! in_array((string) $value, $validOptions, true)) {
                 $errors[$field->field_key][] = "Invalid option: {$value}";
@@ -177,6 +178,7 @@ class ValidateSurveySubmissionAction
                 SurveyFieldType::Number => $this->validateNumberRules($validator, $field, $value),
                 SurveyFieldType::MultipleChoice => $this->validateSelectionCount($validator, $field, (array) $value),
                 SurveyFieldType::MatrixSingle, SurveyFieldType::MatrixMulti => $this->validateMatrix($validator, $field, (array) $value),
+                SurveyFieldType::CascadeSelect => $this->validateCascadeSelect($validator, $field, (array) $value),
                 SurveyFieldType::Ranking => $this->validateRanking($validator, $field, (array) $value),
                 SurveyFieldType::FileUpload => $this->validateFileUploadAnswer($validator, $field, (array) $value),
                 SurveyFieldType::Signature => $this->validateSignature($validator, $field, (array) $value),
@@ -232,8 +234,10 @@ class ValidateSurveySubmissionAction
     /** @param array<string, mixed> $value */
     private function validateMatrix(ValidationValidator $validator, SurveyField $field, array $value): void
     {
-        $rows = collect($field->settings_json['matrix_rows'] ?? []);
-        $validCols = collect($field->settings_json['matrix_cols'] ?? [])->pluck('id')->map(fn (mixed $id): string => (string) $id)->all();
+        $matrixRows = is_array($field->settings_json['matrix_rows'] ?? null) ? $field->settings_json['matrix_rows'] : [];
+        $matrixCols = is_array($field->settings_json['matrix_cols'] ?? null) ? $field->settings_json['matrix_cols'] : [];
+        $rows = collect($matrixRows);
+        $validCols = collect($matrixCols)->pluck('id')->map(fn (mixed $id): string => (string) $id)->all();
 
         foreach ($rows as $row) {
             $rowId = (string) ($row['id'] ?? '');
@@ -241,6 +245,7 @@ class ValidateSurveySubmissionAction
 
             if ($field->is_required && ($answer === null || $answer === '' || $answer === [])) {
                 $validator->errors()->add($field->field_key, "Matrix row {$rowId} is required.");
+
                 continue;
             }
 
@@ -255,6 +260,30 @@ class ValidateSurveySubmissionAction
 
             if (array_diff($submitted, $validCols) !== []) {
                 $validator->errors()->add($field->field_key, "Matrix row {$rowId} contains an invalid column.");
+            }
+        }
+    }
+
+    /** @param array<string, mixed> $value */
+    private function validateCascadeSelect(ValidationValidator $validator, SurveyField $field, array $value): void
+    {
+        $cascadeLevels = is_array($field->settings_json['cascade_levels'] ?? null) ? $field->settings_json['cascade_levels'] : [];
+        $levels = collect($cascadeLevels)
+            ->filter(fn (mixed $level): bool => is_array($level))
+            ->values();
+
+        if ($levels->isEmpty()) {
+            return;
+        }
+
+        foreach ($levels as $level) {
+            $levelId = (string) ($level['id'] ?? '');
+            if ($levelId === '') {
+                continue;
+            }
+
+            if ($field->is_required && blank($value[$levelId] ?? null)) {
+                $validator->errors()->add($field->field_key, "Cascade level {$levelId} is required.");
             }
         }
     }

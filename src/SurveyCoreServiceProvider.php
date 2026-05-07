@@ -4,14 +4,16 @@ namespace Lalalili\SurveyCore;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
+use Lalalili\SurveyCore\Actions\CalculateSurveyResponseAction;
 use Lalalili\SurveyCore\Actions\EvaluateResponseQualityAction;
 use Lalalili\SurveyCore\Actions\ExportSurveyResponsesAction;
 use Lalalili\SurveyCore\Actions\HydratePersonalizedFieldsAction;
-use Lalalili\SurveyCore\Actions\ResolveSurveyTokenAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
 use Lalalili\SurveyCore\Actions\ValidateSurveySubmissionAction;
+use Lalalili\SurveyCore\Console\Commands\SurveyScheduleCommand;
 use Lalalili\SurveyCore\Contracts\PersonalizationResolver;
 use Lalalili\SurveyCore\Events\SurveySubmitted;
+use Lalalili\SurveyCore\Integrations\EmailCampaign\SurveyVariableProvider;
 use Lalalili\SurveyCore\Listeners\DispatchSurveySubmittedWebhook;
 use Lalalili\SurveyCore\Services\Exports\CsvSurveyExportDriver;
 use Lalalili\SurveyCore\Services\Exports\SurveyExportManager;
@@ -60,27 +62,32 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
         Event::listen(SurveySubmitted::class, DispatchSurveySubmittedWebhook::class);
 
         $this->publishes([
-            __DIR__ . '/../resources/dist' => public_path('vendor/survey-core'),
+            __DIR__.'/../resources/dist' => public_path('vendor/survey-core'),
         ], 'survey-core-assets');
 
         $this->publishes([
-            __DIR__ . '/../resources/views' => resource_path('views/vendor/survey-core'),
+            __DIR__.'/../resources/views' => resource_path('views/vendor/survey-core'),
         ], 'survey-core-views');
 
-        // Register SurveyVariableProvider when email-campaign is present
-        if (interface_exists(\Lalalili\EmailCampaign\Contracts\VariableProvider::class)) {
-            $registry = $this->app->make(\Lalalili\EmailCampaign\Support\VariableProviderRegistry::class);
-            $registry->register(\Lalalili\SurveyCore\Integrations\EmailCampaign\SurveyVariableProvider::class);
+        $variableProviderContract = 'Lalalili\\EmailCampaign\\Contracts\\VariableProvider';
+        $variableProviderRegistry = 'Lalalili\\EmailCampaign\\Support\\VariableProviderRegistry';
+
+        if (interface_exists($variableProviderContract) && class_exists($variableProviderRegistry)) {
+            $registry = $this->app->make($variableProviderRegistry);
+
+            if (is_object($registry) && method_exists($registry, 'register')) {
+                $registry->register(SurveyVariableProvider::class);
+            }
         }
 
         if ($this->app->runningInConsole()) {
             $this->commands([
-                \Lalalili\SurveyCore\Console\Commands\SurveyScheduleCommand::class,
+                SurveyScheduleCommand::class,
             ]);
 
             $this->app->booted(function (): void {
                 $this->app->make(Schedule::class)
-                    ->command(\Lalalili\SurveyCore\Console\Commands\SurveyScheduleCommand::class)
+                    ->command(SurveyScheduleCommand::class)
                     ->everyMinute()
                     ->withoutOverlapping();
             });
@@ -96,8 +103,8 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
 
         // Export manager with built-in CSV driver
         $this->app->singleton(SurveyExportManager::class, function () {
-            $manager = new SurveyExportManager();
-            $manager->extend('csv', fn () => new CsvSurveyExportDriver());
+            $manager = new SurveyExportManager;
+            $manager->extend('csv', fn () => new CsvSurveyExportDriver);
 
             return $manager;
         });
@@ -111,10 +118,9 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
 
         $this->app->bind(SubmitSurveyResponseAction::class, function ($app) {
             return new SubmitSurveyResponseAction(
-                $app->make(ResolveSurveyTokenAction::class),
                 $app->make(HydratePersonalizedFieldsAction::class),
                 $app->make(ValidateSurveySubmissionAction::class),
-                $app->make(\Lalalili\SurveyCore\Actions\CalculateSurveyResponseAction::class),
+                $app->make(CalculateSurveyResponseAction::class),
                 $app->make(EvaluateResponseQualityAction::class),
             );
         });

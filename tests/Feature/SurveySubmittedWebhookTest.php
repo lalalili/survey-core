@@ -1,5 +1,8 @@
 <?php
 
+use Illuminate\Events\CallQueuedListener;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
@@ -16,12 +19,12 @@ function webhookSurvey(): Survey
     $survey = Survey::create(['title' => 'Webhook Survey', 'status' => SurveyStatus::Published]);
 
     SurveyField::create([
-        'survey_id'   => $survey->id,
-        'type'        => SurveyFieldType::ShortText,
-        'label'       => 'Name',
-        'field_key'   => 'name',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Name',
+        'field_key' => 'name',
         'is_required' => true,
-        'sort_order'  => 1,
+        'sort_order' => 1,
     ]);
 
     return $survey->load('fields');
@@ -42,7 +45,7 @@ it('dispatches the webhook listener when a survey is submitted', function () {
     );
 
     // Queued listeners are pushed as CallQueuedListener wrapping the real class
-    Queue::assertPushed(\Illuminate\Events\CallQueuedListener::class, function ($job) {
+    Queue::assertPushed(CallQueuedListener::class, function ($job) {
         return $job->class === DispatchSurveySubmittedWebhook::class;
     });
 });
@@ -53,16 +56,16 @@ it('does not post when no endpoints are configured', function () {
     config()->set('survey-core.webhooks.endpoints', []);
 
     $event = new SurveySubmitted(
-        response:  app(SubmitSurveyResponseAction::class)->execute(
+        response: app(SubmitSurveyResponseAction::class)->execute(
             webhookSurvey(),
             new SubmissionPayload(['name' => 'Bob']),
         ),
-        survey:    Survey::first(),
+        survey: Survey::first(),
         recipient: null,
     );
 
     // Invoke listener directly (synchronously)
-    $listener = new DispatchSurveySubmittedWebhook();
+    $listener = new DispatchSurveySubmittedWebhook;
     $listener->handle($event);
 
     Http::assertNothingSent();
@@ -81,14 +84,14 @@ it('sends a JSON payload with survey, response and answers to each endpoint', fu
     $survey = webhookSurvey();
 
     // Suppress auto-dispatch so we can call the listener once manually
-    \Illuminate\Support\Facades\Event::fake([SurveySubmitted::class]);
+    Event::fake([SurveySubmitted::class]);
 
     $response = app(SubmitSurveyResponseAction::class)->execute(
         $survey,
         new SubmissionPayload(['name' => 'Carol']),
     );
 
-    $listener = new DispatchSurveySubmittedWebhook();
+    $listener = new DispatchSurveySubmittedWebhook;
     $listener->handle(new SurveySubmitted($response, $survey));
 
     Http::assertSentCount(2);
@@ -116,19 +119,19 @@ it('adds an X-Survey-Signature header when an endpoint has a secret', function (
 
     $survey = webhookSurvey();
 
-    \Illuminate\Support\Facades\Event::fake([SurveySubmitted::class]);
+    Event::fake([SurveySubmitted::class]);
 
     $response = app(SubmitSurveyResponseAction::class)->execute(
         $survey,
         new SubmissionPayload(['name' => 'Dave']),
     );
 
-    $listener = new DispatchSurveySubmittedWebhook();
+    $listener = new DispatchSurveySubmittedWebhook;
     $listener->handle(new SurveySubmitted($response, $survey));
 
     Http::assertSent(function ($request) use ($secret) {
         $sigHeader = $request->header('X-Survey-Signature')[0] ?? '';
-        $expected = 'sha256=' . hash_hmac('sha256', json_encode($request->data()), $secret);
+        $expected = 'sha256='.hash_hmac('sha256', json_encode($request->data()), $secret);
 
         return str_starts_with($sigHeader, 'sha256=')
             && strlen($sigHeader) === strlen($expected);
@@ -138,19 +141,19 @@ it('adds an X-Survey-Signature header when an endpoint has a secret', function (
 // ── Retry on connection failure ───────────────────────────────────────────────
 
 it('re-throws connection exceptions so the queue retries the job', function () {
-    Http::fake(['*' => fn () => throw new \Illuminate\Http\Client\ConnectionException('timeout')]);
+    Http::fake(['*' => fn () => throw new ConnectionException('timeout')]);
 
     config()->set('survey-core.webhooks.endpoints', ['https://flaky.example.com/hook']);
 
     $survey = webhookSurvey();
 
-    \Illuminate\Support\Facades\Event::fake([SurveySubmitted::class]);
+    Event::fake([SurveySubmitted::class]);
 
     $response = app(SubmitSurveyResponseAction::class)->execute(
         $survey,
         new SubmissionPayload(['name' => 'Eve']),
     );
 
-    $listener = new DispatchSurveySubmittedWebhook();
+    $listener = new DispatchSurveySubmittedWebhook;
     $listener->handle(new SurveySubmitted($response, $survey));
-})->throws(\Illuminate\Http\Client\ConnectionException::class);
+})->throws(ConnectionException::class);

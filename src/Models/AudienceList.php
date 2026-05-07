@@ -2,9 +2,21 @@
 
 namespace Lalalili\SurveyCore\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string|null $description
+ * @property array<int, string>|null $columns_json
+ * @property int $rows_count
+ * @property Carbon|null $imported_at
+ * @property int|null $created_by
+ * @property-read Collection<int, AudienceListRow> $rows
+ */
 class AudienceList extends Model
 {
     protected $fillable = [
@@ -20,11 +32,14 @@ class AudienceList extends Model
     {
         return [
             'columns_json' => 'array',
-            'rows_count'   => 'integer',
-            'imported_at'  => 'datetime',
+            'rows_count' => 'integer',
+            'imported_at' => 'datetime',
         ];
     }
 
+    /**
+     * @return HasMany<AudienceListRow, $this>
+     */
     public function rows(): HasMany
     {
         return $this->hasMany(AudienceListRow::class);

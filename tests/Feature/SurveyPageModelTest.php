@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Database\QueryException;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Models\Survey;
@@ -12,9 +13,9 @@ it('creates and retrieves a survey page', function () {
     $survey = Survey::create(['title' => 'Test', 'status' => SurveyStatus::Draft]);
 
     $page = SurveyPage::create([
-        'survey_id'  => $survey->id,
-        'page_key'   => 'page_intro',
-        'title'      => 'Introduction',
+        'survey_id' => $survey->id,
+        'page_key' => 'page_intro',
+        'title' => 'Introduction',
         'sort_order' => 1,
     ]);
 
@@ -29,7 +30,7 @@ it('enforces unique page_key per survey', function () {
 
     SurveyPage::create(['survey_id' => $survey->id, 'page_key' => 'page_a', 'title' => 'A', 'sort_order' => 1]);
     SurveyPage::create(['survey_id' => $survey->id, 'page_key' => 'page_a', 'title' => 'A dup', 'sort_order' => 2]);
-})->throws(Illuminate\Database\QueryException::class);
+})->throws(QueryException::class);
 
 it('allows the same page_key in different surveys', function () {
     $s1 = Survey::create(['title' => 'S1', 'status' => SurveyStatus::Draft]);
@@ -47,9 +48,9 @@ it('belongs to a survey', function () {
     $survey = Survey::create(['title' => 'Test', 'status' => SurveyStatus::Draft]);
 
     $page = SurveyPage::create([
-        'survey_id'  => $survey->id,
-        'page_key'   => 'page_a',
-        'title'      => 'A',
+        'survey_id' => $survey->id,
+        'page_key' => 'page_a',
+        'title' => 'A',
         'sort_order' => 1,
     ]);
 
@@ -96,13 +97,13 @@ it('deleting a page sets survey_page_id to null on its fields', function () {
     $page = SurveyPage::create(['survey_id' => $survey->id, 'page_key' => 'page_a', 'title' => 'A', 'sort_order' => 1]);
 
     $field = SurveyField::create([
-        'survey_id'      => $survey->id,
+        'survey_id' => $survey->id,
         'survey_page_id' => $page->id,
-        'type'           => SurveyFieldType::ShortText,
-        'label'          => 'Name',
-        'field_key'      => 'name',
-        'is_required'    => false,
-        'sort_order'     => 1,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Name',
+        'field_key' => 'name',
+        'is_required' => false,
+        'sort_order' => 1,
     ]);
 
     $page->delete();

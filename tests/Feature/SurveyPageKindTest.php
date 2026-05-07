@@ -10,9 +10,10 @@ use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
 use Lalalili\SurveyCore\Http\Controllers\PublicSurveyController;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\SurveyCoreServiceProvider;
+use Tests\TestCase;
 
-$surveyPageKindTestCase = class_exists(Tests\TestCase::class)
-    ? Tests\TestCase::class
+$surveyPageKindTestCase = class_exists(TestCase::class)
+    ? TestCase::class
     : null;
 
 if ($surveyPageKindTestCase !== null) {
@@ -28,38 +29,38 @@ if ($surveyPageKindTestCase !== null) {
 }
 
 if (! function_exists('pageKindSchema')) {
-function pageKindSchema(array $pages): array
-{
-    return [
-        'id' => 1,
-        'title' => 'Kind Survey',
-        'status' => 'draft',
-        'version' => 1,
-        'pages' => $pages,
-    ];
-}
+    function pageKindSchema(array $pages): array
+    {
+        return [
+            'id' => 1,
+            'title' => 'Kind Survey',
+            'status' => 'draft',
+            'version' => 1,
+            'pages' => $pages,
+        ];
+    }
 }
 
 if (! function_exists('kindQuestionPage')) {
-function kindQuestionPage(string $id, string $kind = 'question', bool $required = false): array
-{
-    return [
-        'id' => $id,
-        'kind' => $kind,
-        'title' => $id,
-        'elements' => $kind === 'thank_you' ? [] : [[
-            'id' => 'q_'.$id,
-            'type' => 'short_text',
-            'field_key' => 'field_'.$id,
-            'label' => 'Field '.$id,
-            'description' => '',
-            'required' => $required,
-            'placeholder' => null,
-            'options' => [],
-            'settings' => [],
-        ]],
-    ];
-}
+    function kindQuestionPage(string $id, string $kind = 'question', bool $required = false): array
+    {
+        return [
+            'id' => $id,
+            'kind' => $kind,
+            'title' => $id,
+            'elements' => $kind === 'thank_you' ? [] : [[
+                'id' => 'q_'.$id,
+                'type' => 'short_text',
+                'field_key' => 'field_'.$id,
+                'label' => 'Field '.$id,
+                'description' => '',
+                'required' => $required,
+                'placeholder' => null,
+                'options' => [],
+                'settings' => [],
+            ]],
+        ];
+    }
 }
 
 it('rejects a welcome page that is not first', function () {

@@ -4,6 +4,13 @@ namespace Lalalili\SurveyCore\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property array<string, mixed>|null $tokens_json
+ * @property bool $is_system
+ * @property int|null $owner_user_id
+ */
 class SurveyTheme extends Model
 {
     protected $fillable = [
@@ -17,7 +24,7 @@ class SurveyTheme extends Model
     {
         return [
             'tokens_json' => 'array',
-            'is_system'   => 'boolean',
+            'is_system' => 'boolean',
         ];
     }
 

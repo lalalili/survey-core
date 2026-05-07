@@ -12,6 +12,5 @@ final readonly class ResolvedToken
         public SurveyToken $token,
         public SurveyRecipient $recipient,
         public array $payload,
-    ) {
-    }
+    ) {}
 }

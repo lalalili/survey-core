@@ -1,5 +1,13 @@
 <?php
 
+use Lalalili\SurveyCore\Models\Survey;
+use Lalalili\SurveyCore\Models\SurveyAnswer;
+use Lalalili\SurveyCore\Models\SurveyField;
+use Lalalili\SurveyCore\Models\SurveyRecipient;
+use Lalalili\SurveyCore\Models\SurveyResponse;
+use Lalalili\SurveyCore\Models\SurveyToken;
+use Lalalili\SurveyCore\Services\DefaultPersonalizationResolver;
+
 return [
 
     /*
@@ -9,12 +17,12 @@ return [
     | Override any model to swap out the default implementation.
     */
     'models' => [
-        'survey'    => \Lalalili\SurveyCore\Models\Survey::class,
-        'field'     => \Lalalili\SurveyCore\Models\SurveyField::class,
-        'recipient' => \Lalalili\SurveyCore\Models\SurveyRecipient::class,
-        'token'     => \Lalalili\SurveyCore\Models\SurveyToken::class,
-        'response'  => \Lalalili\SurveyCore\Models\SurveyResponse::class,
-        'answer'    => \Lalalili\SurveyCore\Models\SurveyAnswer::class,
+        'survey' => Survey::class,
+        'field' => SurveyField::class,
+        'recipient' => SurveyRecipient::class,
+        'token' => SurveyToken::class,
+        'response' => SurveyResponse::class,
+        'answer' => SurveyAnswer::class,
     ],
 
     /*
@@ -23,12 +31,12 @@ return [
     |--------------------------------------------------------------------------
     */
     'table_names' => [
-        'surveys'           => 'surveys',
-        'survey_fields'     => 'survey_fields',
+        'surveys' => 'surveys',
+        'survey_fields' => 'survey_fields',
         'survey_recipients' => 'survey_recipients',
-        'survey_tokens'     => 'survey_tokens',
-        'survey_responses'  => 'survey_responses',
-        'survey_answers'    => 'survey_answers',
+        'survey_tokens' => 'survey_tokens',
+        'survey_responses' => 'survey_responses',
+        'survey_answers' => 'survey_answers',
     ],
 
     /*
@@ -69,7 +77,7 @@ return [
 
     'security' => [
         'min_submission_ms' => 3000,
-        'ip_blacklist'      => [],
+        'ip_blacklist' => [],
     ],
 
     /*
@@ -89,7 +97,7 @@ return [
     | Must implement \Lalalili\SurveyCore\Contracts\PersonalizationResolver.
     */
     'personalization' => [
-        'resolver' => \Lalalili\SurveyCore\Services\DefaultPersonalizationResolver::class,
+        'resolver' => DefaultPersonalizationResolver::class,
     ],
 
     /*
@@ -109,8 +117,8 @@ return [
     */
     'webhooks' => [
         'endpoints' => [],
-        'timeout'   => 10,
-        'tries'     => 3,
+        'timeout' => 10,
+        'tries' => 3,
     ],
 
     /*
@@ -121,7 +129,7 @@ return [
     | Turnstile. Set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY in .env.
     */
     'turnstile' => [
-        'site_key'   => env('TURNSTILE_SITE_KEY'),
+        'site_key' => env('TURNSTILE_SITE_KEY'),
         'secret_key' => env('TURNSTILE_SECRET_KEY'),
     ],
 

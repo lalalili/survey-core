@@ -53,7 +53,7 @@ class EvaluateResponseQualityAction
         $response->loadMissing('answers.field');
 
         $choiceAnswers = $response->answers
-            ->filter(fn (SurveyAnswer $answer): bool => in_array($answer->field?->type, [
+            ->filter(fn (SurveyAnswer $answer): bool => in_array($answer->field->type, [
                 SurveyFieldType::SingleChoice,
                 SurveyFieldType::Select,
                 SurveyFieldType::Rating,

@@ -2,6 +2,7 @@
 
 namespace Lalalili\SurveyCore\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,30 @@ use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Support\ConditionGroupEvaluator;
 use Lalalili\SurveyCore\Support\FieldKeyGenerator;
 
+/**
+ * @property int $id
+ * @property int $survey_id
+ * @property SurveyFieldType $type
+ * @property string $label
+ * @property string|null $description
+ * @property bool $is_required
+ * @property bool $is_hidden
+ * @property bool $is_personalized
+ * @property string|null $personalized_key
+ * @property string $field_key
+ * @property string|null $placeholder
+ * @property string|null $default_value
+ * @property array<string, mixed>|null $validation_rules
+ * @property array<string, mixed>|null $settings_json
+ * @property array<array-key, mixed>|null $options_json
+ * @property int $sort_order
+ * @property string|null $show_if_field_key
+ * @property string|null $show_if_value
+ * @property int|null $survey_page_id
+ * @property-read Survey $survey
+ * @property-read SurveyPage|null $surveyPage
+ * @property-read Collection<int, SurveyAnswer> $answers
+ */
 class SurveyField extends Model
 {
     protected $fillable = [
@@ -35,28 +60,37 @@ class SurveyField extends Model
     protected function casts(): array
     {
         return [
-            'type'             => SurveyFieldType::class,
-            'is_required'      => 'boolean',
-            'is_hidden'        => 'boolean',
-            'is_personalized'  => 'boolean',
+            'type' => SurveyFieldType::class,
+            'is_required' => 'boolean',
+            'is_hidden' => 'boolean',
+            'is_personalized' => 'boolean',
             'validation_rules' => 'array',
-            'settings_json'    => 'array',
-            'options_json'     => 'array',
-            'sort_order'       => 'integer',
-            'survey_page_id'   => 'integer',
+            'settings_json' => 'array',
+            'options_json' => 'array',
+            'sort_order' => 'integer',
+            'survey_page_id' => 'integer',
         ];
     }
 
+    /**
+     * @return BelongsTo<Survey, $this>
+     */
     public function survey(): BelongsTo
     {
         return $this->belongsTo(Survey::class);
     }
 
+    /**
+     * @return BelongsTo<SurveyPage, $this>
+     */
     public function surveyPage(): BelongsTo
     {
         return $this->belongsTo(SurveyPage::class, 'survey_page_id');
     }
 
+    /**
+     * @return HasMany<SurveyAnswer, $this>
+     */
     public function answers(): HasMany
     {
         return $this->hasMany(SurveyAnswer::class);
@@ -125,9 +159,9 @@ class SurveyField extends Model
         }
 
         if (array_is_list($this->options_json)) {
-            return collect($this->options_json)
+            return array_values(collect($this->options_json)
                 ->map(fn (mixed $option): array => [
-                    'id' => data_get($option, 'id'),
+                    'id' => data_get($option, 'id') !== null ? (string) data_get($option, 'id') : null,
                     'label' => (string) data_get($option, 'label', ''),
                     'value' => (string) data_get($option, 'value', ''),
                     'capacity' => data_get($option, 'capacity') !== null ? (int) data_get($option, 'capacity') : null,
@@ -135,10 +169,10 @@ class SurveyField extends Model
                 ])
                 ->filter(fn (array $option): bool => $option['value'] !== '')
                 ->values()
-                ->all();
+                ->all());
         }
 
-        return collect($this->options_json)
+        return array_values(collect($this->options_json)
             ->map(fn (mixed $label, mixed $value): array => [
                 'id' => null,
                 'label' => (string) $label,
@@ -147,7 +181,7 @@ class SurveyField extends Model
                 'is_hidden' => false,
             ])
             ->values()
-            ->all();
+            ->all());
     }
 
     /**

@@ -8,6 +8,7 @@ use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Lalalili\SurveyCore\Actions\ResolveSurveyTokenAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
+use Lalalili\SurveyCore\Data\ResolvedToken;
 use Lalalili\SurveyCore\Data\SubmissionPayload;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyResponseCompletionStatus;
@@ -19,7 +20,6 @@ use Lalalili\SurveyCore\Exceptions\InvalidSurveyTokenException;
 use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
 use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
 use Lalalili\SurveyCore\Http\Requests\SubmitSurveyRequest;
-use Lalalili\SurveyCore\Http\Resources\PublicSurveyResource;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyAnswer;
 use Lalalili\SurveyCore\Models\SurveyField;
@@ -32,7 +32,7 @@ class PublicSurveyController extends Controller
     public function show(string $publicKey, ResolveSurveyTokenAction $resolveToken): Response|JsonResponse
     {
         $survey = Survey::with([
-            'pages'  => fn ($q) => $q->orderBy('sort_order'),
+            'pages' => fn ($q) => $q->orderBy('sort_order'),
             'fields' => fn ($q) => $q->orderBy('sort_order'),
             'theme',
             'calculations',
@@ -54,7 +54,7 @@ class PublicSurveyController extends Controller
         }
 
         if ($this->requiresPersonalizedToken($survey) && ! $resolved) {
-            abort(403, '此問卷需要使用個人化連結填寫。');
+            abort(403, '此問卷需要使用個性化連結填寫。');
         }
 
         if ($view = $this->duplicateView($survey, request(), $resolved)) {
@@ -96,7 +96,7 @@ class PublicSurveyController extends Controller
         }
 
         if ($this->requiresPersonalizedToken($survey) && ! $resolved) {
-            return response()->json(['message' => '此問卷需要使用個人化連結填寫。'], 403);
+            return response()->json(['message' => '此問卷需要使用個性化連結填寫。'], 403);
         }
 
         if ($this->hasDuplicateSubmission($survey, $request, $resolved)) {
@@ -126,7 +126,7 @@ class PublicSurveyController extends Controller
         }
 
         $jsonResponse = response()->json([
-            'message'     => $this->thankYouMessage($survey, $response->calculations_json ?? []),
+            'message' => $this->thankYouMessage($survey, $response->calculations_json ?? []),
             'thank_you_page_id' => $this->thankYouPage($survey, $response->calculations_json ?? [])?->page_key,
             'response_id' => $response->id,
             'calculations' => $response->calculations_json ?? [],
@@ -229,7 +229,7 @@ class PublicSurveyController extends Controller
         return null;
     }
 
-    private function duplicateView(Survey $survey, Request $request, mixed $resolved): ?Response
+    private function duplicateView(Survey $survey, Request $request, ?ResolvedToken $resolved): ?Response
     {
         if (! $this->hasDuplicateSubmission($survey, $request, $resolved)) {
             return null;
@@ -240,11 +240,15 @@ class PublicSurveyController extends Controller
         return response()->view('survey-core::survey.already_submitted', compact('survey', 'theme'));
     }
 
-    private function hasDuplicateSubmission(Survey $survey, Request $request, mixed $resolved = null): bool
+    private function hasDuplicateSubmission(Survey $survey, Request $request, ?ResolvedToken $resolved = null): bool
     {
-        return match ($survey->uniqueness_mode) {
+        $uniquenessMode = $survey->uniqueness_mode ?? SurveyUniquenessMode::None;
+
+        return match ($uniquenessMode) {
             SurveyUniquenessMode::None => false,
-            SurveyUniquenessMode::Token => $resolved?->token?->max_submissions !== null && $resolved?->token?->used_count >= $resolved?->token?->max_submissions,
+            SurveyUniquenessMode::Token => $resolved !== null
+                && $resolved->token->max_submissions !== null
+                && $resolved->token->used_count >= $resolved->token->max_submissions,
             SurveyUniquenessMode::Email => filled($resolved?->recipient?->email)
                 && $survey->responses()
                     ->whereHas('recipient', fn ($query) => $query->where('email', $resolved->recipient->email))
@@ -304,7 +308,7 @@ class PublicSurveyController extends Controller
     private function thankYouPage(Survey $survey, array $calculations): ?SurveyPage
     {
         $survey->loadMissing('pages');
-        $thankYouPages = $survey->pages->filter(fn ($page): bool => ($page->kind?->value ?? 'question') === 'thank_you');
+        $thankYouPages = $survey->pages->filter(fn (SurveyPage $page): bool => $page->kind->value === 'thank_you');
 
         foreach (($survey->settings_json['thank_you_branches'] ?? []) as $branch) {
             if (! is_array($branch)) {

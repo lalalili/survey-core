@@ -4,5 +4,13 @@ includes:
 parameters:
     paths:
         - src/
+        - config/
+        - database/
+
     level: 8
-    checkMissingIterableValueType: false
+    tmpDir: build/phpstan
+    checkModelProperties: false
+
+    ignoreErrors:
+        - identifier: larastan.noEnvCallsOutsideOfConfig
+          path: config/*

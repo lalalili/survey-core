@@ -10,9 +10,7 @@ use Lalalili\SurveyCore\Models\SurveyToken;
 
 class SendSurveyInvitationAction
 {
-    public function __construct(private readonly GenerateSurveyTokenAction $generateToken)
-    {
-    }
+    public function __construct(private readonly GenerateSurveyTokenAction $generateToken) {}
 
     /**
      * Send (or resend) an invitation to a single recipient.
@@ -38,7 +36,7 @@ class SendSurveyInvitationAction
             $token = $this->generateToken->execute($recipient->survey, $recipient);
         }
 
-        $surveyUrl = route('survey.show', $recipient->survey->public_key) . '?t=' . $token->token;
+        $surveyUrl = route('survey.show', $recipient->survey->public_key).'?t='.$token->token;
 
         Mail::to($recipient->email)
             ->queue(new SurveyInvitationMail($recipient, $surveyUrl));

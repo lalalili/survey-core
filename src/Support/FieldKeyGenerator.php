@@ -18,6 +18,6 @@ class FieldKeyGenerator
             $slug = 'field';
         }
 
-        return $slug . '_' . strtolower(Str::random(4));
+        return $slug.'_'.strtolower(Str::random(4));
     }
 }

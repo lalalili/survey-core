@@ -19,7 +19,7 @@ final class JumpLogicResolver
      * Walk through pages in sort_order, following jump actions based on submitted answers.
      *
      * @param  array<string, mixed>  $answers  keyed by field_key
-     * @return list<int>|null  list of survey_pages.id values, or null if jump logic not applicable
+     * @return list<int>|null list of survey_pages.id values, or null if jump logic not applicable
      */
     public static function resolveVisitedPages(Survey $survey, array $answers): ?array
     {

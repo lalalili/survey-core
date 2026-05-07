@@ -16,38 +16,38 @@ beforeEach(function () {
     Event::fake();
 
     $this->survey = Survey::create([
-        'title'  => 'Personalized Survey',
+        'title' => 'Personalized Survey',
         'status' => SurveyStatus::Published,
     ]);
 
     // Visible field
     SurveyField::create([
-        'survey_id'   => $this->survey->id,
-        'type'        => SurveyFieldType::ShortText,
-        'label'       => 'Your Feedback',
-        'field_key'   => 'feedback',
+        'survey_id' => $this->survey->id,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Your Feedback',
+        'field_key' => 'feedback',
         'is_required' => true,
-        'sort_order'  => 1,
+        'sort_order' => 1,
     ]);
 
     // Hidden personalized field — should be injected from recipient payload
     SurveyField::create([
-        'survey_id'        => $this->survey->id,
-        'type'             => SurveyFieldType::Hidden,
-        'label'            => 'Member Level',
-        'field_key'        => 'member_level',
-        'is_hidden'        => true,
-        'is_personalized'  => true,
+        'survey_id' => $this->survey->id,
+        'type' => SurveyFieldType::Hidden,
+        'label' => 'Member Level',
+        'field_key' => 'member_level',
+        'is_hidden' => true,
+        'is_personalized' => true,
         'personalized_key' => 'member_level',
-        'sort_order'       => 2,
+        'sort_order' => 2,
     ]);
 
     $this->recipient = SurveyRecipient::create([
-        'survey_id'    => $this->survey->id,
-        'name'         => 'Bob',
-        'email'        => 'bob@example.com',
+        'survey_id' => $this->survey->id,
+        'name' => 'Bob',
+        'email' => 'bob@example.com',
         'payload_json' => ['member_level' => 'platinum'],
-        'status'       => SurveyRecipientStatus::Active,
+        'status' => SurveyRecipientStatus::Active,
     ]);
 
     $this->survey->load('fields');
@@ -77,7 +77,7 @@ it('discards frontend-forged hidden field values and uses server-resolved value 
     // Frontend tries to forge the hidden field
     $payload = new SubmissionPayload(
         visibleAnswers: [
-            'feedback'     => 'Great!',
+            'feedback' => 'Great!',
             'member_level' => 'FORGED_VALUE',  // should be ignored
         ],
         tokenContext: $resolved,

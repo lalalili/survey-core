@@ -11,6 +11,5 @@ class SurveyClosed
 
     public function __construct(
         public readonly Survey $survey,
-    ) {
-    }
+    ) {}
 }

@@ -2,13 +2,46 @@
 
 namespace Lalalili\SurveyCore\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Enums\SurveyUniquenessMode;
 
+/**
+ * @property int $id
+ * @property string $title
+ * @property string|null $description
+ * @property SurveyStatus $status
+ * @property string $public_key
+ * @property bool $allow_anonymous
+ * @property bool $allow_multiple_submissions
+ * @property int|null $max_responses
+ * @property Carbon|null $starts_at
+ * @property Carbon|null $ends_at
+ * @property string|null $submit_success_message
+ * @property string|null $quota_message
+ * @property SurveyUniquenessMode|null $uniqueness_mode
+ * @property string|null $uniqueness_message
+ * @property array<string, mixed>|null $settings_json
+ * @property int|null $theme_id
+ * @property array<string, mixed>|null $theme_overrides_json
+ * @property int $version
+ * @property array<string, mixed>|null $draft_schema
+ * @property array<string, mixed>|null $published_schema
+ * @property Carbon|null $published_at
+ * @property-read Collection<int, SurveyPage> $pages
+ * @property-read Collection<int, SurveyField> $fields
+ * @property-read Collection<int, SurveyRecipient> $recipients
+ * @property-read Collection<int, SurveyToken> $tokens
+ * @property-read Collection<int, SurveyResponse> $responses
+ * @property-read Collection<int, SurveyTag> $tags
+ * @property-read SurveyTheme|null $theme
+ * @property-read Collection<int, SurveyCalculation> $calculations
+ */
 class Survey extends Model
 {
     protected $fillable = [
@@ -53,41 +86,65 @@ class Survey extends Model
         ];
     }
 
+    /**
+     * @return HasMany<SurveyPage, $this>
+     */
     public function pages(): HasMany
     {
         return $this->hasMany(SurveyPage::class)->orderBy('sort_order');
     }
 
+    /**
+     * @return HasMany<SurveyField, $this>
+     */
     public function fields(): HasMany
     {
         return $this->hasMany(SurveyField::class)->orderBy('sort_order');
     }
 
+    /**
+     * @return HasMany<SurveyRecipient, $this>
+     */
     public function recipients(): HasMany
     {
         return $this->hasMany(SurveyRecipient::class);
     }
 
+    /**
+     * @return HasMany<SurveyToken, $this>
+     */
     public function tokens(): HasMany
     {
         return $this->hasMany(SurveyToken::class);
     }
 
+    /**
+     * @return HasMany<SurveyResponse, $this>
+     */
     public function responses(): HasMany
     {
         return $this->hasMany(SurveyResponse::class);
     }
 
+    /**
+     * @return HasMany<SurveyTag, $this>
+     */
     public function tags(): HasMany
     {
         return $this->hasMany(SurveyTag::class);
     }
 
+    /**
+     * @return BelongsTo<SurveyTheme, $this>
+     */
     public function theme(): BelongsTo
     {
         return $this->belongsTo(SurveyTheme::class);
     }
 
+    /**
+     * @return HasMany<SurveyCalculation, $this>
+     */
     public function calculations(): HasMany
     {
         return $this->hasMany(SurveyCalculation::class);

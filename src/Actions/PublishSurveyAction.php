@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
 use Lalalili\SurveyCore\Models\Survey;
+use Lalalili\SurveyCore\Support\SurveyBuilderSurveySettings;
 
 class PublishSurveyAction
 {
@@ -13,8 +14,8 @@ class PublishSurveyAction
         private readonly BuildSurveyBuilderSchemaAction $buildSchema,
         private readonly ValidateSurveyBuilderSchemaAction $validateSchema,
         private readonly SyncSurveyBuilderSchemaToFieldsAction $syncSchemaToFields,
-    ) {
-    }
+        private readonly SurveyBuilderSurveySettings $surveySettings,
+    ) {}
 
     public function execute(Survey $survey): Survey
     {
@@ -24,41 +25,30 @@ class PublishSurveyAction
 
         return DB::transaction(function () use ($survey): Survey {
             $schema = $this->validateSchema->execute($survey->draft_schema ?? $this->buildSchema->execute($survey));
+            $schema = $this->surveySettings->normalizeSchema($schema);
+            $publishedSchema = is_array($survey->published_schema)
+                ? $this->surveySettings->normalizeSchema($this->validateSchema->execute($survey->published_schema))
+                : null;
 
-            if ($survey->status === SurveyStatus::Published && $survey->published_schema === $schema) {
+            if ($survey->status === SurveyStatus::Published && $publishedSchema === $schema) {
                 return $survey->refresh();
             }
 
             $survey->update([
-                'title'            => $schema['title'],
-                'settings_json'    => $this->surveySettings($schema),
-                'theme_id'         => $schema['theme_id'] ?? null,
+                ...$this->surveySettings->surveyAttributesFromSchema($schema),
+                'settings_json' => $this->surveySettings->settingsJsonFromSchema($schema),
+                'theme_id' => $schema['theme_id'] ?? null,
                 'theme_overrides_json' => $schema['theme_overrides'] ?? null,
-                'status'           => SurveyStatus::Published,
-                'version'          => ((int) $survey->version) + 1,
-                'draft_schema'     => $schema,
+                'status' => SurveyStatus::Published,
+                'version' => ((int) $survey->version) + 1,
+                'draft_schema' => $schema,
                 'published_schema' => $schema,
-                'published_at'     => now(),
+                'published_at' => now(),
             ]);
 
             $this->syncSchemaToFields->execute($survey->refresh(), $schema);
 
             return $survey->refresh();
         });
-    }
-
-    /**
-     * @param  array<string, mixed>  $schema
-     * @return array<string, mixed>|null
-     */
-    private function surveySettings(array $schema): ?array
-    {
-        $settings = $schema['settings'] ?? [];
-
-        if (! empty($schema['thank_you_branches'])) {
-            $settings['thank_you_branches'] = $schema['thank_you_branches'];
-        }
-
-        return $settings === [] ? null : $settings;
     }
 }

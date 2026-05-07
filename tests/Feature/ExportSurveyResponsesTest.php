@@ -20,34 +20,34 @@ beforeEach(function () {
     $this->survey = Survey::create(['title' => 'Export Test', 'status' => SurveyStatus::Published]);
 
     SurveyField::create([
-        'survey_id'   => $this->survey->id,
-        'type'        => SurveyFieldType::ShortText,
-        'label'       => 'Feedback',
-        'field_key'   => 'feedback',
+        'survey_id' => $this->survey->id,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Feedback',
+        'field_key' => 'feedback',
         'is_required' => true,
-        'sort_order'  => 1,
+        'sort_order' => 1,
     ]);
 
     SurveyField::create([
-        'survey_id'        => $this->survey->id,
-        'type'             => SurveyFieldType::Hidden,
-        'label'            => 'Source',
-        'field_key'        => 'source',
-        'is_hidden'        => true,
-        'is_personalized'  => true,
+        'survey_id' => $this->survey->id,
+        'type' => SurveyFieldType::Hidden,
+        'label' => 'Source',
+        'field_key' => 'source',
+        'is_hidden' => true,
+        'is_personalized' => true,
         'personalized_key' => 'campaign_source',
-        'sort_order'       => 2,
+        'sort_order' => 2,
     ]);
 
     $this->survey->load('fields');
 
     $this->recipient = SurveyRecipient::create([
-        'survey_id'    => $this->survey->id,
-        'name'         => 'Carol',
-        'email'        => 'carol@example.com',
-        'external_id'  => 'ext-001',
+        'survey_id' => $this->survey->id,
+        'name' => 'Carol',
+        'email' => 'carol@example.com',
+        'external_id' => 'ext-001',
         'payload_json' => ['campaign_source' => 'email_blast'],
-        'status'       => SurveyRecipientStatus::Active,
+        'status' => SurveyRecipientStatus::Active,
     ]);
 
     // Submit one response via token

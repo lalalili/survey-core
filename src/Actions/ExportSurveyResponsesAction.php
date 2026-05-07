@@ -2,16 +2,16 @@
 
 namespace Lalalili\SurveyCore\Actions;
 
-use Symfony\Component\HttpFoundation\StreamedResponse;
 use Lalalili\SurveyCore\Models\Survey;
+use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Services\Exports\SurveyExportManager;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ExportSurveyResponsesAction
 {
     public function __construct(
         private readonly SurveyExportManager $exportManager,
-    ) {
-    }
+    ) {}
 
     public function execute(Survey $survey, ?string $driver = null): StreamedResponse
     {
@@ -28,7 +28,7 @@ class ExportSurveyResponsesAction
             $calculations->pluck('label')->all(),
         );
 
-        $rows = $survey->responses->map(function ($response) use ($fields, $calculations) {
+        $rows = $survey->responses->map(function (SurveyResponse $response) use ($fields, $calculations): array {
             $answersByFieldId = $response->answers->keyBy('survey_field_id');
 
             $row = [
@@ -54,6 +54,6 @@ class ExportSurveyResponsesAction
             return $row;
         });
 
-        return $this->exportManager->driver($driver)->write($rows, $headers);
+        return $this->exportManager->driver($driver)->write($rows->all(), $headers);
     }
 }

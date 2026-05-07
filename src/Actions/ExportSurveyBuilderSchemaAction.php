@@ -9,8 +9,7 @@ class ExportSurveyBuilderSchemaAction
 {
     public function __construct(
         private readonly BuildSurveyBuilderSchemaAction $buildSchema,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string, mixed>

@@ -12,8 +12,7 @@ class ImportSurveyBuilderSchemaAction
     public function __construct(
         private readonly SaveSurveyDraftSchemaAction $saveSchema,
         private readonly PublishSurveyAction $publishSurvey,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  array<string, mixed>  $schema
@@ -26,7 +25,7 @@ class ImportSurveyBuilderSchemaAction
 
         return DB::transaction(function () use ($schema, $publish): Survey {
             $survey = Survey::create([
-                'title'  => (string) ($schema['title'] ?? '匯入問卷'),
+                'title' => (string) ($schema['title'] ?? '匯入問卷'),
                 'status' => SurveyStatus::Draft,
             ]);
 

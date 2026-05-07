@@ -36,6 +36,11 @@ class ResolveSurveyTokenAction
         }
 
         $recipient = $token->recipient;
+
+        if (! $recipient) {
+            throw new InvalidSurveyTokenException('Token recipient was not found.');
+        }
+
         $payload = $recipient->payload_json ?? [];
 
         return new ResolvedToken($token, $recipient, $payload);

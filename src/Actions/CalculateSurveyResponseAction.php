@@ -66,11 +66,15 @@ class CalculateSurveyResponseAction
     }
 
     /**
-     * @param  array<int, array<string, mixed>>  $gradeMap
+     * @param  array<array-key, mixed>  $gradeMap
      */
     private function resolveGradeLabel(int $score, array $gradeMap): ?string
     {
         foreach ($gradeMap as $grade) {
+            if (! is_array($grade)) {
+                continue;
+            }
+
             $min = array_key_exists('min', $grade) ? (int) $grade['min'] : PHP_INT_MIN;
             $max = array_key_exists('max', $grade) ? (int) $grade['max'] : PHP_INT_MAX;
 

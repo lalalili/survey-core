@@ -14,7 +14,7 @@ class DuplicateSurveyAction
         return DB::transaction(function () use ($survey) {
             $clone = $survey->replicate(['public_key', 'status', 'version']);
             $clone->status = SurveyStatus::Draft;
-            $clone->title = $survey->title . ' (Copy)';
+            $clone->title = $survey->title.' (Copy)';
             $clone->version = 1;
             $clone->save();
 

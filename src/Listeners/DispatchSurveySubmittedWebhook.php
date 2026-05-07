@@ -46,10 +46,15 @@ class DispatchSurveySubmittedWebhook implements ShouldQueue
     private function send(string $url, ?string $secret, array $payload): void
     {
         $json = json_encode($payload);
+
+        if ($json === false) {
+            return;
+        }
+
         $headers = ['Content-Type' => 'application/json'];
 
         if ($secret !== null) {
-            $headers['X-Survey-Signature'] = 'sha256=' . hash_hmac('sha256', $json, $secret);
+            $headers['X-Survey-Signature'] = 'sha256='.hash_hmac('sha256', $json, $secret);
         }
 
         try {
@@ -59,13 +64,13 @@ class DispatchSurveySubmittedWebhook implements ShouldQueue
 
             if (! $response->successful()) {
                 Log::warning('survey-core webhook non-2xx', [
-                    'url'    => $url,
+                    'url' => $url,
                     'status' => $response->status(),
                 ]);
             }
         } catch (ConnectionException $e) {
             Log::error('survey-core webhook connection error', [
-                'url'   => $url,
+                'url' => $url,
                 'error' => $e->getMessage(),
             ]);
 
@@ -87,26 +92,26 @@ class DispatchSurveySubmittedWebhook implements ShouldQueue
 
         $answers = $response->answers->mapWithKeys(function ($answer) {
             return [
-                $answer->field?->field_key ?? $answer->survey_field_id => $answer->answer_json ?? $answer->answer_text,
+                $answer->field->field_key => $answer->answer_json ?? $answer->answer_text,
             ];
         })->all();
 
         return [
-            'event'  => 'survey.submitted',
+            'event' => 'survey.submitted',
             'survey' => [
-                'id'         => $survey->id,
+                'id' => $survey->id,
                 'public_key' => $survey->public_key,
-                'title'      => $survey->title,
+                'title' => $survey->title,
             ],
             'response' => [
-                'id'           => $response->id,
+                'id' => $response->id,
                 'submitted_at' => $response->submitted_at?->toIso8601String(),
-                'calculations' => $response->calculations_json ?? [],
+                'calculations' => $response->calculations_json,
             ],
             'recipient' => $recipient ? [
-                'id'    => $recipient->id,
+                'id' => $recipient->id,
                 'email' => $recipient->email,
-                'name'  => $recipient->name,
+                'name' => $recipient->name,
             ] : null,
             'answers' => $answers,
             'calculations' => $response->calculations_json ?? [],

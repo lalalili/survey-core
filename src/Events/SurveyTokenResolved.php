@@ -13,6 +13,5 @@ class SurveyTokenResolved
     public function __construct(
         public readonly SurveyToken $token,
         public readonly SurveyRecipient $recipient,
-    ) {
-    }
+    ) {}
 }

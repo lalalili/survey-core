@@ -23,7 +23,7 @@ class SyncAudienceListToSurveyRecipientsAction
             return 0;
         }
 
-        $audienceList = AudienceList::with('rows')->find($listId);
+        $audienceList = AudienceList::with('rows')->find((int) $listId);
 
         if (! $audienceList) {
             return 0;
@@ -43,7 +43,7 @@ class SyncAudienceListToSurveyRecipientsAction
                             ->where('field_key', (string) $fieldKey)
                             ->where('is_hidden', true)
                             ->update([
-                                'is_personalized'  => true,
+                                'is_personalized' => true,
                                 'personalized_key' => (string) $column,
                             ]);
                     }
@@ -60,15 +60,15 @@ class SyncAudienceListToSurveyRecipientsAction
 
                         $recipient = SurveyRecipient::updateOrCreate(
                             [
-                                'survey_id'             => $survey->id,
-                                'audience_list_row_id'  => $row->id,
+                                'survey_id' => $survey->id,
+                                'audience_list_row_id' => $row->id,
                             ],
                             [
-                                'name'         => $nameColumn !== '' ? ($data[$nameColumn] ?? null) : null,
-                                'email'        => $emailColumn !== '' ? ($data[$emailColumn] ?? null) : null,
-                                'external_id'  => $externalIdColumn !== '' ? ($data[$externalIdColumn] ?? null) : (string) $row->id,
+                                'name' => $nameColumn !== '' ? ($data[$nameColumn] ?? null) : null,
+                                'email' => $emailColumn !== '' ? ($data[$emailColumn] ?? null) : null,
+                                'external_id' => $externalIdColumn !== '' ? ($data[$externalIdColumn] ?? null) : (string) $row->id,
                                 'payload_json' => $data,
-                                'status'       => SurveyRecipientStatus::Active,
+                                'status' => SurveyRecipientStatus::Active,
                             ],
                         );
 

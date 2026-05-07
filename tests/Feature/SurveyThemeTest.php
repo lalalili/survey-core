@@ -7,38 +7,38 @@ use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyTheme;
 
 if (! function_exists('pageKindSchema')) {
-function pageKindSchema(array $pages): array
-{
-    return [
-        'id' => 1,
-        'title' => 'Kind Survey',
-        'status' => 'draft',
-        'version' => 1,
-        'pages' => $pages,
-    ];
-}
+    function pageKindSchema(array $pages): array
+    {
+        return [
+            'id' => 1,
+            'title' => 'Kind Survey',
+            'status' => 'draft',
+            'version' => 1,
+            'pages' => $pages,
+        ];
+    }
 }
 
 if (! function_exists('kindQuestionPage')) {
-function kindQuestionPage(string $id, string $kind = 'question', bool $required = false): array
-{
-    return [
-        'id' => $id,
-        'kind' => $kind,
-        'title' => $id,
-        'elements' => [[
-            'id' => 'q_'.$id,
-            'type' => 'short_text',
-            'field_key' => 'field_'.$id,
-            'label' => 'Field '.$id,
-            'description' => '',
-            'required' => $required,
-            'placeholder' => null,
-            'options' => [],
-            'settings' => [],
-        ]],
-    ];
-}
+    function kindQuestionPage(string $id, string $kind = 'question', bool $required = false): array
+    {
+        return [
+            'id' => $id,
+            'kind' => $kind,
+            'title' => $id,
+            'elements' => [[
+                'id' => 'q_'.$id,
+                'type' => 'short_text',
+                'field_key' => 'field_'.$id,
+                'label' => 'Field '.$id,
+                'description' => '',
+                'required' => $required,
+                'placeholder' => null,
+                'options' => [],
+                'settings' => [],
+            ]],
+        ];
+    }
 }
 
 it('merges theme overrides over tokens', function () {
