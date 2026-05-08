@@ -22,7 +22,7 @@ class ValidateSurveySubmissionAction
     public function execute(Survey $survey, array $visibleAnswers, ?ResolvedToken $tokenContext = null): void
     {
         if (! $survey->isAcceptingSubmissions()) {
-            throw new SurveyNotAvailableException("Survey '{$survey->title}' is not currently accepting submissions.");
+            throw new SurveyNotAvailableException('此問卷目前未開放填寫。');
         }
 
         // Compute which pages are reachable given jump logic in the published schema.
@@ -49,7 +49,12 @@ class ValidateSurveySubmissionAction
         });
 
         $rules = $this->buildRules($activeFields);
-        $validator = Validator::make($visibleAnswers, $rules);
+        $validator = Validator::make(
+            $visibleAnswers,
+            $rules,
+            $this->validationMessages(),
+            $this->validationAttributes($activeFields),
+        );
         $validator->after(fn (ValidationValidator $validator) => $this->validateComplexFields($validator, $activeFields, $visibleAnswers));
 
         if ($validator->fails()) {
@@ -79,13 +84,56 @@ class ValidateSurveySubmissionAction
             $fieldRules = array_merge($fieldRules, $this->typeRules($field));
 
             if (! empty($field->validation_rules)) {
-                $fieldRules = array_merge($fieldRules, array_values($field->validation_rules));
+                $fieldRules = array_merge($fieldRules, $this->laravelValidationRules($field->validation_rules));
             }
 
             $rules[$field->field_key] = $fieldRules;
         }
 
         return $rules;
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $rules
+     * @return array<int, string>
+     */
+    private function laravelValidationRules(array $rules): array
+    {
+        return collect($rules)
+            ->filter(fn (mixed $rule, mixed $key): bool => is_int($key) && is_string($rule) && $rule !== '')
+            ->values()
+            ->all();
+    }
+
+    /** @return array<string, string> */
+    private function validationMessages(): array
+    {
+        return [
+            'required' => '「:attribute」為必填，請完成填寫。',
+            'array' => '「:attribute」的填答格式不正確，請重新填寫。',
+            'string' => '「:attribute」的填答格式不正確，請輸入文字。',
+            'email' => '「:attribute」請輸入有效的電子信箱。',
+            'regex' => '「:attribute」格式不正確，請依題目提示填寫。',
+            'date' => '「:attribute」請輸入有效的日期。',
+            'date_format' => '「:attribute」請輸入有效的時間。',
+            'numeric' => '「:attribute」請輸入數字。',
+            'integer' => '「:attribute」請輸入整數。',
+            'min.numeric' => '「:attribute」不可小於 :min。',
+            'max.numeric' => '「:attribute」不可大於 :max。',
+            'min.integer' => '「:attribute」不可小於 :min。',
+            'max.integer' => '「:attribute」不可大於 :max。',
+        ];
+    }
+
+    /**
+     * @param  Collection<int, SurveyField>  $fields
+     * @return array<string, string>
+     */
+    private function validationAttributes(Collection $fields): array
+    {
+        return $fields
+            ->mapWithKeys(fn (SurveyField $field): array => [$field->field_key => $field->label])
+            ->all();
     }
 
     /** @return array<int, string> */
@@ -166,10 +214,10 @@ class ValidateSurveySubmissionAction
                 $submitted = array_map('strval', (array) $value);
                 $invalid = array_diff($submitted, $validOptions);
                 if (! empty($invalid)) {
-                    $errors[$field->field_key][] = 'Invalid option(s): '.implode(', ', $invalid);
+                    $errors[$field->field_key][] = "「{$field->label}」包含不存在的選項，請重新選擇。";
                 }
             } elseif (! in_array((string) $value, $validOptions, true)) {
-                $errors[$field->field_key][] = "Invalid option: {$value}";
+                $errors[$field->field_key][] = "「{$field->label}」包含不存在的選項，請重新選擇。";
             }
         }
 
@@ -218,18 +266,18 @@ class ValidateSurveySubmissionAction
         $number = (float) $value;
 
         if (isset($rules['min_value']) && $number < (float) $rules['min_value']) {
-            $validator->errors()->add($field->field_key, 'Number is too small.');
+            $validator->errors()->add($field->field_key, "「{$field->label}」不可小於 {$rules['min_value']}。");
         }
 
         if (isset($rules['max_value']) && $number > (float) $rules['max_value']) {
-            $validator->errors()->add($field->field_key, 'Number is too large.');
+            $validator->errors()->add($field->field_key, "「{$field->label}」不可大於 {$rules['max_value']}。");
         }
     }
 
     private function validatePhone(ValidationValidator $validator, SurveyField $field, mixed $value): void
     {
         if (! preg_match('/^09\d{8}$/', (string) $value)) {
-            $validator->errors()->add($field->field_key, 'Mobile number must be 10 digits and start with 09.');
+            $validator->errors()->add($field->field_key, "「{$field->label}」請輸入 09 開頭的 10 碼手機號碼。");
         }
 
         $this->validateTextRules($validator, $field, (string) $value);
@@ -242,11 +290,11 @@ class ValidateSurveySubmissionAction
         $count = count($value);
 
         if (isset($rules['min_selections']) && $count < (int) $rules['min_selections']) {
-            $validator->errors()->add($field->field_key, 'Not enough selections.');
+            $validator->errors()->add($field->field_key, "「{$field->label}」至少需選擇 {$rules['min_selections']} 項。");
         }
 
         if (isset($rules['max_selections']) && $count > (int) $rules['max_selections']) {
-            $validator->errors()->add($field->field_key, 'Too many selections.');
+            $validator->errors()->add($field->field_key, "「{$field->label}」最多只能選擇 {$rules['max_selections']} 項。");
         }
     }
 
@@ -261,9 +309,10 @@ class ValidateSurveySubmissionAction
         foreach ($rows as $row) {
             $rowId = (string) ($row['id'] ?? '');
             $answer = $value[$rowId] ?? null;
+            $rowLabel = $this->matrixRowLabel($row);
 
             if ($field->is_required && ($answer === null || $answer === '' || $answer === [])) {
-                $validator->errors()->add($field->field_key, "Matrix row {$rowId} is required.");
+                $validator->errors()->add($field->field_key, "「{$field->label}」的「{$rowLabel}」尚未選擇。");
 
                 continue;
             }
@@ -274,11 +323,11 @@ class ValidateSurveySubmissionAction
 
             $submitted = array_map('strval', (array) $answer);
             if ($field->type === SurveyFieldType::MatrixSingle && count($submitted) !== 1) {
-                $validator->errors()->add($field->field_key, "Matrix row {$rowId} must contain one value.");
+                $validator->errors()->add($field->field_key, "「{$field->label}」的「{$rowLabel}」只能選擇一個選項。");
             }
 
             if (array_diff($submitted, $validCols) !== []) {
-                $validator->errors()->add($field->field_key, "Matrix row {$rowId} contains an invalid column.");
+                $validator->errors()->add($field->field_key, "「{$field->label}」的「{$rowLabel}」包含不存在的選項，請重新選擇。");
             }
         }
     }
@@ -302,7 +351,8 @@ class ValidateSurveySubmissionAction
             }
 
             if ($field->is_required && blank($value[$levelId] ?? null)) {
-                $validator->errors()->add($field->field_key, "Cascade level {$levelId} is required.");
+                $levelLabel = (string) ($level['label'] ?? $levelId);
+                $validator->errors()->add($field->field_key, "「{$field->label}」的「{$levelLabel}」尚未選擇。");
             }
         }
     }
@@ -314,11 +364,11 @@ class ValidateSurveySubmissionAction
         $submitted = array_map('strval', $value);
 
         if ($field->is_required && count($submitted) !== count($optionValues)) {
-            $validator->errors()->add($field->field_key, 'Ranking must include every option.');
+            $validator->errors()->add($field->field_key, "「{$field->label}」需要完成所有選項的排序。");
         }
 
         if (array_diff($submitted, $optionValues) !== [] || count($submitted) !== count(array_unique($submitted))) {
-            $validator->errors()->add($field->field_key, 'Ranking contains invalid options.');
+            $validator->errors()->add($field->field_key, "「{$field->label}」排序內容不正確，請重新排序。");
         }
     }
 
@@ -329,7 +379,7 @@ class ValidateSurveySubmissionAction
         $submittedKeys = array_map('strval', array_keys($value));
 
         if (array_diff($submittedKeys, $optionValues) !== []) {
-            $validator->errors()->add($field->field_key, 'Constant sum contains invalid options.');
+            $validator->errors()->add($field->field_key, "「{$field->label}」包含不存在的選項，請重新填寫。");
         }
 
         $sum = 0.0;
@@ -337,7 +387,8 @@ class ValidateSurveySubmissionAction
             $answer = $value[$optionValue] ?? null;
 
             if ($field->is_required && ($answer === null || $answer === '')) {
-                $validator->errors()->add($field->field_key, "Constant sum option {$optionValue} is required.");
+                $optionLabel = $this->optionLabel($field, $optionValue);
+                $validator->errors()->add($field->field_key, "「{$field->label}」的「{$optionLabel}」尚未填寫，請填入數字。");
 
                 continue;
             }
@@ -347,7 +398,8 @@ class ValidateSurveySubmissionAction
             }
 
             if (! is_numeric($answer)) {
-                $validator->errors()->add($field->field_key, "Constant sum option {$optionValue} must be numeric.");
+                $optionLabel = $this->optionLabel($field, $optionValue);
+                $validator->errors()->add($field->field_key, "「{$field->label}」的「{$optionLabel}」必須是數字。");
 
                 continue;
             }
@@ -355,25 +407,43 @@ class ValidateSurveySubmissionAction
             $sum += (float) $answer;
         }
 
-        if (isset($field->settings_json['total']) && $sum !== (float) $field->settings_json['total']) {
-            $validator->errors()->add($field->field_key, 'Constant sum total is invalid.');
+        if (isset($field->settings_json['total'])) {
+            $total = (float) $field->settings_json['total'];
+            if (abs($sum - $total) > 0.00001) {
+                $validator->errors()->add(
+                    $field->field_key,
+                    "「{$field->label}」目前合計為 {$this->formatNumber($sum)}，需等於 {$this->formatNumber($total)}，請調整各項數字。"
+                );
+            }
         }
+    }
+
+    private function optionLabel(SurveyField $field, string $optionValue): string
+    {
+        return $field->optionsForDisplay()[$optionValue] ?? $optionValue;
+    }
+
+    private function formatNumber(float $value): string
+    {
+        $formatted = number_format($value, 5, '.', '');
+
+        return rtrim(rtrim($formatted, '0'), '.');
     }
 
     /** @param array<string, mixed> $value */
     private function validateFileUploadAnswer(ValidationValidator $validator, SurveyField $field, array $value): void
     {
         if ($field->is_required && empty($value['media_id'])) {
-            $validator->errors()->add($field->field_key, 'A file upload is required.');
+            $validator->errors()->add($field->field_key, "「{$field->label}」請上傳檔案。");
         }
 
         if (! empty($value['media_id']) && ! Media::query()->whereKey((int) $value['media_id'])->where('collection_name', 'survey_files')->exists()) {
-            $validator->errors()->add($field->field_key, 'Uploaded file was not found.');
+            $validator->errors()->add($field->field_key, "「{$field->label}」上傳的檔案不存在，請重新上傳。");
         }
 
         $maxSizeMb = (int) ($field->settings_json['max_size_mb'] ?? 0);
         if ($maxSizeMb > 0 && (int) ($value['size'] ?? 0) > $maxSizeMb * 1024 * 1024) {
-            $validator->errors()->add($field->field_key, 'Uploaded file is too large.');
+            $validator->errors()->add($field->field_key, "「{$field->label}」檔案大小不可超過 {$maxSizeMb} MB。");
         }
     }
 
@@ -382,7 +452,7 @@ class ValidateSurveySubmissionAction
     {
         $dataUrl = (string) ($value['data_url'] ?? '');
         if ($field->is_required && strlen($dataUrl) < 200) {
-            $validator->errors()->add($field->field_key, 'Signature is required.');
+            $validator->errors()->add($field->field_key, "「{$field->label}」請完成簽名。");
         }
     }
 
@@ -394,12 +464,12 @@ class ValidateSurveySubmissionAction
 
         foreach ($enabled as $key) {
             if ($field->is_required && blank($value[$key] ?? null)) {
-                $validator->errors()->add($field->field_key.'.'.$key, 'Address field is required.');
+                $validator->errors()->add($field->field_key.'.'.$key, "「{$field->label}」的「{$this->addressFieldLabel((string) $key)}」尚未填寫。");
             }
         }
 
         if ($lockedCountry !== null && ($value['country'] ?? $lockedCountry) !== $lockedCountry) {
-            $validator->errors()->add($field->field_key.'.country', 'Country cannot be changed.');
+            $validator->errors()->add($field->field_key.'.country', "「{$field->label}」的國家不可變更。");
         }
     }
 
@@ -408,15 +478,33 @@ class ValidateSurveySubmissionAction
         $rules = $field->validation_rules ?? [];
 
         if (isset($rules['min_length']) && mb_strlen($value) < (int) $rules['min_length']) {
-            $validator->errors()->add($field->field_key, (string) ($rules['pattern_label'] ?? 'Text is too short.'));
+            $validator->errors()->add($field->field_key, (string) ($rules['pattern_label'] ?? "「{$field->label}」至少需輸入 {$rules['min_length']} 個字。"));
         }
 
         if (isset($rules['max_length']) && mb_strlen($value) > (int) $rules['max_length']) {
-            $validator->errors()->add($field->field_key, 'Text is too long.');
+            $validator->errors()->add($field->field_key, "「{$field->label}」最多只能輸入 {$rules['max_length']} 個字。");
         }
 
         if (! empty($rules['regex']) && @preg_match('/'.$rules['regex'].'/u', '') !== false && ! preg_match('/'.$rules['regex'].'/u', $value)) {
-            $validator->errors()->add($field->field_key, (string) ($rules['pattern_label'] ?? 'Text format is invalid.'));
+            $validator->errors()->add($field->field_key, (string) ($rules['pattern_label'] ?? "「{$field->label}」格式不正確，請依題目提示填寫。"));
         }
+    }
+
+    /** @param array<string, mixed> $row */
+    private function matrixRowLabel(array $row): string
+    {
+        return (string) ($row['label'] ?? $row['id'] ?? '此列');
+    }
+
+    private function addressFieldLabel(string $key): string
+    {
+        return match ($key) {
+            'country' => '國家',
+            'city' => '縣市',
+            'district' => '鄉鎮區',
+            'address' => '地址',
+            'postal_code' => '郵遞區號',
+            default => $key,
+        };
     }
 }

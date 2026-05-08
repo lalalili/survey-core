@@ -183,7 +183,7 @@ class PublicSurveyController extends Controller
         $survey = Survey::with(['fields', 'pages', 'calculations'])->where('public_key', $publicKey)->firstOrFail();
 
         if (! $survey->isAcceptingSubmissions()) {
-            return response()->json(['message' => 'Survey is not currently accepting submissions.'], 403);
+            return response()->json(['message' => '此問卷目前未開放填寫。'], 403);
         }
 
         if (! $survey->hasQuotaAvailable()) {
@@ -236,9 +236,9 @@ class PublicSurveyController extends Controller
                 collector: $collector,
             );
         } catch (SurveyNotAvailableException $e) {
-            return response()->json(['message' => $e->getMessage()], 403);
+            return response()->json(['message' => '此問卷目前未開放填寫。'], 403);
         } catch (SurveyValidationException $e) {
-            return response()->json(['message' => 'Validation failed.', 'errors' => $e->getErrors()], 422);
+            return response()->json(['message' => '填答內容有誤，請依提示修正。', 'errors' => $e->getErrors()], 422);
         }
 
         $this->recordConsent($survey, $response, $request);
@@ -266,7 +266,7 @@ class PublicSurveyController extends Controller
         $survey = Survey::with('fields')->where('public_key', $publicKey)->firstOrFail();
 
         if (! $survey->isAcceptingSubmissions()) {
-            return response()->json(['message' => 'Survey is not currently accepting submissions.'], 403);
+            return response()->json(['message' => '此問卷目前未開放填寫。'], 403);
         }
 
         if ($this->requiresPassword($survey) && ! $this->hasUnlockedPassword($survey, $request)) {
@@ -279,7 +279,7 @@ class PublicSurveyController extends Controller
         );
 
         if (! $field instanceof SurveyField) {
-            return response()->json(['message' => 'Invalid file upload field.'], 422);
+            return response()->json(['message' => '上傳欄位不正確，請重新選擇檔案。'], 422);
         }
 
         $fileRules = ['required', 'file'];
@@ -325,7 +325,7 @@ class PublicSurveyController extends Controller
         $thankYouPage = $this->thankYouPage($survey, $calculations);
         $message = $thankYouPage?->settings_json['thank_you']['message']
             ?? $survey->submit_success_message
-            ?? 'Thank you for your submission.';
+            ?? '感謝您的填寫！';
 
         return preg_replace_callback('/\{\{\s*calc\.([A-Za-z0-9_\-]+)\s*\}\}/', function (array $matches) use ($calculations): string {
             return (string) ($calculations[$matches[1]] ?? '');

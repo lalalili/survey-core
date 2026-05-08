@@ -454,6 +454,14 @@
             @else
             <div class="survey-field bg-white rounded-lg border border-gray-200 p-5 shadow-sm"
                  data-field-key="{{ $fk }}"
+                 data-field-type="{{ $type }}"
+                 data-field-label="{{ $field->label }}"
+                 @if($field->is_required)
+                 data-field-required="true"
+                 @endif
+                 @if($type === 'constant_sum' && isset($field->settings_json['total']))
+                 data-constant-sum-total="{{ $field->settings_json['total'] }}"
+                 @endif
                  @if($field->show_if_field_key)
                  data-show-if-field="{{ $field->show_if_field_key }}"
                  data-show-if-value="{{ $field->show_if_value }}"
@@ -865,6 +873,14 @@
             @else
             <div class="survey-field survey-field-card"
                  data-field-key="{{ $fk }}"
+                 data-field-type="{{ $type }}"
+                 data-field-label="{{ $field->label }}"
+                 @if($field->is_required)
+                 data-field-required="true"
+                 @endif
+                 @if($type === 'constant_sum' && isset($field->settings_json['total']))
+                 data-constant-sum-total="{{ $field->settings_json['total'] }}"
+                 @endif
                  @if($field->show_if_field_key)
                  data-show-if-field="{{ $field->show_if_field_key }}"
                  data-show-if-value="{{ $field->show_if_value }}"
@@ -1245,6 +1261,19 @@
         return value.replace(/["\\]/g, '\\$&');
     }
 
+    function fieldKeyFromErrorKey(errorKey) {
+        return String(errorKey || '').split('.')[0];
+    }
+
+    function findFieldElement(fieldKey) {
+        return document.querySelector('[data-field-key="' + selectorEscape(fieldKeyFromErrorKey(fieldKey)) + '"]');
+    }
+
+    function formatSurveyNumber(value) {
+        if (!Number.isFinite(value)) { return ''; }
+        return String(Math.round(value * 100000) / 100000);
+    }
+
     async function recordSurveyEvent(eventName, extra) {
         try {
             await fetch(appendSurveyQuery(EVENTS_URL), {
@@ -1475,6 +1504,7 @@
         var pageEl = document.querySelector('[data-page-key="' + pageKey + '"]');
         if (!pageEl) { return true; }
 
+        clearErrors();
         var valid = true;
         pageEl.querySelectorAll(
             'input[required]:not(:disabled), textarea[required]:not(:disabled), select[required]:not(:disabled)'
@@ -1484,7 +1514,59 @@
                 valid = false;
             }
         });
+
+        var errors = {};
+        pageEl.querySelectorAll('[data-field-type="constant_sum"][data-constant-sum-total]').forEach(function (fieldEl) {
+            var message = validateConstantSumField(fieldEl);
+            if (message) {
+                errors[fieldEl.getAttribute('data-field-key')] = [message];
+                valid = false;
+            }
+        });
+
+        if (Object.keys(errors).length > 0) {
+            showFieldErrors(errors);
+            focusFirstError(errors);
+        }
+
         return valid;
+    }
+
+    function validateConstantSumField(fieldEl) {
+        var total = Number(fieldEl.getAttribute('data-constant-sum-total'));
+        if (!Number.isFinite(total)) { return null; }
+
+        var fieldLabel = fieldEl.getAttribute('data-field-label') || '此總計題';
+        var required = fieldEl.getAttribute('data-field-required') === 'true';
+        var inputs = Array.from(fieldEl.querySelectorAll('input[type="number"]:not(:disabled)'));
+        var hasAnyValue = inputs.some(function (input) { return input.value !== ''; });
+
+        if (!required && !hasAnyValue) { return null; }
+
+        var sum = 0;
+        for (var i = 0; i < inputs.length; i++) {
+            var input = inputs[i];
+            var optionLabel = input.closest('label')?.querySelector('span')?.textContent?.trim() || '選項';
+
+            if (required && input.value === '') {
+                return '「' + fieldLabel + '」的「' + optionLabel + '」尚未填寫，請填入數字。';
+            }
+
+            if (input.value === '') { continue; }
+
+            var number = Number(input.value);
+            if (!Number.isFinite(number)) {
+                return '「' + fieldLabel + '」的「' + optionLabel + '」必須是數字。';
+            }
+
+            sum += number;
+        }
+
+        if (Math.abs(sum - total) > 0.00001) {
+            return '「' + fieldLabel + '」目前合計為 ' + formatSurveyNumber(sum) + '，需等於 ' + formatSurveyNumber(total) + '，請調整各項數字。';
+        }
+
+        return null;
     }
 
     // ─── Branching (show_if) ──────────────────────────────────────────────────
@@ -1564,14 +1646,70 @@
 
     function showFieldErrors(errors) {
         Object.entries(errors).forEach(function (entry) {
-            var field    = entry[0];
+            var field    = fieldKeyFromErrorKey(entry[0]);
             var messages = entry[1];
-            var el = document.querySelector('.field-error[data-field="' + field + '"]');
+            var el = document.querySelector('.field-error[data-field="' + selectorEscape(field) + '"]');
             if (!el) { return; }
             el.textContent = Array.isArray(messages) ? messages[0] : messages;
             if (isCdnMode()) { el.classList.remove('hidden'); }
             else { el.classList.add('visible'); }
         });
+    }
+
+    function pageKeyForField(fieldKey) {
+        var fieldEl = findFieldElement(fieldKey);
+        var pageEl = fieldEl ? fieldEl.closest('[data-page-key]') : null;
+
+        return pageEl ? pageEl.getAttribute('data-page-key') : null;
+    }
+
+    function focusFirstError(errors) {
+        var firstFieldKey = Object.keys(errors)[0];
+        var fieldEl = findFieldElement(firstFieldKey);
+        if (!fieldEl) { return; }
+
+        fieldEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        var firstInput = fieldEl.querySelector('input:not(:disabled), textarea:not(:disabled), select:not(:disabled), button:not(:disabled)');
+        if (firstInput) { firstInput.focus({ preventScroll: true }); }
+    }
+
+    function showFieldErrorsOnFirstErrorPage(errors) {
+        var firstFieldKey = Object.keys(errors)[0];
+        var pageKey = pageKeyForField(firstFieldKey);
+
+        if (pageKey && pageKey !== currentPageKey) {
+            pageStack = pageStack.filter(function (key) { return key !== pageKey; });
+            showPage(pageKey);
+        }
+
+        showFieldErrors(errors);
+        focusFirstError(errors);
+    }
+
+    function rebuildPageStackForRestoredPage(targetPageKey) {
+        var firstPageKey = PAGES_DATA.length > 0 ? PAGES_DATA[0].id : null;
+        if (!targetPageKey || !firstPageKey || targetPageKey === firstPageKey) {
+            return [];
+        }
+
+        var stack = [];
+        var cursor = firstPageKey;
+        var visited = {};
+
+        while (cursor && cursor !== targetPageKey && !visited[cursor]) {
+            visited[cursor] = true;
+            stack.push(cursor);
+
+            var nextKey = resolveNextPageKey(cursor);
+            if (!nextKey || nextKey === 'END_SURVEY') {
+                return [];
+            }
+
+            cursor = nextKey;
+        }
+
+        return cursor === targetPageKey ? stack : [];
     }
 
     // ─── Submit ───────────────────────────────────────────────────────────────
@@ -1683,6 +1821,7 @@
 
             if (draft.page_key && ALL_PAGE_KEYS.includes(draft.page_key)) {
                 currentPageKey = draft.page_key;
+                pageStack = rebuildPageStackForRestoredPage(draft.page_key);
             }
 
             updateRankingValues();
@@ -2045,7 +2184,7 @@
                     successText.innerHTML = msg;
                 }
             } else if (res.status === 422 && data.errors) {
-                showFieldErrors(data.errors);
+                showFieldErrorsOnFirstErrorPage(data.errors);
                 if (submitBtn) { submitBtn.disabled = false; }
                 if (spinner) { spinner.style.display = 'none'; }
                 if (label) { label.textContent = '送出問卷'; }
