@@ -6,6 +6,7 @@ use Lalalili\SurveyCore\Actions\ExportSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Actions\ImportSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Actions\SaveSurveyDraftSchemaAction;
+use Lalalili\SurveyCore\Actions\ValidateSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyPageKind;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
@@ -84,6 +85,112 @@ it('builds a draft schema from existing survey fields', function () {
             'value' => 'red',
         ]);
 });
+
+it('converts legacy email and phone fields to short text presets for builder schemas', function () {
+    $survey = Survey::create(['title' => 'Legacy presets', 'status' => SurveyStatus::Draft]);
+
+    SurveyField::create([
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::Email,
+        'label' => 'Email',
+        'field_key' => 'email',
+        'sort_order' => 1,
+    ]);
+
+    SurveyField::create([
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::Phone,
+        'label' => '手機',
+        'field_key' => 'mobile',
+        'sort_order' => 2,
+    ]);
+
+    $schema = app(BuildSurveyBuilderSchemaAction::class)->execute($survey);
+    $elements = collect($schema['pages'][0]['elements'])->keyBy('field_key');
+
+    expect($elements['email']['type'])->toBe('short_text')
+        ->and($elements['email']['settings']['input_format'])->toBe('email')
+        ->and($elements['mobile']['type'])->toBe('short_text')
+        ->and($elements['mobile']['settings']['input_format'])->toBe('mobile_tw')
+        ->and($elements['mobile']['settings']['pattern'])->toBe('09[0-9]{8}');
+});
+
+it('normalizes legacy email and phone elements in draft schemas for the builder', function () {
+    $survey = Survey::create([
+        'title' => 'Legacy draft schema',
+        'status' => SurveyStatus::Draft,
+        'draft_schema' => builderSchema([
+            'pages' => [
+                [
+                    'id' => 'page_1',
+                    'title' => 'Page 1',
+                    'elements' => [
+                        [
+                            'id' => 'q_email',
+                            'type' => 'email',
+                            'field_key' => 'email',
+                            'label' => 'Email',
+                            'description' => '',
+                            'required' => true,
+                            'placeholder' => null,
+                            'options' => [],
+                            'settings' => [],
+                        ],
+                        [
+                            'id' => 'q_phone',
+                            'type' => 'phone',
+                            'field_key' => 'mobile',
+                            'label' => '手機',
+                            'description' => '',
+                            'required' => true,
+                            'placeholder' => null,
+                            'options' => [],
+                            'settings' => [],
+                        ],
+                    ],
+                ],
+            ],
+        ]),
+    ]);
+
+    $schema = app(BuildSurveyBuilderSchemaAction::class)->execute($survey);
+    $elements = collect($schema['pages'][0]['elements'])->keyBy('field_key');
+
+    expect($elements['email']['type'])->toBe('short_text')
+        ->and($elements['email']['settings']['input_format'])->toBe('email')
+        ->and($elements['mobile']['type'])->toBe('short_text')
+        ->and($elements['mobile']['settings']['input_format'])->toBe('mobile_tw')
+        ->and($elements['mobile']['settings']['minlength'])->toBe(10)
+        ->and($elements['mobile']['settings']['pattern'])->toBe('09[0-9]{8}');
+});
+
+it('rejects legacy field types when saving new builder schemas', function (string $type) {
+    app(ValidateSurveyBuilderSchemaAction::class)->execute(builderSchema([
+        'pages' => [
+            [
+                'id' => 'page_1',
+                'title' => 'Page 1',
+                'elements' => [
+                    [
+                        'id' => 'legacy_field',
+                        'type' => $type,
+                        'field_key' => 'legacy_field',
+                        'label' => 'Legacy field',
+                        'description' => '',
+                        'required' => true,
+                        'placeholder' => null,
+                        'options' => [],
+                        'settings' => [],
+                    ],
+                ],
+            ],
+        ],
+    ]));
+})->throws(SurveyValidationException::class)->with([
+    'email',
+    'phone',
+    'address',
+]);
 
 it('keeps hidden fields visible in the builder when they are missing from draft schema', function () {
     $survey = Survey::create([

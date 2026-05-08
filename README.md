@@ -14,7 +14,7 @@ Laravel 問卷系統核心套件。提供完整的問卷引擎（token 機制、
 - Rich HTML sanitizer：Builder schema 儲存/發布時會清理 survey description、terms、welcome content、thank-you message 與題目 description
 - Collector 與事件漏斗：`web_link` / `email_invite` / `qr_code` / `embed_iframe` 等回收入口可用獨立 slug，提交與事件可保存 collector attribution
 - Analytics action：彙總總回應、開始/提交/完成率、每日趨勢、collector 成效、選擇題/NPS/rating 單題分佈
-- 商用題型基礎：`email` / `phone` / `address` / `ranking` 可由 Filament Builder 建立，ranking 公開端支援拖曳排序與上下移動，後端套用基本驗證
+- 商用題型基礎：Email、手機、地址單欄以 `short_text` 預設建立；legacy `email` / `phone` / `address` 仍可讀取與提交。手機預設採台灣格式驗證（10 碼純數字且 `09` 開頭），`time` / `linear_scale` / `constant_sum` 可用於活動時間、數字滑桿與總計分配，`section_title` / `description_block` / `quote_block` / `divider` 可建立內容區塊，ranking 公開端支援拖曳排序與上下移動
 - Events hook 點（SurveyViewed / SurveyStarted / SurveyTokenResolved / SurveySubmitted / SurveyClosed）
 
 ## 安裝

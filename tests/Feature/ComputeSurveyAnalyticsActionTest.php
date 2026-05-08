@@ -76,6 +76,9 @@ it('computes totals, collector performance, daily trend, and question distributi
     SurveyAnswer::create(['survey_response_id' => $first->id, 'survey_field_id' => $nps->id, 'answer_text' => '9']);
     SurveyAnswer::create(['survey_response_id' => $second->id, 'survey_field_id' => $nps->id, 'answer_text' => '7']);
 
+    $yesterday = now()->subDay()->toDateString();
+    $today = now()->toDateString();
+
     $analytics = app(ComputeSurveyAnalyticsAction::class)->execute($survey);
 
     expect($analytics['totals'])
@@ -92,7 +95,10 @@ it('computes totals, collector performance, daily trend, and question distributi
             'submitted' => 2,
             'completion_rate' => 100.0,
         ])
-        ->and($analytics['daily'])->toHaveCount(2)
+        ->and($analytics['daily'])->toBe([
+            ['date' => $yesterday, 'started' => 1, 'submitted' => 0],
+            ['date' => $today, 'started' => 1, 'submitted' => 2],
+        ])
         ->and($analytics['questions'][0]['distribution'])
         ->toBe([
             ['value' => 'basic', 'label' => 'Basic', 'count' => 1],

@@ -93,8 +93,16 @@ class ValidateSurveySubmissionAction
     {
         return match ($field->type) {
             SurveyFieldType::Email => ['email'],
+            SurveyFieldType::Phone => ['regex:/^09\d{8}$/'],
+            SurveyFieldType::ShortText => $this->shortTextFormatRules($field),
             SurveyFieldType::Date => ['date'],
+            SurveyFieldType::Time => ['date_format:H:i'],
             SurveyFieldType::Number => array_values(array_filter([
+                'numeric',
+                isset($field->settings_json['min']) ? 'min:'.$field->settings_json['min'] : null,
+                isset($field->settings_json['max']) ? 'max:'.$field->settings_json['max'] : null,
+            ])),
+            SurveyFieldType::LinearScale => array_values(array_filter([
                 'numeric',
                 isset($field->settings_json['min']) ? 'min:'.$field->settings_json['min'] : null,
                 isset($field->settings_json['max']) ? 'max:'.$field->settings_json['max'] : null,
@@ -103,14 +111,24 @@ class ValidateSurveySubmissionAction
             SurveyFieldType::Rating => ['integer', 'min:1', 'max:5'],
             SurveyFieldType::MultipleChoice, SurveyFieldType::MatrixSingle,
             SurveyFieldType::MatrixMulti, SurveyFieldType::Ranking,
+            SurveyFieldType::ConstantSum,
             SurveyFieldType::CascadeSelect,
             SurveyFieldType::FileUpload, SurveyFieldType::Signature,
             SurveyFieldType::Address => ['array'],
-            SurveyFieldType::ShortText, SurveyFieldType::LongText,
-            SurveyFieldType::Phone, SurveyFieldType::SingleChoice,
+            SurveyFieldType::LongText, SurveyFieldType::SingleChoice,
             SurveyFieldType::Select, SurveyFieldType::SectionTitle,
             SurveyFieldType::DescriptionBlock => ['string'],
             default => [],
+        };
+    }
+
+    /** @return array<int, string> */
+    private function shortTextFormatRules(SurveyField $field): array
+    {
+        return match ($field->settings_json['input_format'] ?? null) {
+            'email' => ['string', 'email'],
+            'mobile_tw' => ['string', 'regex:/^09\d{8}$/'],
+            default => ['string'],
         };
     }
 
@@ -127,7 +145,7 @@ class ValidateSurveySubmissionAction
                 continue;
             }
 
-            if ($field->type === SurveyFieldType::Ranking) {
+            if (in_array($field->type, [SurveyFieldType::Ranking, SurveyFieldType::ConstantSum], true)) {
                 continue;
             }
 
@@ -180,6 +198,7 @@ class ValidateSurveySubmissionAction
                 SurveyFieldType::MatrixSingle, SurveyFieldType::MatrixMulti => $this->validateMatrix($validator, $field, (array) $value),
                 SurveyFieldType::CascadeSelect => $this->validateCascadeSelect($validator, $field, (array) $value),
                 SurveyFieldType::Ranking => $this->validateRanking($validator, $field, (array) $value),
+                SurveyFieldType::ConstantSum => $this->validateConstantSum($validator, $field, (array) $value),
                 SurveyFieldType::FileUpload => $this->validateFileUploadAnswer($validator, $field, (array) $value),
                 SurveyFieldType::Signature => $this->validateSignature($validator, $field, (array) $value),
                 SurveyFieldType::Address => $this->validateAddress($validator, $field, (array) $value),
@@ -209,8 +228,8 @@ class ValidateSurveySubmissionAction
 
     private function validatePhone(ValidationValidator $validator, SurveyField $field, mixed $value): void
     {
-        if (! preg_match('/^[0-9+\-\s()]+$/', (string) $value)) {
-            $validator->errors()->add($field->field_key, 'Phone number may only contain digits and phone symbols.');
+        if (! preg_match('/^09\d{8}$/', (string) $value)) {
+            $validator->errors()->add($field->field_key, 'Mobile number must be 10 digits and start with 09.');
         }
 
         $this->validateTextRules($validator, $field, (string) $value);
@@ -291,15 +310,53 @@ class ValidateSurveySubmissionAction
     /** @param array<int, mixed> $value */
     private function validateRanking(ValidationValidator $validator, SurveyField $field, array $value): void
     {
-        $optionIds = collect($field->options_json ?? [])->pluck('id')->map(fn (mixed $id): string => (string) $id)->all();
+        $optionValues = $field->optionValues();
         $submitted = array_map('strval', $value);
 
-        if ($field->is_required && count($submitted) !== count($optionIds)) {
+        if ($field->is_required && count($submitted) !== count($optionValues)) {
             $validator->errors()->add($field->field_key, 'Ranking must include every option.');
         }
 
-        if (array_diff($submitted, $optionIds) !== [] || count($submitted) !== count(array_unique($submitted))) {
+        if (array_diff($submitted, $optionValues) !== [] || count($submitted) !== count(array_unique($submitted))) {
             $validator->errors()->add($field->field_key, 'Ranking contains invalid options.');
+        }
+    }
+
+    /** @param array<string, mixed> $value */
+    private function validateConstantSum(ValidationValidator $validator, SurveyField $field, array $value): void
+    {
+        $optionValues = $field->optionValues();
+        $submittedKeys = array_map('strval', array_keys($value));
+
+        if (array_diff($submittedKeys, $optionValues) !== []) {
+            $validator->errors()->add($field->field_key, 'Constant sum contains invalid options.');
+        }
+
+        $sum = 0.0;
+        foreach ($optionValues as $optionValue) {
+            $answer = $value[$optionValue] ?? null;
+
+            if ($field->is_required && ($answer === null || $answer === '')) {
+                $validator->errors()->add($field->field_key, "Constant sum option {$optionValue} is required.");
+
+                continue;
+            }
+
+            if ($answer === null || $answer === '') {
+                continue;
+            }
+
+            if (! is_numeric($answer)) {
+                $validator->errors()->add($field->field_key, "Constant sum option {$optionValue} must be numeric.");
+
+                continue;
+            }
+
+            $sum += (float) $answer;
+        }
+
+        if (isset($field->settings_json['total']) && $sum !== (float) $field->settings_json['total']) {
+            $validator->errors()->add($field->field_key, 'Constant sum total is invalid.');
         }
     }
 

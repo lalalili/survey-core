@@ -74,6 +74,52 @@ it('validates number and nps ranges', function (): void {
     );
 })->throws(SurveyValidationException::class);
 
+it('validates time and linear scale answers', function (): void {
+    $survey = phase2Survey();
+    phase2Field($survey, SurveyFieldType::Time, ['field_key' => 'arrival_time']);
+    phase2Field($survey, SurveyFieldType::LinearScale, [
+        'field_key' => 'effort',
+        'sort_order' => 2,
+        'settings_json' => ['min' => 1, 'max' => 5, 'step' => 1],
+    ]);
+
+    $response = app(SubmitSurveyResponseAction::class)->execute(
+        $survey->load('fields'),
+        new SubmissionPayload(['arrival_time' => '09:30', 'effort' => 4]),
+    );
+
+    expect($response->answers)->toHaveCount(2);
+
+    app(SubmitSurveyResponseAction::class)->execute(
+        $survey->refresh()->load('fields'),
+        new SubmissionPayload(['arrival_time' => '9:30', 'effort' => 6]),
+    );
+})->throws(SurveyValidationException::class);
+
+it('validates constant sum answers against options and configured total', function (): void {
+    $survey = phase2Survey();
+    phase2Field($survey, SurveyFieldType::ConstantSum, [
+        'field_key' => 'budget',
+        'options_json' => [
+            ['id' => 'a', 'label' => 'A', 'value' => 'a'],
+            ['id' => 'b', 'label' => 'B', 'value' => 'b'],
+        ],
+        'settings_json' => ['total' => 100],
+    ]);
+
+    $response = app(SubmitSurveyResponseAction::class)->execute(
+        $survey->load('fields'),
+        new SubmissionPayload(['budget' => ['a' => 40, 'b' => 60]]),
+    );
+
+    expect($response->answers->first()->getValue())->toBe(['a' => 40, 'b' => 60]);
+
+    app(SubmitSurveyResponseAction::class)->execute(
+        $survey->refresh()->load('fields'),
+        new SubmissionPayload(['budget' => ['a' => 40, 'b' => 50]]),
+    );
+})->throws(SurveyValidationException::class);
+
 it('validates matrix answers per row and persists structured json', function (): void {
     $survey = phase2Survey();
     phase2Field($survey, SurveyFieldType::MatrixSingle, [

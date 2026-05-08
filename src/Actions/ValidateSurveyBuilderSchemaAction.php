@@ -19,7 +19,12 @@ class ValidateSurveyBuilderSchemaAction
     public function execute(array $schema): array
     {
         $supportedTypes = collect(SurveyFieldType::cases())
-            ->reject(fn (SurveyFieldType $type): bool => $type === SurveyFieldType::Hidden)
+            ->reject(fn (SurveyFieldType $type): bool => in_array($type, [
+                SurveyFieldType::Hidden,
+                SurveyFieldType::Email,
+                SurveyFieldType::Phone,
+                SurveyFieldType::Address,
+            ], true))
             ->map(fn (SurveyFieldType $type): string => $type->value)
             ->all();
 

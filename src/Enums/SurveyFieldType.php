@@ -22,9 +22,14 @@ enum SurveyFieldType: string
     case Email = 'email';
     case Phone = 'phone';
     case Date = 'date';
+    case Time = 'time';
+    case LinearScale = 'linear_scale';
+    case ConstantSum = 'constant_sum';
     case Hidden = 'hidden';
     case SectionTitle = 'section_title';
     case DescriptionBlock = 'description_block';
+    case Divider = 'divider';
+    case QuoteBlock = 'quote_block';
 
     public function label(): string
     {
@@ -47,15 +52,20 @@ enum SurveyFieldType: string
             self::Email => 'Email',
             self::Phone => '電話',
             self::Date => '日期',
+            self::Time => '時間',
+            self::LinearScale => '數字滑桿',
+            self::ConstantSum => '總計題',
             self::Hidden => '個性化欄位',
             self::SectionTitle => '區段標題',
             self::DescriptionBlock => '說明文字',
+            self::Divider => '分隔線',
+            self::QuoteBlock => '引言',
         };
     }
 
     public function requiresOptions(): bool
     {
-        return in_array($this, [self::SingleChoice, self::MultipleChoice, self::Select, self::Ranking], true);
+        return in_array($this, [self::SingleChoice, self::MultipleChoice, self::Select, self::Ranking, self::ConstantSum], true);
     }
 
     public function isAlwaysHidden(): bool
@@ -65,11 +75,11 @@ enum SurveyFieldType: string
 
     public function supportsMultipleValues(): bool
     {
-        return in_array($this, [self::MultipleChoice, self::MatrixMulti, self::Ranking], true);
+        return in_array($this, [self::MultipleChoice, self::MatrixMulti, self::Ranking, self::ConstantSum], true);
     }
 
     public function isContentBlock(): bool
     {
-        return in_array($this, [self::SectionTitle, self::DescriptionBlock], true);
+        return in_array($this, [self::SectionTitle, self::DescriptionBlock, self::Divider, self::QuoteBlock], true);
     }
 }

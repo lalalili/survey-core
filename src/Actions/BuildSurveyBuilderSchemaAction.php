@@ -3,6 +3,7 @@
 namespace Lalalili\SurveyCore\Actions;
 
 use Illuminate\Support\Str;
+use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyCalculation;
 use Lalalili\SurveyCore\Models\SurveyField;
@@ -27,7 +28,9 @@ class BuildSurveyBuilderSchemaAction
 
             return $this->surveySettings->mergeSurveyAttributesIntoSchema(
                 $survey,
-                $this->mergeHiddenFieldsIntoDraftSchema($survey, $draftSchema),
+                $this->normalizeLegacyElementTypes(
+                    $this->mergeHiddenFieldsIntoDraftSchema($survey, $draftSchema),
+                ),
             );
         }
 
@@ -48,6 +51,56 @@ class BuildSurveyBuilderSchemaAction
             'thank_you_branches' => $survey->settings_json['thank_you_branches'] ?? [],
             'pages' => $pages,
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $schema
+     * @return array<string, mixed>
+     */
+    private function normalizeLegacyElementTypes(array $schema): array
+    {
+        if (! is_array($schema['pages'] ?? null)) {
+            return $schema;
+        }
+
+        foreach ($schema['pages'] as $pageIndex => $page) {
+            if (! is_array($page['elements'] ?? null)) {
+                continue;
+            }
+
+            foreach ($page['elements'] as $elementIndex => $element) {
+                if (! is_array($element)) {
+                    continue;
+                }
+
+                $type = $element['type'] ?? null;
+                if (! in_array($type, [SurveyFieldType::Email->value, SurveyFieldType::Phone->value], true)) {
+                    continue;
+                }
+
+                $settings = is_array($element['settings'] ?? null) ? $element['settings'] : [];
+                $schema['pages'][$pageIndex]['elements'][$elementIndex]['type'] = SurveyFieldType::ShortText->value;
+
+                if ($type === SurveyFieldType::Email->value) {
+                    $schema['pages'][$pageIndex]['elements'][$elementIndex]['settings'] = array_replace($settings, [
+                        'input_format' => 'email',
+                        'input_mode' => 'email',
+                    ]);
+
+                    continue;
+                }
+
+                $schema['pages'][$pageIndex]['elements'][$elementIndex]['settings'] = array_replace($settings, [
+                    'input_format' => 'mobile_tw',
+                    'input_mode' => 'numeric',
+                    'minlength' => 10,
+                    'maxlength' => 10,
+                    'pattern' => '09[0-9]{8}',
+                ]);
+            }
+        }
+
+        return $schema;
     }
 
     /**
@@ -234,16 +287,34 @@ class BuildSurveyBuilderSchemaAction
      */
     private function fieldToElement(SurveyField $field): array
     {
+        $settings = $field->settings_json ?? [];
+        $type = $field->type->isAlwaysHidden() ? 'short_text' : $field->type->value;
+
+        if ($field->type === SurveyFieldType::Email) {
+            $type = 'short_text';
+            $settings['input_format'] = 'email';
+            $settings['input_mode'] = 'email';
+        }
+
+        if ($field->type === SurveyFieldType::Phone) {
+            $type = 'short_text';
+            $settings['input_format'] = 'mobile_tw';
+            $settings['input_mode'] = 'numeric';
+            $settings['minlength'] = 10;
+            $settings['maxlength'] = 10;
+            $settings['pattern'] = '09[0-9]{8}';
+        }
+
         return [
             'id' => 'field_'.$field->id,
-            'type' => $field->type->isAlwaysHidden() ? 'short_text' : $field->type->value,
+            'type' => $type,
             'field_key' => $field->field_key,
             'label' => $field->label,
             'description' => $field->description ?? '',
             'required' => (bool) $field->is_required,
             'placeholder' => $field->placeholder,
             'options' => $this->optionsToBuilderOptions($field),
-            'settings' => array_merge($field->settings_json ?? [], [
+            'settings' => array_merge($settings, [
                 'default_value' => $field->default_value,
                 'validation_rules' => $field->validation_rules ?? [],
             ]),

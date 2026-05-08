@@ -443,6 +443,14 @@
             <div class="survey-field" data-field-key="{{ $fk }}">
                 <div class="text-sm text-gray-700 survey-rich-content">{!! $field->description !!}</div>
             </div>
+            @elseif($type === 'quote_block')
+            <div class="survey-field" data-field-key="{{ $fk }}" data-field-type="quote_block">
+                <blockquote class="border-l-4 border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-gray-700">{!! nl2br(e($field->description)) !!}</blockquote>
+            </div>
+            @elseif($type === 'divider')
+            <div class="survey-field" data-field-key="{{ $fk }}" data-field-type="divider">
+                <hr class="border-gray-200">
+            </div>
             @else
             <div class="survey-field bg-white rounded-lg border border-gray-200 p-5 shadow-sm"
                  data-field-key="{{ $fk }}"
@@ -461,11 +469,17 @@
                 @endif
 
                 @if($type === 'short_text' || $type === 'email' || $type === 'phone')
+                    @php
+                        $inputFormat = $field->settings_json['input_format'] ?? null;
+                        $isEmailInput = $type === 'email' || $inputFormat === 'email';
+                        $isMobileInput = $type === 'phone' || $inputFormat === 'mobile_tw';
+                    @endphp
                     <input
-                        type="{{ $type === 'email' ? 'email' : ($type === 'phone' ? 'tel' : 'text') }}"
+                        type="{{ $isEmailInput ? 'email' : ($isMobileInput ? 'tel' : 'text') }}"
                         name="answers[{{ $fk }}]"
                         placeholder="{{ $field->placeholder ?? '' }}"
                         value="{{ $field->default_value ?? '' }}"
+                        @if($isMobileInput) inputmode="numeric" minlength="10" maxlength="10" pattern="09[0-9]{8}" @endif
                         @if($field->is_required) required @endif
                         class="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
                     >
@@ -491,7 +505,7 @@
                                 <input type="radio" name="answers[{{ $fk }}]" value="{{ $option['value'] }}"
                                     @if($field->is_required) required @endif
                                     @if($isFull) disabled @endif
-                                    class="text-indigo-600 focus:ring-indigo-500">
+                                    class="survey-choice-input h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500">
                                 <span class="text-sm text-gray-700">{{ $option['label'] }}@if($isFull)（已額滿）@endif</span>
                             </label>
                         @endforeach
@@ -508,7 +522,7 @@
                             <label class="flex items-center gap-2 {{ $isFull ? 'cursor-not-allowed opacity-60' : 'cursor-pointer' }}">
                                 <input type="checkbox" name="answers[{{ $fk }}][]" value="{{ $option['value'] }}"
                                     @if($isFull) disabled @endif
-                                    class="rounded text-indigo-600 focus:ring-indigo-500">
+                                    class="survey-choice-input h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
                                 <span class="text-sm text-gray-700">{{ $option['label'] }}@if($isFull)（已額滿）@endif</span>
                             </label>
                         @endforeach
@@ -556,6 +570,11 @@
                         value="{{ $field->default_value ?? '' }}"
                         @if($field->is_required) required @endif
                         class="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                @elseif($type === 'time')
+                    <input type="time" name="answers[{{ $fk }}]"
+                        value="{{ $field->default_value ?? '' }}"
+                        @if($field->is_required) required @endif
+                        class="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
                 @elseif($type === 'number')
                     <div class="flex items-center gap-2">
                         <input type="number" name="answers[{{ $fk }}]"
@@ -567,6 +586,46 @@
                             class="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
                         @if(!empty($field->settings_json['unit']))
                             <span class="text-sm text-gray-500">{{ $field->settings_json['unit'] }}</span>
+                        @endif
+                    </div>
+                @elseif($type === 'linear_scale')
+                    @php
+                        $scaleMin = $field->settings_json['min'] ?? 1;
+                        $scaleMax = $field->settings_json['max'] ?? 5;
+                        $scaleStep = $field->settings_json['step'] ?? 1;
+                        $scaleDefault = $field->default_value ?? $scaleMin;
+                    @endphp
+                    <div class="space-y-2">
+                        <input type="range" name="answers[{{ $fk }}]"
+                            value="{{ $scaleDefault }}"
+                            min="{{ $scaleMin }}"
+                            max="{{ $scaleMax }}"
+                            step="{{ $scaleStep }}"
+                            @if($field->is_required) required @endif
+                            class="w-full accent-indigo-600">
+                        <div class="flex justify-between text-xs text-gray-500">
+                            <span>{{ $field->settings_json['low_label'] ?? $scaleMin }}</span>
+                            <span>{{ $field->settings_json['high_label'] ?? $scaleMax }}</span>
+                        </div>
+                    </div>
+                @elseif($type === 'constant_sum')
+                    <div class="space-y-2">
+                        @foreach($field->normalizedOptions() as $option)
+                            @continue($option['is_hidden'])
+                            <label class="flex items-center gap-3">
+                                <span class="min-w-0 flex-1 text-sm text-gray-700">{{ $option['label'] }}</span>
+                                <input type="number"
+                                    name="answers[{{ $fk }}][{{ $option['value'] }}]"
+                                    step="any"
+                                    @if($field->is_required) required @endif
+                                    class="w-28 rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                                @if(!empty($field->settings_json['unit']))
+                                    <span class="text-sm text-gray-500">{{ $field->settings_json['unit'] }}</span>
+                                @endif
+                            </label>
+                        @endforeach
+                        @if(isset($field->settings_json['total']))
+                            <p class="text-xs text-gray-500">總和需為 {{ $field->settings_json['total'] }}</p>
                         @endif
                     </div>
                 @elseif($type === 'cascade_select')
@@ -795,6 +854,14 @@
             <div class="survey-field" data-field-key="{{ $fk }}">
                 <div class="survey-description-block survey-rich-content">{!! $field->description !!}</div>
             </div>
+            @elseif($type === 'quote_block')
+            <div class="survey-field survey-quote-block" data-field-key="{{ $fk }}" data-field-type="quote_block">
+                <blockquote>{!! nl2br(e($field->description)) !!}</blockquote>
+            </div>
+            @elseif($type === 'divider')
+            <div class="survey-field survey-divider" data-field-key="{{ $fk }}" data-field-type="divider">
+                <hr>
+            </div>
             @else
             <div class="survey-field survey-field-card"
                  data-field-key="{{ $fk }}"
@@ -813,11 +880,17 @@
                 @endif
 
                 @if($type === 'short_text' || $type === 'email' || $type === 'phone')
+                    @php
+                        $inputFormat = $field->settings_json['input_format'] ?? null;
+                        $isEmailInput = $type === 'email' || $inputFormat === 'email';
+                        $isMobileInput = $type === 'phone' || $inputFormat === 'mobile_tw';
+                    @endphp
                     <input
-                        type="{{ $type === 'email' ? 'email' : ($type === 'phone' ? 'tel' : 'text') }}"
+                        type="{{ $isEmailInput ? 'email' : ($isMobileInput ? 'tel' : 'text') }}"
                         name="answers[{{ $fk }}]"
                         placeholder="{{ $field->placeholder ?? '' }}"
                         value="{{ $field->default_value ?? '' }}"
+                        @if($isMobileInput) inputmode="numeric" minlength="10" maxlength="10" pattern="09[0-9]{8}" @endif
                         @if($field->is_required) required @endif
                         class="survey-input"
                     >
@@ -837,7 +910,7 @@
                                 $isFull = $option['capacity'] !== null && $used >= $option['capacity'];
                             @endphp
                             <label class="survey-choice-label" @if($isFull) style="opacity:.6" @endif>
-                                <input type="radio" name="answers[{{ $fk }}]" value="{{ $option['value'] }}"
+                                <input class="survey-choice-input" type="radio" name="answers[{{ $fk }}]" value="{{ $option['value'] }}"
                                     @if($field->is_required) required @endif
                                     @if($isFull) disabled @endif>
                                 <span>{{ $option['label'] }}@if($isFull)（已額滿）@endif</span>
@@ -854,7 +927,7 @@
                                 $isFull = $option['capacity'] !== null && $used >= $option['capacity'];
                             @endphp
                             <label class="survey-choice-label" @if($isFull) style="opacity:.6" @endif>
-                                <input type="checkbox" name="answers[{{ $fk }}][]" value="{{ $option['value'] }}" @if($isFull) disabled @endif>
+                                <input class="survey-choice-input" type="checkbox" name="answers[{{ $fk }}][]" value="{{ $option['value'] }}" @if($isFull) disabled @endif>
                                 <span>{{ $option['label'] }}@if($isFull)（已額滿）@endif</span>
                             </label>
                         @endforeach
@@ -902,6 +975,11 @@
                         value="{{ $field->default_value ?? '' }}"
                         @if($field->is_required) required @endif
                         class="survey-input">
+                @elseif($type === 'time')
+                    <input type="time" name="answers[{{ $fk }}]"
+                        value="{{ $field->default_value ?? '' }}"
+                        @if($field->is_required) required @endif
+                        class="survey-input">
                 @elseif($type === 'number')
                     <input type="number" name="answers[{{ $fk }}]"
                         value="{{ $field->default_value ?? '' }}"
@@ -910,6 +988,42 @@
                         step="{{ $field->settings_json['step'] ?? '1' }}"
                         @if($field->is_required) required @endif
                         class="survey-input">
+                @elseif($type === 'linear_scale')
+                    @php
+                        $scaleMin = $field->settings_json['min'] ?? 1;
+                        $scaleMax = $field->settings_json['max'] ?? 5;
+                        $scaleStep = $field->settings_json['step'] ?? 1;
+                        $scaleDefault = $field->default_value ?? $scaleMin;
+                    @endphp
+                    <div class="survey-choices">
+                        <input type="range" name="answers[{{ $fk }}]"
+                            value="{{ $scaleDefault }}"
+                            min="{{ $scaleMin }}"
+                            max="{{ $scaleMax }}"
+                            step="{{ $scaleStep }}"
+                            @if($field->is_required) required @endif
+                            class="survey-input">
+                        <div class="survey-nps-labels">
+                            <span>{{ $field->settings_json['low_label'] ?? $scaleMin }}</span>
+                            <span>{{ $field->settings_json['high_label'] ?? $scaleMax }}</span>
+                        </div>
+                    </div>
+                @elseif($type === 'constant_sum')
+                    <div class="survey-choices">
+                        @foreach($field->normalizedOptions() as $option)
+                            @continue($option['is_hidden'])
+                            <label class="survey-choice-label">
+                                <span>{{ $option['label'] }}</span>
+                                <input type="number" name="answers[{{ $fk }}][{{ $option['value'] }}]" step="any" @if($field->is_required) required @endif class="survey-input">
+                                @if(!empty($field->settings_json['unit']))
+                                    <span>{{ $field->settings_json['unit'] }}</span>
+                                @endif
+                            </label>
+                        @endforeach
+                        @if(isset($field->settings_json['total']))
+                            <p class="survey-field-description">總和需為 {{ $field->settings_json['total'] }}</p>
+                        @endif
+                    </div>
                 @elseif($type === 'cascade_select')
                     @php
                         $cascadeLevels = $field->settings_json['cascade_levels'] ?? [];
@@ -1790,6 +1904,11 @@
         selects.forEach(function (select, index) {
             if (index === 0 && select.options.length <= 1) {
                 populateCascadeSelect(select, data);
+            }
+
+            if (index === 0) {
+                select.disabled = data.length === 0;
+                return;
             }
 
             if (index <= changedLevel) { return; }

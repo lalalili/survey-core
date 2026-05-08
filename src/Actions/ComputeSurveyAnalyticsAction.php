@@ -58,9 +58,15 @@ class ComputeSurveyAnalyticsAction
      */
     private function dailyTrend(Collection $events, Collection $responses): array
     {
-        $dates = $events
+        $eventDates = $events
             ->map(fn (SurveyResponseEvent $event): string => $event->occurred_at->toDateString())
-            ->merge($responses->map(fn (SurveyResponse $response): string => $response->submitted_at?->toDateString() ?? $response->created_at->toDateString()))
+            ->all();
+        $responseDates = $responses
+            ->map(fn (SurveyResponse $response): string => $response->submitted_at?->toDateString() ?? $response->created_at->toDateString())
+            ->all();
+
+        $dates = collect($eventDates)
+            ->merge($responseDates)
             ->unique()
             ->sort()
             ->values();
