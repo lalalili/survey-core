@@ -40,7 +40,6 @@ class RunSurveyTriggerJob implements ShouldQueue
         }
 
         $answerMap = $response->answers
-            ->filter(fn ($a) => $a->field !== null)
             ->mapWithKeys(fn ($a) => [$a->field->field_key => $a->getValue()])
             ->all();
 

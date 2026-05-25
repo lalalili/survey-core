@@ -69,7 +69,7 @@ class ResolveActionPayloadAction
                 if (str_starts_with($token, 'env.')) {
                     $envKey = substr($token, 4);
 
-                    return (string) env($envKey, '');
+                    return (string) ($_ENV[$envKey] ?? $_SERVER[$envKey] ?? getenv($envKey) ?: '');
                 }
 
                 return $matches[0];

@@ -23,7 +23,6 @@ class EvaluateAnswerRuleTreeAction
         $response->loadMissing('answers.field');
 
         $answerMap = $response->answers
-            ->filter(fn ($a) => $a->field !== null)
             ->mapWithKeys(fn ($a) => [$a->field->field_key => $a->getValue()])
             ->all();
 

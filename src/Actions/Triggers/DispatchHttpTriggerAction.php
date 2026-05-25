@@ -102,7 +102,7 @@ class DispatchHttpTriggerAction
     private function resolveHeaders(array $headers): array
     {
         return array_map(function (string $value): string {
-            return preg_replace_callback('/\{\{env\.([^}]+)\}\}/', fn ($m) => (string) env(trim($m[1]), ''), $value) ?? $value;
+            return preg_replace_callback('/\{\{env\.([^}]+)\}\}/', fn ($m) => (string) ($_ENV[trim($m[1])] ?? $_SERVER[trim($m[1])] ?? getenv(trim($m[1])) ?: ''), $value) ?? $value;
         }, $headers);
     }
 }
