@@ -5,6 +5,8 @@ namespace Lalalili\SurveyCore\Tests;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Lalalili\AudienceCore\AudienceCoreServiceProvider;
+use Lalalili\EmailCampaign\EmailCampaignServiceProvider;
 use Lalalili\PackageTestingSupport\PackageTestCase;
 use Lalalili\SurveyCore\SurveyCoreServiceProvider;
 use Spatie\MediaLibrary\MediaLibraryServiceProvider;
@@ -14,6 +16,8 @@ abstract class TestCase extends PackageTestCase
     protected function getPackageProviders($app): array
     {
         return [
+            AudienceCoreServiceProvider::class,
+            EmailCampaignServiceProvider::class,
             MediaLibraryServiceProvider::class,
             SurveyCoreServiceProvider::class,
         ];
@@ -45,6 +49,8 @@ abstract class TestCase extends PackageTestCase
             $table->nullableTimestamps();
         });
 
+        $this->loadMigrationsFrom(__DIR__.'/../../audience-core/database/migrations');
+        $this->loadMigrationsFrom(__DIR__.'/../../email-campaign/database/migrations');
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         DB::statement('PRAGMA foreign_keys = ON');
     }

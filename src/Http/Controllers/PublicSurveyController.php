@@ -7,8 +7,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Hash;
-use Lalalili\SurveyCore\Actions\ResolveSurveyTokenAction;
+use Illuminate\Support\Facades\Schema;
 use Lalalili\SurveyCore\Actions\RecordSurveyResponseEventAction;
+use Lalalili\SurveyCore\Actions\ResolveSurveyTokenAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
 use Lalalili\SurveyCore\Data\ResolvedToken;
 use Lalalili\SurveyCore\Data\SubmissionPayload;
@@ -38,7 +39,7 @@ class PublicSurveyController extends Controller
     public function show(string $publicKey, ResolveSurveyTokenAction $resolveToken): Response|JsonResponse
     {
         $survey = Survey::with([
-            'pages'  => fn ($q) => $q->orderBy('sort_order'),
+            'pages' => fn ($q) => $q->orderBy('sort_order'),
             'fields' => fn ($q) => $q->orderBy('sort_order'),
             'theme',
             'calculations',
@@ -50,7 +51,7 @@ class PublicSurveyController extends Controller
     public function showCollector(string $collectorSlug, ResolveSurveyTokenAction $resolveToken): Response|JsonResponse
     {
         $collector = SurveyCollector::with([
-            'survey.pages'  => fn ($q) => $q->orderBy('sort_order'),
+            'survey.pages' => fn ($q) => $q->orderBy('sort_order'),
             'survey.fields' => fn ($q) => $q->orderBy('sort_order'),
             'survey.theme',
             'survey.calculations',
@@ -103,11 +104,11 @@ class PublicSurveyController extends Controller
         }
 
         $validated = $request->validate([
-            'event'       => ['required', 'string', 'in:viewed,started,page_viewed,submitted,abandoned'],
-            'page_key'    => ['nullable', 'string', 'max:120'],
+            'event' => ['required', 'string', 'in:viewed,started,page_viewed,submitted,abandoned'],
+            'page_key' => ['nullable', 'string', 'max:120'],
             'response_id' => ['nullable', 'integer'],
-            'collector'   => ['nullable', 'string', 'max:120'],
-            'metadata'    => ['nullable', 'array'],
+            'collector' => ['nullable', 'string', 'max:120'],
+            'metadata' => ['nullable', 'array'],
         ]);
 
         $collector = $this->resolveCollector($survey, $request);
@@ -248,8 +249,8 @@ class PublicSurveyController extends Controller
                 ip: $request->ip() ?? '',
                 userAgent: $request->userAgent() ?? '',
                 qualityContext: [
-                    'elapsed_ms'           => $request->integer('_elapsed_ms') ?: null,
-                    'honeypot_hit'         => filled($request->input('_hp')),
+                    'elapsed_ms' => $request->integer('_elapsed_ms') ?: null,
+                    'honeypot_hit' => filled($request->input('_hp')),
                     'is_anomaly_duplicate' => $this->hasAnomalyDuplicate($survey, $request),
                 ],
                 collector: $collector,
@@ -267,10 +268,10 @@ class PublicSurveyController extends Controller
         ]);
 
         $jsonResponse = response()->json([
-            'message'           => $this->thankYouMessage($survey, $response->calculations_json ?? []),
+            'message' => $this->thankYouMessage($survey, $response->calculations_json ?? []),
             'thank_you_page_id' => $this->thankYouPage($survey, $response->calculations_json ?? [])?->page_key,
-            'response_id'       => $response->id,
-            'calculations'      => $response->calculations_json ?? [],
+            'response_id' => $response->id,
+            'calculations' => $response->calculations_json ?? [],
         ], 201);
 
         if ($survey->uniqueness_mode === SurveyUniquenessMode::Cookie) {
@@ -319,11 +320,11 @@ class PublicSurveyController extends Controller
 
         $validated = $request->validate([
             'field_key' => ['required', 'string'],
-            'file'      => $fileRules,
+            'file' => $fileRules,
         ]);
 
         $draftResponse = SurveyResponse::create([
-            'survey_id'         => $survey->id,
+            'survey_id' => $survey->id,
             'completion_status' => SurveyResponseCompletionStatus::Partial,
         ]);
 
@@ -335,7 +336,7 @@ class PublicSurveyController extends Controller
         return response()->json([
             'media_id' => $media->id,
             'filename' => $media->file_name,
-            'size'     => $media->size,
+            'size' => $media->size,
         ], 201);
     }
 
@@ -404,7 +405,7 @@ class PublicSurveyController extends Controller
         }
 
         return match ($uniquenessMode) {
-            SurveyUniquenessMode::None  => false,
+            SurveyUniquenessMode::None => false,
             SurveyUniquenessMode::Token => $resolved !== null
                 && $resolved->token->max_submissions !== null
                 && $resolved->token->used_count >= $resolved->token->max_submissions,
@@ -431,6 +432,10 @@ class PublicSurveyController extends Controller
         $shortLinkClass = 'Lalalili\\MarketingAutomation\\Models\\ActivityShortLink';
 
         if (! class_exists($shortLinkClass)) {
+            return false;
+        }
+
+        if (! Schema::hasTable('activity_short_links')) {
             return false;
         }
 
@@ -587,11 +592,11 @@ class PublicSurveyController extends Controller
 
         SurveyResponseConsent::create([
             'survey_response_id' => $response->id,
-            'type'               => 'terms',
-            'version'            => $survey->settings_json['terms_version'] ?? null,
-            'accepted_at'        => now(),
-            'metadata_json'      => [
-                'ip'         => $request->ip(),
+            'type' => 'terms',
+            'version' => $survey->settings_json['terms_version'] ?? null,
+            'accepted_at' => now(),
+            'metadata_json' => [
+                'ip' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ],
         ]);
@@ -658,11 +663,11 @@ class PublicSurveyController extends Controller
     {
         if (isset($condition['calc_key'])) {
             return [
-                'logic'      => 'and',
+                'logic' => 'and',
                 'conditions' => [[
                     'field_key' => (string) $condition['calc_key'],
-                    'op'        => (string) ($condition['op'] ?? 'equals'),
-                    'value'     => $condition['value'] ?? null,
+                    'op' => (string) ($condition['op'] ?? 'equals'),
+                    'value' => $condition['value'] ?? null,
                 ]],
             ];
         }

@@ -5,21 +5,6 @@ use Lalalili\SurveyCore\Actions\ValidateSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Support\SurveyBuilderTemplateRegistry;
-use Tests\TestCase;
-
-$surveyBuilderTemplateTestCase = class_exists(TestCase::class)
-    ? TestCase::class
-    : Lalalili\SurveyCore\Tests\TestCase::class;
-
-if ($surveyBuilderTemplateTestCase === TestCase::class) {
-    uses($surveyBuilderTemplateTestCase);
-}
-
-beforeEach(function () use ($surveyBuilderTemplateTestCase): void {
-    if ($surveyBuilderTemplateTestCase === TestCase::class) {
-        $this->artisan('migrate', ['--path' => 'packages/survey-core/database/migrations'])->run();
-    }
-});
 
 it('provides the MVP survey builder templates', function (): void {
     $templates = app(SurveyBuilderTemplateRegistry::class)->all();

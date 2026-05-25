@@ -1,5 +1,8 @@
 <?php
 
+use Lalalili\EmailCampaign\Enums\EmailCampaignStatus;
+use Lalalili\EmailCampaign\Models\EmailCampaign;
+use Lalalili\EmailCampaign\Models\EmailCampaignRecipient;
 use Lalalili\SurveyCore\Actions\GenerateSurveyTokenAction;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Integrations\EmailCampaign\SurveyVariableProvider;
@@ -7,50 +10,47 @@ use Lalalili\SurveyCore\Models\AudienceList;
 use Lalalili\SurveyCore\Models\AudienceListRow;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyRecipient;
-use Tests\TestCase;
 
-$surveyVariableProviderTestCase = class_exists(TestCase::class)
-    ? TestCase::class
-    : Lalalili\SurveyCore\Tests\TestCase::class;
-
-if ($surveyVariableProviderTestCase === TestCase::class) {
-    uses($surveyVariableProviderTestCase);
+function makeEmailCampaignObject(?int $surveyId): EmailCampaign
+{
+    return EmailCampaign::create([
+        'name' => '問卷邀請',
+        'survey_id' => $surveyId,
+        'subject_template' => '問卷邀請',
+        'status' => EmailCampaignStatus::Draft,
+    ]);
 }
 
-beforeEach(function () use ($surveyVariableProviderTestCase): void {
-    if ($surveyVariableProviderTestCase === TestCase::class) {
-        $this->artisan('migrate', ['--path' => 'packages/survey-core/database/migrations'])->run();
-    }
-});
-
-function makeEmailCampaignObject(?int $surveyId): object
+function makeEmailRecipientObject(?int $audienceListRowId = null): EmailCampaignRecipient
 {
-    return (object) ['survey_id' => $surveyId];
-}
+    $campaign = EmailCampaign::create([
+        'name' => '收件者來源',
+        'subject_template' => '問卷邀請',
+        'status' => EmailCampaignStatus::Draft,
+    ]);
 
-function makeEmailRecipientObject(?int $audienceListRowId = null): object
-{
-    return (object) [
+    return EmailCampaignRecipient::create([
+        'email_campaign_id' => $campaign->id,
         'audience_list_row_id' => $audienceListRowId,
-        'email'                => 'owner@example.com',
-        'user_name'            => '車主',
-        'external_id'          => $audienceListRowId ? (string) $audienceListRowId : null,
-    ];
+        'email' => 'owner@example.com',
+        'user_name' => '車主',
+        'external_id' => $audienceListRowId ? (string) $audienceListRowId : null,
+    ]);
 }
 
 it('provides a personalized survey URL for an audience list recipient', function () {
     $audienceList = AudienceList::create([
-        'name'         => '車主名單',
+        'name' => '車主名單',
         'columns_json' => ['email', 'plate'],
     ]);
     $audienceRow = AudienceListRow::create([
         'audience_list_id' => $audienceList->id,
-        'data_json'        => ['email' => 'owner@example.com', 'plate' => 'ABC-1234'],
-        'status'           => 'active',
+        'data_json' => ['email' => 'owner@example.com', 'plate' => 'ABC-1234'],
+        'status' => 'active',
     ]);
     $survey = Survey::create([
-        'title'         => '車主問卷',
-        'status'        => SurveyStatus::Published,
+        'title' => '車主問卷',
+        'status' => SurveyStatus::Published,
         'settings_json' => [
             'personalization' => [
                 'audience_list_id' => $audienceList->id,
@@ -77,11 +77,11 @@ it('reuses an existing usable survey token for the same recipient', function () 
     $audienceList = AudienceList::create(['name' => '車主名單', 'columns_json' => ['email']]);
     $audienceRow = AudienceListRow::create([
         'audience_list_id' => $audienceList->id,
-        'data_json'        => ['email' => 'owner@example.com'],
-        'status'           => 'active',
+        'data_json' => ['email' => 'owner@example.com'],
+        'status' => 'active',
     ]);
     $survey = Survey::create([
-        'title'  => '車主問卷',
+        'title' => '車主問卷',
         'status' => SurveyStatus::Published,
     ]);
     $provider = new SurveyVariableProvider(app(GenerateSurveyTokenAction::class));
@@ -114,7 +114,7 @@ it('fails rendering when the selected survey no longer exists', function () {
 
 it('fails rendering when the selected survey is not accepting submissions', function () {
     $survey = Survey::create([
-        'title'  => '草稿問卷',
+        'title' => '草稿問卷',
         'status' => SurveyStatus::Draft,
     ]);
     $provider = new SurveyVariableProvider(app(GenerateSurveyTokenAction::class));

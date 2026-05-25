@@ -16,43 +16,28 @@ use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyPage;
-use Tests\TestCase;
-
-$surveyBuilderTestCase = class_exists(TestCase::class)
-    ? TestCase::class
-    : Lalalili\SurveyCore\Tests\TestCase::class;
-
-if ($surveyBuilderTestCase === TestCase::class) {
-    uses($surveyBuilderTestCase);
-}
-
-beforeEach(function () use ($surveyBuilderTestCase): void {
-    if ($surveyBuilderTestCase === TestCase::class) {
-        $this->artisan('migrate', ['--path' => 'packages/survey-core/database/migrations'])->run();
-    }
-});
 
 function builderSchema(array $overrides = []): array
 {
     return array_replace_recursive([
-        'id'      => 1,
-        'title'   => 'Customer Survey',
-        'status'  => 'draft',
+        'id' => 1,
+        'title' => 'Customer Survey',
+        'status' => 'draft',
         'version' => 1,
-        'pages'   => [
+        'pages' => [
             [
-                'id'       => 'page_1',
-                'title'    => 'Page 1',
+                'id' => 'page_1',
+                'title' => 'Page 1',
                 'elements' => [
                     [
-                        'id'          => 'q_1',
-                        'type'        => 'single_choice',
-                        'field_key'   => 'purchase_status',
-                        'label'       => 'Have you purchased?',
+                        'id' => 'q_1',
+                        'type' => 'single_choice',
+                        'field_key' => 'purchase_status',
+                        'label' => 'Have you purchased?',
                         'description' => '',
-                        'required'    => true,
+                        'required' => true,
                         'placeholder' => null,
-                        'options'     => [
+                        'options' => [
                             ['id' => 'opt_1', 'label' => 'Yes', 'value' => 'yes'],
                             ['id' => 'opt_2', 'label' => 'No', 'value' => 'no'],
                         ],
@@ -68,13 +53,13 @@ it('builds a draft schema from existing survey fields', function () {
     $survey = Survey::create(['title' => 'Existing', 'status' => SurveyStatus::Draft]);
 
     SurveyField::create([
-        'survey_id'    => $survey->id,
-        'type'         => SurveyFieldType::SingleChoice,
-        'label'        => 'Color',
-        'field_key'    => 'color',
-        'is_required'  => true,
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::SingleChoice,
+        'label' => 'Color',
+        'field_key' => 'color',
+        'is_required' => true,
         'options_json' => ['red' => 'Red', 'blue' => 'Blue'],
-        'sort_order'   => 1,
+        'sort_order' => 1,
     ]);
 
     $schema = app(BuildSurveyBuilderSchemaAction::class)->execute($survey);
@@ -91,18 +76,18 @@ it('converts legacy email and phone fields to short text presets for builder sch
     $survey = Survey::create(['title' => 'Legacy presets', 'status' => SurveyStatus::Draft]);
 
     SurveyField::create([
-        'survey_id'  => $survey->id,
-        'type'       => SurveyFieldType::Email,
-        'label'      => 'Email',
-        'field_key'  => 'email',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::Email,
+        'label' => 'Email',
+        'field_key' => 'email',
         'sort_order' => 1,
     ]);
 
     SurveyField::create([
-        'survey_id'  => $survey->id,
-        'type'       => SurveyFieldType::Phone,
-        'label'      => '手機',
-        'field_key'  => 'mobile',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::Phone,
+        'label' => '手機',
+        'field_key' => 'mobile',
         'sort_order' => 2,
     ]);
 
@@ -118,35 +103,35 @@ it('converts legacy email and phone fields to short text presets for builder sch
 
 it('normalizes legacy email and phone elements in draft schemas for the builder', function () {
     $survey = Survey::create([
-        'title'        => 'Legacy draft schema',
-        'status'       => SurveyStatus::Draft,
+        'title' => 'Legacy draft schema',
+        'status' => SurveyStatus::Draft,
         'draft_schema' => builderSchema([
             'pages' => [
                 [
-                    'id'       => 'page_1',
-                    'title'    => 'Page 1',
+                    'id' => 'page_1',
+                    'title' => 'Page 1',
                     'elements' => [
                         [
-                            'id'          => 'q_email',
-                            'type'        => 'email',
-                            'field_key'   => 'email',
-                            'label'       => 'Email',
+                            'id' => 'q_email',
+                            'type' => 'email',
+                            'field_key' => 'email',
+                            'label' => 'Email',
                             'description' => '',
-                            'required'    => true,
+                            'required' => true,
                             'placeholder' => null,
-                            'options'     => [],
-                            'settings'    => [],
+                            'options' => [],
+                            'settings' => [],
                         ],
                         [
-                            'id'          => 'q_phone',
-                            'type'        => 'phone',
-                            'field_key'   => 'mobile',
-                            'label'       => '手機',
+                            'id' => 'q_phone',
+                            'type' => 'phone',
+                            'field_key' => 'mobile',
+                            'label' => '手機',
                             'description' => '',
-                            'required'    => true,
+                            'required' => true,
                             'placeholder' => null,
-                            'options'     => [],
-                            'settings'    => [],
+                            'options' => [],
+                            'settings' => [],
                         ],
                     ],
                 ],
@@ -169,19 +154,19 @@ it('rejects legacy field types when saving new builder schemas', function (strin
     app(ValidateSurveyBuilderSchemaAction::class)->execute(builderSchema([
         'pages' => [
             [
-                'id'       => 'page_1',
-                'title'    => 'Page 1',
+                'id' => 'page_1',
+                'title' => 'Page 1',
                 'elements' => [
                     [
-                        'id'          => 'legacy_field',
-                        'type'        => $type,
-                        'field_key'   => 'legacy_field',
-                        'label'       => 'Legacy field',
+                        'id' => 'legacy_field',
+                        'type' => $type,
+                        'field_key' => 'legacy_field',
+                        'label' => 'Legacy field',
                         'description' => '',
-                        'required'    => true,
+                        'required' => true,
                         'placeholder' => null,
-                        'options'     => [],
-                        'settings'    => [],
+                        'options' => [],
+                        'settings' => [],
                     ],
                 ],
             ],
@@ -197,20 +182,20 @@ it('rejects personalized builder fields without an audience column mapping', fun
     app(ValidateSurveyBuilderSchemaAction::class)->execute(builderSchema([
         'pages' => [
             [
-                'id'       => 'page_1',
-                'title'    => 'Page 1',
+                'id' => 'page_1',
+                'title' => 'Page 1',
                 'elements' => [
                     [
-                        'id'               => 'customer_name',
-                        'type'             => 'short_text',
-                        'field_key'        => 'customer_name',
-                        'label'            => '客戶姓名',
-                        'description'      => '',
-                        'required'         => false,
-                        'placeholder'      => null,
-                        'options'          => [],
-                        'settings'         => [],
-                        'is_hidden'        => true,
+                        'id' => 'customer_name',
+                        'type' => 'short_text',
+                        'field_key' => 'customer_name',
+                        'label' => '客戶姓名',
+                        'description' => '',
+                        'required' => false,
+                        'placeholder' => null,
+                        'options' => [],
+                        'settings' => [],
+                        'is_hidden' => true,
                         'personalized_key' => null,
                     ],
                 ],
@@ -223,32 +208,32 @@ it('rejects show-if conditions without a value when the operator requires one', 
     app(ValidateSurveyBuilderSchemaAction::class)->execute(builderSchema([
         'pages' => [
             [
-                'id'       => 'page_1',
-                'title'    => 'Page 1',
+                'id' => 'page_1',
+                'title' => 'Page 1',
                 'elements' => [
                     [
-                        'id'          => 'source',
-                        'type'        => 'short_text',
-                        'field_key'   => 'source',
-                        'label'       => '來源題',
+                        'id' => 'source',
+                        'type' => 'short_text',
+                        'field_key' => 'source',
+                        'label' => '來源題',
                         'description' => '',
-                        'required'    => false,
+                        'required' => false,
                         'placeholder' => null,
-                        'options'     => [],
-                        'settings'    => [],
+                        'options' => [],
+                        'settings' => [],
                     ],
                     [
-                        'id'          => 'target',
-                        'type'        => 'short_text',
-                        'field_key'   => 'target',
-                        'label'       => '目標題',
+                        'id' => 'target',
+                        'type' => 'short_text',
+                        'field_key' => 'target',
+                        'label' => '目標題',
                         'description' => '',
-                        'required'    => false,
+                        'required' => false,
                         'placeholder' => null,
-                        'options'     => [],
-                        'settings'    => [],
-                        'show_if'     => [
-                            'logic'      => 'and',
+                        'options' => [],
+                        'settings' => [],
+                        'show_if' => [
+                            'logic' => 'and',
                             'conditions' => [
                                 ['field_key' => 'source', 'op' => 'equals', 'value' => ''],
                             ],
@@ -264,32 +249,32 @@ it('allows show-if empty checks without a condition value', function () {
     $validated = app(ValidateSurveyBuilderSchemaAction::class)->execute(builderSchema([
         'pages' => [
             [
-                'id'       => 'page_1',
-                'title'    => 'Page 1',
+                'id' => 'page_1',
+                'title' => 'Page 1',
                 'elements' => [
                     [
-                        'id'          => 'source',
-                        'type'        => 'short_text',
-                        'field_key'   => 'source',
-                        'label'       => '來源題',
+                        'id' => 'source',
+                        'type' => 'short_text',
+                        'field_key' => 'source',
+                        'label' => '來源題',
                         'description' => '',
-                        'required'    => false,
+                        'required' => false,
                         'placeholder' => null,
-                        'options'     => [],
-                        'settings'    => [],
+                        'options' => [],
+                        'settings' => [],
                     ],
                     [
-                        'id'          => 'target',
-                        'type'        => 'short_text',
-                        'field_key'   => 'target',
-                        'label'       => '目標題',
+                        'id' => 'target',
+                        'type' => 'short_text',
+                        'field_key' => 'target',
+                        'label' => '目標題',
                         'description' => '',
-                        'required'    => false,
+                        'required' => false,
                         'placeholder' => null,
-                        'options'     => [],
-                        'settings'    => [],
-                        'show_if'     => [
-                            'logic'      => 'and',
+                        'options' => [],
+                        'settings' => [],
+                        'show_if' => [
+                            'logic' => 'and',
                             'conditions' => [
                                 ['field_key' => 'source', 'op' => 'is_empty', 'value' => ''],
                             ],
@@ -305,25 +290,25 @@ it('allows show-if empty checks without a condition value', function () {
 
 it('keeps hidden fields visible in the builder when they are missing from draft schema', function () {
     $survey = Survey::create([
-        'title'        => 'Personalized Survey',
-        'status'       => SurveyStatus::Draft,
+        'title' => 'Personalized Survey',
+        'status' => SurveyStatus::Draft,
         'draft_schema' => builderSchema([
             'pages' => [
                 [
-                    'id'       => 'page_basic',
-                    'kind'     => 'question',
-                    'title'    => 'Basic',
+                    'id' => 'page_basic',
+                    'kind' => 'question',
+                    'title' => 'Basic',
                     'elements' => [
                         [
-                            'id'          => 'q_visible',
-                            'type'        => 'short_text',
-                            'field_key'   => 'visible_name',
-                            'label'       => 'Name',
+                            'id' => 'q_visible',
+                            'type' => 'short_text',
+                            'field_key' => 'visible_name',
+                            'label' => 'Name',
                             'description' => '',
-                            'required'    => true,
+                            'required' => true,
                             'placeholder' => null,
-                            'options'     => [],
-                            'settings'    => [],
+                            'options' => [],
+                            'settings' => [],
                         ],
                     ],
                 ],
@@ -332,32 +317,32 @@ it('keeps hidden fields visible in the builder when they are missing from draft 
     ]);
 
     $page = SurveyPage::create([
-        'survey_id'  => $survey->id,
-        'page_key'   => 'page_basic',
-        'title'      => 'Basic',
-        'kind'       => SurveyPageKind::Question,
+        'survey_id' => $survey->id,
+        'page_key' => 'page_basic',
+        'title' => 'Basic',
+        'kind' => SurveyPageKind::Question,
         'sort_order' => 1,
     ]);
 
     SurveyField::create([
-        'survey_id'        => $survey->id,
-        'survey_page_id'   => $page->id,
-        'type'             => SurveyFieldType::ShortText,
-        'label'            => 'Plate number',
-        'field_key'        => 'plate_number',
-        'is_hidden'        => true,
+        'survey_id' => $survey->id,
+        'survey_page_id' => $page->id,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Plate number',
+        'field_key' => 'plate_number',
+        'is_hidden' => true,
         'personalized_key' => 'plate',
-        'sort_order'       => 1,
+        'sort_order' => 1,
     ]);
 
     SurveyField::create([
-        'survey_id'      => $survey->id,
+        'survey_id' => $survey->id,
         'survey_page_id' => $page->id,
-        'type'           => SurveyFieldType::ShortText,
-        'label'          => 'Name',
-        'field_key'      => 'visible_name',
-        'is_hidden'      => false,
-        'sort_order'     => 2,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Name',
+        'field_key' => 'visible_name',
+        'is_hidden' => false,
+        'sort_order' => 2,
     ]);
 
     $schema = app(BuildSurveyBuilderSchemaAction::class)->execute($survey->refresh());
@@ -365,81 +350,81 @@ it('keeps hidden fields visible in the builder when they are missing from draft 
 
     expect($fieldKeys)->toBe(['plate_number', 'visible_name'])
         ->and($schema['pages'][0]['elements'][0])->toMatchArray([
-            'field_key'        => 'plate_number',
-            'is_hidden'        => true,
+            'field_key' => 'plate_number',
+            'is_hidden' => true,
             'personalized_key' => 'plate',
         ]);
 });
 
 it('deletes builder-managed hidden fields removed from the draft schema', function () {
     $hiddenElement = [
-        'id'               => 'q_plate',
-        'type'             => 'short_text',
-        'field_key'        => 'plate_number',
-        'label'            => 'Plate number',
-        'description'      => '',
-        'required'         => true,
-        'placeholder'      => null,
-        'options'          => [],
-        'settings'         => [],
-        'is_hidden'        => true,
+        'id' => 'q_plate',
+        'type' => 'short_text',
+        'field_key' => 'plate_number',
+        'label' => 'Plate number',
+        'description' => '',
+        'required' => true,
+        'placeholder' => null,
+        'options' => [],
+        'settings' => [],
+        'is_hidden' => true,
         'personalized_key' => 'plate',
     ];
     $visibleElement = [
-        'id'          => 'q_visible',
-        'type'        => 'short_text',
-        'field_key'   => 'visible_name',
-        'label'       => 'Name',
+        'id' => 'q_visible',
+        'type' => 'short_text',
+        'field_key' => 'visible_name',
+        'label' => 'Name',
         'description' => '',
-        'required'    => true,
+        'required' => true,
         'placeholder' => null,
-        'options'     => [],
-        'settings'    => [],
+        'options' => [],
+        'settings' => [],
     ];
     $schema = builderSchema([
         'pages' => [
             [
-                'id'       => 'page_basic',
-                'kind'     => 'question',
-                'title'    => 'Basic',
+                'id' => 'page_basic',
+                'kind' => 'question',
+                'title' => 'Basic',
                 'elements' => [$hiddenElement, $visibleElement],
             ],
         ],
     ]);
 
     $survey = Survey::create([
-        'title'        => 'Personalized Survey',
-        'status'       => SurveyStatus::Draft,
+        'title' => 'Personalized Survey',
+        'status' => SurveyStatus::Draft,
         'draft_schema' => $schema,
     ]);
 
     $page = SurveyPage::create([
-        'survey_id'  => $survey->id,
-        'page_key'   => 'page_basic',
-        'title'      => 'Basic',
-        'kind'       => SurveyPageKind::Question,
+        'survey_id' => $survey->id,
+        'page_key' => 'page_basic',
+        'title' => 'Basic',
+        'kind' => SurveyPageKind::Question,
         'sort_order' => 1,
     ]);
 
     SurveyField::create([
-        'survey_id'        => $survey->id,
-        'survey_page_id'   => $page->id,
-        'type'             => SurveyFieldType::ShortText,
-        'label'            => 'Plate number',
-        'field_key'        => 'plate_number',
-        'is_hidden'        => true,
+        'survey_id' => $survey->id,
+        'survey_page_id' => $page->id,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Plate number',
+        'field_key' => 'plate_number',
+        'is_hidden' => true,
         'personalized_key' => 'plate',
-        'sort_order'       => 1,
+        'sort_order' => 1,
     ]);
 
     SurveyField::create([
-        'survey_id'      => $survey->id,
+        'survey_id' => $survey->id,
         'survey_page_id' => $page->id,
-        'type'           => SurveyFieldType::ShortText,
-        'label'          => 'Name',
-        'field_key'      => 'visible_name',
-        'is_hidden'      => false,
-        'sort_order'     => 2,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Name',
+        'field_key' => 'visible_name',
+        'is_hidden' => false,
+        'sort_order' => 2,
     ]);
 
     $schema['pages'][0]['elements'] = [$visibleElement];
@@ -454,30 +439,30 @@ it('deletes builder-managed hidden fields removed from the draft schema', functi
 
 it('syncs survey-level settings through the builder schema', function () {
     $survey = Survey::create([
-        'title'              => 'Settings Survey',
-        'status'             => SurveyStatus::Draft,
-        'description'        => 'Original description',
-        'starts_at'          => '2026-05-10 09:00:00',
-        'ends_at'            => '2026-05-20 18:00:00',
-        'max_responses'      => 50,
-        'quota_message'      => 'Full',
-        'uniqueness_mode'    => SurveyUniquenessMode::Cookie,
+        'title' => 'Settings Survey',
+        'status' => SurveyStatus::Draft,
+        'description' => 'Original description',
+        'starts_at' => '2026-05-10 09:00:00',
+        'ends_at' => '2026-05-20 18:00:00',
+        'max_responses' => 50,
+        'quota_message' => 'Full',
+        'uniqueness_mode' => SurveyUniquenessMode::Cookie,
         'uniqueness_message' => 'Already done',
-        'settings_json'      => ['password' => 'secret'],
-        'draft_schema'       => builderSchema(),
+        'settings_json' => ['password' => 'secret'],
+        'draft_schema' => builderSchema(),
     ]);
 
     $schema = app(BuildSurveyBuilderSchemaAction::class)->execute($survey);
 
     expect($schema['settings'])->toMatchArray([
-        'description'        => 'Original description',
-        'starts_at'          => '2026-05-10T09:00',
-        'ends_at'            => '2026-05-20T18:00',
-        'max_responses'      => 50,
-        'quota_message'      => 'Full',
-        'uniqueness_mode'    => 'cookie',
+        'description' => 'Original description',
+        'starts_at' => '2026-05-10T09:00',
+        'ends_at' => '2026-05-20T18:00',
+        'max_responses' => 50,
+        'quota_message' => 'Full',
+        'uniqueness_mode' => 'cookie',
         'uniqueness_message' => 'Already done',
-        'password'           => 'secret',
+        'password' => 'secret',
     ]);
 
     $schema['settings']['description'] = 'Updated description';
@@ -511,39 +496,39 @@ it('sanitizes rich html in builder schema before saving and publishing', functio
     $schema = builderSchema([
         'settings' => [
             'description' => $unsafeHtml,
-            'terms_text'  => $unsafeHtml,
+            'terms_text' => $unsafeHtml,
         ],
     ]);
     $schema['pages'] = [
         [
-            'id'               => 'welcome',
-            'kind'             => 'welcome',
-            'title'            => 'Welcome',
+            'id' => 'welcome',
+            'kind' => 'welcome',
+            'title' => 'Welcome',
             'welcome_settings' => ['content' => $unsafeHtml],
-            'elements'         => [],
+            'elements' => [],
         ],
         [
-            'id'       => 'page_1',
-            'kind'     => 'question',
-            'title'    => 'Page 1',
+            'id' => 'page_1',
+            'kind' => 'question',
+            'title' => 'Page 1',
             'elements' => [[
-                'id'          => 'content',
-                'type'        => 'description_block',
-                'field_key'   => null,
-                'label'       => 'Content',
+                'id' => 'content',
+                'type' => 'description_block',
+                'field_key' => null,
+                'label' => 'Content',
                 'description' => $unsafeHtml,
-                'required'    => false,
+                'required' => false,
                 'placeholder' => null,
-                'options'     => [],
-                'settings'    => [],
+                'options' => [],
+                'settings' => [],
             ]],
         ],
         [
-            'id'                 => 'thanks',
-            'kind'               => 'thank_you',
-            'title'              => 'Thanks',
+            'id' => 'thanks',
+            'kind' => 'thank_you',
+            'title' => 'Thanks',
             'thank_you_settings' => ['message' => $unsafeHtml],
-            'elements'           => [],
+            'elements' => [],
         ],
     ];
 
@@ -574,9 +559,9 @@ it('creates a blank survey that opens directly in the builder', function () {
         ->and($survey->status)->toBe(SurveyStatus::Draft)
         ->and($survey->public_key)->not->toBeEmpty()
         ->and($survey->draft_schema['pages'][0])->toMatchArray([
-            'id'       => 'page_1',
-            'kind'     => 'question',
-            'title'    => '第 1 頁',
+            'id' => 'page_1',
+            'kind' => 'question',
+            'title' => '第 1 頁',
             'elements' => [],
         ]);
 });
@@ -585,10 +570,10 @@ it('duplicates a survey loaded with table count attributes', function () {
     $survey = Survey::create(['title' => 'Counted Survey', 'status' => SurveyStatus::Published]);
 
     SurveyField::create([
-        'survey_id'  => $survey->id,
-        'type'       => SurveyFieldType::ShortText,
-        'label'      => 'Name',
-        'field_key'  => 'name',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Name',
+        'field_key' => 'name',
         'sort_order' => 1,
     ]);
 
@@ -612,8 +597,8 @@ it('duplicates a survey loaded with table count attributes', function () {
 
 it('autosaves draft schema without changing the published snapshot', function () {
     $survey = Survey::create([
-        'title'            => 'Original',
-        'status'           => SurveyStatus::Draft,
+        'title' => 'Original',
+        'status' => SurveyStatus::Draft,
         'published_schema' => builderSchema(['title' => 'Published']),
     ]);
 
@@ -626,8 +611,8 @@ it('autosaves draft schema without changing the published snapshot', function ()
 
 it('exports a survey builder schema as json', function () {
     $survey = Survey::create([
-        'title'        => 'Exportable',
-        'status'       => SurveyStatus::Draft,
+        'title' => 'Exportable',
+        'status' => SurveyStatus::Draft,
         'draft_schema' => builderSchema(['title' => 'Exportable Draft']),
     ]);
 
@@ -676,37 +661,37 @@ it('publishes the draft schema and syncs answer fields', function () {
     $survey = Survey::create(['title' => 'Draft', 'status' => SurveyStatus::Draft, 'version' => 1]);
 
     SurveyField::create([
-        'survey_id'  => $survey->id,
-        'type'       => SurveyFieldType::Hidden,
-        'label'      => 'Campaign',
-        'field_key'  => 'campaign_id',
-        'is_hidden'  => true,
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::Hidden,
+        'label' => 'Campaign',
+        'field_key' => 'campaign_id',
+        'is_hidden' => true,
         'sort_order' => 1,
     ]);
 
     $schema = builderSchema();
     $schema['pages'][0]['elements'] = [
         [
-            'id'          => 'intro',
-            'type'        => 'section_title',
-            'field_key'   => null,
-            'label'       => '區段標題',
+            'id' => 'intro',
+            'type' => 'section_title',
+            'field_key' => null,
+            'label' => '區段標題',
             'description' => 'Welcome',
-            'required'    => false,
+            'required' => false,
             'placeholder' => null,
-            'options'     => [],
-            'settings'    => [],
+            'options' => [],
+            'settings' => [],
         ],
         [
-            'id'          => 'q_1',
-            'type'        => 'short_text',
-            'field_key'   => 'name',
-            'label'       => 'Name',
+            'id' => 'q_1',
+            'type' => 'short_text',
+            'field_key' => 'name',
+            'label' => 'Name',
             'description' => '',
-            'required'    => true,
+            'required' => true,
             'placeholder' => 'Your name',
-            'options'     => [],
-            'settings'    => [],
+            'options' => [],
+            'settings' => [],
         ],
     ];
 
@@ -724,12 +709,12 @@ it('publishes the draft schema and syncs answer fields', function () {
 
 it('republishes a published survey when the draft schema changed', function () {
     $survey = Survey::create([
-        'title'            => 'Published',
-        'status'           => SurveyStatus::Published,
-        'version'          => 2,
-        'draft_schema'     => builderSchema(['title' => 'Published']),
+        'title' => 'Published',
+        'status' => SurveyStatus::Published,
+        'version' => 2,
+        'draft_schema' => builderSchema(['title' => 'Published']),
         'published_schema' => builderSchema(['title' => 'Published']),
-        'published_at'     => now()->subDay(),
+        'published_at' => now()->subDay(),
     ]);
 
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, builderSchema(['title' => 'Republished']));
@@ -745,12 +730,12 @@ it('does not bump the version when publishing an unchanged published survey', fu
     $schema = builderSchema(['title' => 'Already Published']);
 
     $survey = Survey::create([
-        'title'            => 'Already Published',
-        'status'           => SurveyStatus::Published,
-        'version'          => 2,
-        'draft_schema'     => $schema,
+        'title' => 'Already Published',
+        'status' => SurveyStatus::Published,
+        'version' => 2,
+        'draft_schema' => $schema,
         'published_schema' => $schema,
-        'published_at'     => now(),
+        'published_at' => now(),
     ]);
 
     $published = app(PublishSurveyAction::class)->execute($survey->refresh());

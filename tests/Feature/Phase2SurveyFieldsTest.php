@@ -17,21 +17,8 @@ use Lalalili\SurveyCore\Models\SurveyPage;
 use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Services\DefaultPersonalizationResolver;
 use Lalalili\SurveyCore\Support\JumpLogicResolver;
-use Tests\TestCase;
 
-$phase2SurveyFieldsTestCase = class_exists(TestCase::class)
-    ? TestCase::class
-    : Lalalili\SurveyCore\Tests\TestCase::class;
-
-if ($phase2SurveyFieldsTestCase === TestCase::class) {
-    uses($phase2SurveyFieldsTestCase);
-}
-
-beforeEach(function () use ($phase2SurveyFieldsTestCase): void {
-    if ($phase2SurveyFieldsTestCase === TestCase::class) {
-        $this->artisan('migrate', ['--path' => 'packages/survey-core/database/migrations'])->run();
-    }
-
+beforeEach(function (): void {
     $this->app->bind(PersonalizationResolver::class, DefaultPersonalizationResolver::class);
     Route::post('/survey-test/{publicKey}/upload', [PublicSurveyController::class, 'upload']);
 });
@@ -44,19 +31,19 @@ function phase2Survey(): Survey
 function phase2Field(Survey $survey, SurveyFieldType $type, array $attributes = []): SurveyField
 {
     return SurveyField::create(array_merge([
-        'survey_id'   => $survey->id,
-        'type'        => $type,
-        'label'       => $attributes['field_key'] ?? $type->value,
-        'field_key'   => $attributes['field_key'] ?? $type->value,
+        'survey_id' => $survey->id,
+        'type' => $type,
+        'label' => $attributes['field_key'] ?? $type->value,
+        'field_key' => $attributes['field_key'] ?? $type->value,
         'is_required' => $attributes['is_required'] ?? true,
-        'sort_order'  => $attributes['sort_order'] ?? 1,
+        'sort_order' => $attributes['sort_order'] ?? 1,
     ], $attributes));
 }
 
 it('validates number and nps ranges', function (): void {
     $survey = phase2Survey();
     phase2Field($survey, SurveyFieldType::Number, [
-        'field_key'     => 'amount',
+        'field_key' => 'amount',
         'settings_json' => ['min' => 0, 'max' => 10],
     ]);
     phase2Field($survey, SurveyFieldType::Nps, ['field_key' => 'nps', 'sort_order' => 2]);
@@ -77,7 +64,7 @@ it('validates number and nps ranges', function (): void {
 it('validates rating answers against configured count', function (): void {
     $survey = phase2Survey();
     phase2Field($survey, SurveyFieldType::Rating, [
-        'field_key'     => 'satisfaction',
+        'field_key' => 'satisfaction',
         'settings_json' => ['count' => 10, 'shape' => 'star', 'show_numbers' => true],
     ]);
 
@@ -98,8 +85,8 @@ it('validates time and linear scale answers', function (): void {
     $survey = phase2Survey();
     phase2Field($survey, SurveyFieldType::Time, ['field_key' => 'arrival_time']);
     phase2Field($survey, SurveyFieldType::LinearScale, [
-        'field_key'     => 'effort',
-        'sort_order'    => 2,
+        'field_key' => 'effort',
+        'sort_order' => 2,
         'settings_json' => ['min' => 1, 'max' => 5, 'step' => 1],
     ]);
 
@@ -119,7 +106,7 @@ it('validates time and linear scale answers', function (): void {
 it('validates constant sum answers against options and configured total', function (): void {
     $survey = phase2Survey();
     phase2Field($survey, SurveyFieldType::ConstantSum, [
-        'field_key'    => 'budget',
+        'field_key' => 'budget',
         'options_json' => [
             ['id' => 'a', 'label' => 'A', 'value' => 'a'],
             ['id' => 'b', 'label' => 'B', 'value' => 'b'],
@@ -143,7 +130,7 @@ it('validates constant sum answers against options and configured total', functi
 it('validates matrix answers per row and persists structured json', function (): void {
     $survey = phase2Survey();
     phase2Field($survey, SurveyFieldType::MatrixSingle, [
-        'field_key'     => 'matrix',
+        'field_key' => 'matrix',
         'settings_json' => [
             'matrix_rows' => [['id' => 'quality', 'label' => '品質'], ['id' => 'service', 'label' => '服務']],
             'matrix_cols' => [['id' => 'good', 'label' => '好'], ['id' => 'bad', 'label' => '差']],
@@ -161,7 +148,7 @@ it('validates matrix answers per row and persists structured json', function ():
 it('rejects incomplete required ranking and accepts complete ranking', function (): void {
     $survey = phase2Survey();
     phase2Field($survey, SurveyFieldType::Ranking, [
-        'field_key'    => 'rank',
+        'field_key' => 'rank',
         'options_json' => [
             ['id' => 'a', 'label' => 'A', 'value' => 'a'],
             ['id' => 'b', 'label' => 'B', 'value' => 'b'],
@@ -179,7 +166,7 @@ it('renders ranking fields as a sortable public list', function (): void {
     $survey->update(['allow_anonymous' => true]);
 
     phase2Field($survey, SurveyFieldType::Ranking, [
-        'field_key'    => 'rank',
+        'field_key' => 'rank',
         'options_json' => [
             ['id' => 'a', 'label' => 'A', 'value' => 'a'],
             ['id' => 'b', 'label' => 'B', 'value' => 'b'],
@@ -212,8 +199,8 @@ it('validates signature and address structured answers', function (): void {
     $survey = phase2Survey();
     phase2Field($survey, SurveyFieldType::Signature, ['field_key' => 'signature']);
     phase2Field($survey, SurveyFieldType::Address, [
-        'field_key'     => 'address',
-        'sort_order'    => 2,
+        'field_key' => 'address',
+        'sort_order' => 2,
         'settings_json' => ['fields_enabled' => ['country', 'city'], 'country_locked' => '台灣'],
     ]);
 
@@ -221,7 +208,7 @@ it('validates signature and address structured answers', function (): void {
         $survey->load('fields'),
         new SubmissionPayload([
             'signature' => ['data_url' => 'data:image/png;base64,'.str_repeat('a', 220)],
-            'address'   => ['country' => '台灣', 'city' => '台北市'],
+            'address' => ['country' => '台灣', 'city' => '台北市'],
         ]),
     );
 
@@ -231,7 +218,7 @@ it('validates signature and address structured answers', function (): void {
         $survey->refresh()->load('fields'),
         new SubmissionPayload([
             'signature' => ['data_url' => ''],
-            'address'   => ['country' => '日本', 'city' => '東京'],
+            'address' => ['country' => '日本', 'city' => '東京'],
         ]),
     );
 })->throws(SurveyValidationException::class);
@@ -245,15 +232,15 @@ it('evaluates condition groups and page-level jump rules', function (): void {
     $pageOne->update(['settings_json' => [
         'jump_rules' => [[
             'condition' => ['logic' => 'and', 'conditions' => [['field_key' => 'dept', 'op' => 'equals', 'value' => 'sales']]],
-            'action'    => ['type' => 'go_to_page', 'target_page_id' => 'page_3'],
+            'action' => ['type' => 'go_to_page', 'target_page_id' => 'page_3'],
         ]],
     ]]);
 
     phase2Field($survey, SurveyFieldType::ShortText, ['field_key' => 'dept', 'survey_page_id' => $pageOne->id]);
     $conditional = phase2Field($survey, SurveyFieldType::ShortText, [
-        'field_key'      => 'conditional',
+        'field_key' => 'conditional',
         'survey_page_id' => $pageTwo->id,
-        'settings_json'  => ['show_if' => ['logic' => 'or', 'conditions' => [
+        'settings_json' => ['show_if' => ['logic' => 'or', 'conditions' => [
             ['field_key' => 'dept', 'op' => 'equals', 'value' => 'sales'],
             ['field_key' => 'dept', 'op' => 'contains', 'value' => 'ops'],
         ]]],
@@ -288,13 +275,13 @@ it('uploads files through media library and stores returned media metadata as an
 
     $survey = phase2Survey();
     phase2Field($survey, SurveyFieldType::FileUpload, [
-        'field_key'     => 'resume',
+        'field_key' => 'resume',
         'settings_json' => ['max_size_mb' => 1, 'allowed_mimes' => ['pdf']],
     ]);
 
     $upload = $this->post('/survey-test/'.$survey->public_key.'/upload', [
         'field_key' => 'resume',
-        'file'      => UploadedFile::fake()->create('resume.pdf', 12, 'application/pdf'),
+        'file' => UploadedFile::fake()->create('resume.pdf', 12, 'application/pdf'),
     ]);
 
     $upload->assertCreated();

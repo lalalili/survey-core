@@ -9,34 +9,21 @@ use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
 use Lalalili\SurveyCore\Http\Controllers\PublicSurveyController;
 use Lalalili\SurveyCore\Models\Survey;
-use Lalalili\SurveyCore\SurveyCoreServiceProvider;
-use Tests\TestCase;
 
-$surveyPageKindTestCase = class_exists(TestCase::class)
-    ? TestCase::class
-    : null;
-
-if ($surveyPageKindTestCase !== null) {
-    uses($surveyPageKindTestCase);
-
-    beforeEach(function (): void {
-        $this->app->register(SurveyCoreServiceProvider::class);
-        $this->artisan('migrate', ['--path' => 'packages/survey-core/database/migrations'])->run();
-
-        Route::get('/survey/{publicKey}', [PublicSurveyController::class, 'show'])->name('survey.show');
-        Route::getRoutes()->refreshNameLookups();
-    });
-}
+beforeEach(function (): void {
+    Route::get('/survey/{publicKey}', [PublicSurveyController::class, 'show'])->name('survey.show');
+    Route::getRoutes()->refreshNameLookups();
+});
 
 if (! function_exists('pageKindSchema')) {
     function pageKindSchema(array $pages): array
     {
         return [
-            'id'      => 1,
-            'title'   => 'Kind Survey',
-            'status'  => 'draft',
+            'id' => 1,
+            'title' => 'Kind Survey',
+            'status' => 'draft',
             'version' => 1,
-            'pages'   => $pages,
+            'pages' => $pages,
         ];
     }
 }
@@ -45,19 +32,19 @@ if (! function_exists('kindQuestionPage')) {
     function kindQuestionPage(string $id, string $kind = 'question', bool $required = false): array
     {
         return [
-            'id'       => $id,
-            'kind'     => $kind,
-            'title'    => $id,
+            'id' => $id,
+            'kind' => $kind,
+            'title' => $id,
             'elements' => $kind === 'thank_you' ? [] : [[
-                'id'          => 'q_'.$id,
-                'type'        => 'short_text',
-                'field_key'   => 'field_'.$id,
-                'label'       => 'Field '.$id,
+                'id' => 'q_'.$id,
+                'type' => 'short_text',
+                'field_key' => 'field_'.$id,
+                'label' => 'Field '.$id,
                 'description' => '',
-                'required'    => $required,
+                'required' => $required,
                 'placeholder' => null,
-                'options'     => [],
-                'settings'    => [],
+                'options' => [],
+                'settings' => [],
             ]],
         ];
     }
@@ -112,7 +99,7 @@ it('renders the welcome screen before the form', function () {
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, pageKindSchema([
         array_merge(kindQuestionPage('welcome', 'welcome'), [
             'welcome_settings' => ['cta_label' => '開始', 'estimated_time_minutes' => 3, 'subtitle' => '前言'],
-            'elements'         => [],
+            'elements' => [],
         ]),
         kindQuestionPage('page_1'),
     ]));

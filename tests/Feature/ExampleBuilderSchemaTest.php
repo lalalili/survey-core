@@ -4,21 +4,6 @@ use Lalalili\SurveyCore\Actions\SyncSurveyBuilderSchemaToFieldsAction;
 use Lalalili\SurveyCore\Actions\ValidateSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Models\Survey;
-use Tests\TestCase;
-
-$exampleBuilderTestCase = class_exists(TestCase::class)
-    ? TestCase::class
-    : Lalalili\SurveyCore\Tests\TestCase::class;
-
-if ($exampleBuilderTestCase === TestCase::class) {
-    uses($exampleBuilderTestCase);
-}
-
-beforeEach(function () use ($exampleBuilderTestCase): void {
-    if ($exampleBuilderTestCase === TestCase::class) {
-        $this->artisan('migrate', ['--path' => 'packages/survey-core/database/migrations'])->run();
-    }
-});
 
 function abcVehicleOwnerSurveySchema(): array
 {
@@ -127,7 +112,7 @@ it('syncs jump logic and conditional issue notes from the example schema', funct
         ->firstWhere('value', 'no');
 
     expect($noOption['action'])->toBe([
-        'type'           => 'go_to_page',
+        'type' => 'go_to_page',
         'target_page_id' => 'page_sales_delivery',
     ])
         ->and($issueNoteFields)->toHaveCount(8)
@@ -147,8 +132,8 @@ it('syncs jump logic and conditional issue notes from the example schema', funct
 
     $npsFields->each(function ($field): void {
         expect($field->settings_json)->toMatchArray([
-            'low_label'   => '1 分',
-            'high_label'  => '10 分',
+            'low_label' => '1 分',
+            'high_label' => '10 分',
             'color_bands' => true,
         ])
             ->and($field->options_json)->toHaveCount(10)

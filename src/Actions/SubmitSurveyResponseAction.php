@@ -3,6 +3,7 @@
 namespace Lalalili\SurveyCore\Actions;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Lalalili\SurveyCore\Data\SubmissionPayload;
 use Lalalili\SurveyCore\Enums\SurveyResponseCompletionStatus;
 use Lalalili\SurveyCore\Events\SurveySubmitted;
@@ -23,8 +24,7 @@ class SubmitSurveyResponseAction
         private readonly ValidateSurveySubmissionAction $validateSubmission,
         private readonly CalculateSurveyResponseAction $calculateResponse,
         private readonly EvaluateResponseQualityAction $evaluateQuality,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  array{elapsed_ms?: int|null, honeypot_hit?: bool, ip?: string|null}  $qualityContext
@@ -95,15 +95,15 @@ class SubmitSurveyResponseAction
             $calculations = $this->calculateResponse->execute($survey, $safeVisible);
 
             $response = SurveyResponse::create([
-                'survey_id'           => $survey->id,
+                'survey_id' => $survey->id,
                 'survey_recipient_id' => $recipient?->id,
-                'survey_token_id'     => $tokenContext?->token->id,
+                'survey_token_id' => $tokenContext?->token->id,
                 'survey_collector_id' => $collector?->id,
-                'submitted_at'        => now(),
-                'ip'                  => $ip,
-                'user_agent'          => $userAgent,
-                'calculations_json'   => $calculations === [] ? null : $calculations,
-                'completion_status'   => SurveyResponseCompletionStatus::Complete,
+                'submitted_at' => now(),
+                'ip' => $ip,
+                'user_agent' => $userAgent,
+                'calculations_json' => $calculations === [] ? null : $calculations,
+                'completion_status' => SurveyResponseCompletionStatus::Complete,
             ]);
 
             $fieldsByKey = $survey->fields->keyBy('field_key');
@@ -117,7 +117,7 @@ class SubmitSurveyResponseAction
 
                 $answerData = [
                     'survey_response_id' => $response->id,
-                    'survey_field_id'    => $field->id,
+                    'survey_field_id' => $field->id,
                 ];
 
                 if (is_array($value)) {
@@ -134,7 +134,7 @@ class SubmitSurveyResponseAction
             $surveyMinMs = $minSeconds !== null ? $minSeconds * 1000 : null;
 
             $this->evaluateQuality->execute($response->load('answers.field'), array_merge($qualityContext, [
-                'ip'            => $ip,
+                'ip' => $ip,
                 'survey_min_ms' => $surveyMinMs,
             ]));
 
@@ -156,6 +156,10 @@ class SubmitSurveyResponseAction
         $shortLinkClass = 'Lalalili\\MarketingAutomation\\Models\\ActivityShortLink';
 
         if (! class_exists($shortLinkClass)) {
+            return false;
+        }
+
+        if (! Schema::hasTable('activity_short_links')) {
             return false;
         }
 
