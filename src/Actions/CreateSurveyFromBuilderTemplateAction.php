@@ -12,7 +12,8 @@ class CreateSurveyFromBuilderTemplateAction
     public function __construct(
         private readonly SaveSurveyDraftSchemaAction $saveDraftSchema,
         private readonly SurveyBuilderTemplateRegistry $templates,
-    ) {}
+    ) {
+    }
 
     public function execute(string $templateSlug): Survey
     {
@@ -24,7 +25,7 @@ class CreateSurveyFromBuilderTemplateAction
 
         return DB::transaction(function () use ($template): Survey {
             $survey = Survey::create([
-                'title' => $template['name'],
+                'title'  => $template['name'],
                 'status' => SurveyStatus::Draft,
             ]);
 

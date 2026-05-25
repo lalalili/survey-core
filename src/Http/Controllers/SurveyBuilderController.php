@@ -26,10 +26,10 @@ class SurveyBuilderController extends Controller
 
         return response()->json([
             'survey' => [
-                'id' => $survey->id,
-                'title' => $survey->title,
-                'status' => $survey->status->value,
-                'version' => $survey->version,
+                'id'           => $survey->id,
+                'title'        => $survey->title,
+                'status'       => $survey->status->value,
+                'version'      => $survey->version,
                 'published_at' => $survey->published_at?->toIso8601String(),
             ],
             'schema' => $buildSchema->execute($survey),
@@ -38,8 +38,8 @@ class SurveyBuilderController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'tokens_json'])
                 ->map(fn (SurveyTheme $theme): array => [
-                    'id' => $theme->id,
-                    'name' => $theme->name,
+                    'id'     => $theme->id,
+                    'name'   => $theme->name,
                     'tokens' => $theme->tokens_json ?? [],
                 ])
                 ->all(),
@@ -47,14 +47,14 @@ class SurveyBuilderController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'columns_json'])
                 ->map(fn (AudienceList $audienceList): array => [
-                    'id' => $audienceList->id,
-                    'name' => $audienceList->name,
+                    'id'      => $audienceList->id,
+                    'name'    => $audienceList->name,
                     'columns' => $audienceList->columns_json ?? [],
                 ])
                 ->all(),
             'capabilities' => [
                 'can_manage_advanced_fields' => $this->canManageAdvancedFields($request),
-                'question_types' => collect(SurveyFieldType::cases())
+                'question_types'             => collect(SurveyFieldType::cases())
                     ->reject(fn (SurveyFieldType $type): bool => in_array($type, [
                         SurveyFieldType::Hidden,
                         SurveyFieldType::Email,
@@ -107,16 +107,16 @@ class SurveyBuilderController extends Controller
         } catch (SurveyValidationException $exception) {
             return response()->json([
                 'message' => 'Validation failed.',
-                'errors' => $exception->getErrors(),
+                'errors'  => $exception->getErrors(),
             ], 422);
         }
 
         return response()->json([
             'saved_at' => now()->toIso8601String(),
-            'survey' => [
-                'id' => $survey->id,
-                'title' => $survey->title,
-                'status' => $survey->status->value,
+            'survey'   => [
+                'id'      => $survey->id,
+                'title'   => $survey->title,
+                'status'  => $survey->status->value,
                 'version' => $survey->version,
             ],
             'schema' => $survey->draft_schema,
@@ -159,16 +159,16 @@ class SurveyBuilderController extends Controller
         } catch (SurveyValidationException $exception) {
             return response()->json([
                 'message' => 'Validation failed.',
-                'errors' => $exception->getErrors(),
+                'errors'  => $exception->getErrors(),
             ], 422);
         }
 
         return response()->json([
             'published_at' => $survey->published_at?->toIso8601String(),
-            'survey' => [
-                'id' => $survey->id,
-                'title' => $survey->title,
-                'status' => $survey->status->value,
+            'survey'       => [
+                'id'      => $survey->id,
+                'title'   => $survey->title,
+                'status'  => $survey->status->value,
                 'version' => $survey->version,
             ],
             'schema' => $survey->published_schema,

@@ -24,7 +24,7 @@ class SurveyTheme extends Model
     {
         return [
             'tokens_json' => 'array',
-            'is_system' => 'boolean',
+            'is_system'   => 'boolean',
         ];
     }
 

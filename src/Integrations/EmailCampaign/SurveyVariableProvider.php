@@ -24,7 +24,9 @@ use RuntimeException;
  */
 class SurveyVariableProvider implements VariableProvider
 {
-    public function __construct(private GenerateSurveyTokenAction $generateToken) {}
+    public function __construct(private GenerateSurveyTokenAction $generateToken)
+    {
+    }
 
     /**
      * @return array<string, scalar|null>
@@ -48,9 +50,9 @@ class SurveyVariableProvider implements VariableProvider
         }
 
         $vars = [
-            'survey_title' => $survey->title,
+            'survey_title'      => $survey->title,
             'survey_public_key' => $survey->public_key,
-            'survey_url' => route('survey.show', $survey->public_key),
+            'survey_url'        => route('survey.show', $survey->public_key),
         ];
 
         $surveyRecipient = null;
@@ -67,13 +69,13 @@ class SurveyVariableProvider implements VariableProvider
 
                 if ($audienceRow) {
                     $surveyRecipient = SurveyRecipient::create([
-                        'survey_id' => $survey->id,
+                        'survey_id'            => $survey->id,
                         'audience_list_row_id' => $audienceRow->id,
-                        'name' => $recipient->user_name,
-                        'email' => $recipient->email,
-                        'external_id' => (string) $audienceRow->id,
-                        'payload_json' => $audienceRow->data_json ?? [],
-                        'status' => SurveyRecipientStatus::Active,
+                        'name'                 => $recipient->user_name,
+                        'email'                => $recipient->email,
+                        'external_id'          => (string) $audienceRow->id,
+                        'payload_json'         => $audienceRow->data_json ?? [],
+                        'status'               => SurveyRecipientStatus::Active,
                     ]);
                 }
             }

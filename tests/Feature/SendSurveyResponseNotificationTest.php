@@ -2,7 +2,6 @@
 
 use Illuminate\Events\CallQueuedListener;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Lalalili\EmailCampaign\Actions\SendTransactionalEmailAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
@@ -11,7 +10,6 @@ use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Events\SurveySubmitted;
 use Lalalili\SurveyCore\Listeners\SendSurveyResponseNotification;
-use Lalalili\SurveyCore\Mail\SurveyResponseReceivedMail;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyField;
 
@@ -161,7 +159,7 @@ it('sends notification to per-survey notify_emails from builder UI comma-separat
     ]);
     SurveyField::create([
         'survey_id' => $survey->id, 'type' => SurveyFieldType::ShortText,
-        'label' => 'Name', 'field_key' => 'name', 'is_required' => true, 'sort_order' => 1,
+        'label'     => 'Name', 'field_key' => 'name', 'is_required' => true, 'sort_order' => 1,
     ]);
     $survey->load('fields');
 
@@ -187,7 +185,7 @@ it('ignores invalid email addresses in builder UI notify_emails string', functio
     ]);
     SurveyField::create([
         'survey_id' => $survey->id, 'type' => SurveyFieldType::ShortText,
-        'label' => 'Name', 'field_key' => 'name', 'is_required' => true, 'sort_order' => 1,
+        'label'     => 'Name', 'field_key' => 'name', 'is_required' => true, 'sort_order' => 1,
     ]);
     $survey->load('fields');
 

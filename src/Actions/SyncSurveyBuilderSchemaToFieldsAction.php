@@ -62,12 +62,12 @@ class SyncSurveyBuilderSchemaToFieldsAction
             $pageRecord = SurveyPage::updateOrCreate(
                 [
                     'survey_id' => $survey->id,
-                    'page_key' => (string) $page['id'],
+                    'page_key'  => (string) $page['id'],
                 ],
                 [
-                    'title' => (string) ($page['title'] ?? 'Page '.($pageIndex + 1)),
-                    'kind' => (string) ($page['kind'] ?? SurveyPageKind::Question->value),
-                    'sort_order' => $pageIndex + 1,
+                    'title'         => (string) ($page['title'] ?? 'Page '.($pageIndex + 1)),
+                    'kind'          => (string) ($page['kind'] ?? SurveyPageKind::Question->value),
+                    'sort_order'    => $pageIndex + 1,
                     'settings_json' => $this->pageSettings($page),
                 ],
             );
@@ -100,22 +100,22 @@ class SyncSurveyBuilderSchemaToFieldsAction
                         'field_key' => $fieldKey,
                     ],
                     [
-                        'type' => $type,
-                        'label' => $element['label'],
-                        'description' => $element['description'] ?? null,
-                        'is_required' => $isRequired,
-                        'is_hidden' => $isHidden,
-                        'is_personalized' => $isHidden && ! empty($personalizedKey),
-                        'personalized_key' => $personalizedKey,
-                        'placeholder' => $element['placeholder'] ?? null,
-                        'default_value' => $element['settings']['default_value'] ?? null,
-                        'validation_rules' => $element['validation_rules'] ?? $element['settings']['validation_rules'] ?? null,
-                        'settings_json' => $this->fieldSettings($element),
-                        'options_json' => $this->builderOptionsToFieldOptions($element),
-                        'sort_order' => ($pageIndex * 1000) + $elementIndex + 1,
-                        'survey_page_id' => $surveyPageId,
+                        'type'              => $type,
+                        'label'             => $element['label'],
+                        'description'       => $element['description'] ?? null,
+                        'is_required'       => $isRequired,
+                        'is_hidden'         => $isHidden,
+                        'is_personalized'   => $isHidden && ! empty($personalizedKey),
+                        'personalized_key'  => $personalizedKey,
+                        'placeholder'       => $element['placeholder'] ?? null,
+                        'default_value'     => $element['settings']['default_value'] ?? null,
+                        'validation_rules'  => $element['validation_rules'] ?? $element['settings']['validation_rules'] ?? null,
+                        'settings_json'     => $this->fieldSettings($element),
+                        'options_json'      => $this->builderOptionsToFieldOptions($element),
+                        'sort_order'        => ($pageIndex * 1000) + $elementIndex + 1,
+                        'survey_page_id'    => $surveyPageId,
                         'show_if_field_key' => $legacyShowIf['field_key'],
-                        'show_if_value' => $legacyShowIf['value'],
+                        'show_if_value'     => $legacyShowIf['value'],
                     ],
                 );
             }
@@ -153,7 +153,7 @@ class SyncSurveyBuilderSchemaToFieldsAction
         if (SurveyFieldType::from($element['type']) === SurveyFieldType::Nps) {
             return array_map(
                 fn (int $score): array => [
-                    'id' => 'score_'.$score,
+                    'id'    => 'score_'.$score,
                     'label' => (string) $score,
                     'value' => (string) $score,
                 ],
@@ -175,7 +175,7 @@ class SyncSurveyBuilderSchemaToFieldsAction
             }
 
             $entry = [
-                'id' => (string) ($option['id'] ?? 'opt_'.($index + 1)),
+                'id'    => (string) ($option['id'] ?? 'opt_'.($index + 1)),
                 'label' => $label,
                 'value' => $value,
             ];
@@ -252,7 +252,7 @@ class SyncSurveyBuilderSchemaToFieldsAction
             ) {
                 return [
                     'field_key' => (string) $conditions[0]['field_key'],
-                    'value' => isset($conditions[0]['value']) ? (string) $conditions[0]['value'] : null,
+                    'value'     => isset($conditions[0]['value']) ? (string) $conditions[0]['value'] : null,
                 ];
             }
 
@@ -261,7 +261,7 @@ class SyncSurveyBuilderSchemaToFieldsAction
 
         return [
             'field_key' => isset($element['show_if_field_key']) ? (string) $element['show_if_field_key'] : null,
-            'value' => isset($element['show_if_value']) ? (string) $element['show_if_value'] : null,
+            'value'     => isset($element['show_if_value']) ? (string) $element['show_if_value'] : null,
         ];
     }
 
@@ -288,9 +288,9 @@ class SyncSurveyBuilderSchemaToFieldsAction
             SurveyCalculation::updateOrCreate(
                 ['survey_id' => $survey->id, 'key' => (string) $calculation['key']],
                 [
-                    'label' => (string) $calculation['label'],
-                    'initial_value' => (int) ($calculation['initial_value'] ?? 0),
-                    'output_format' => (string) ($calculation['output_format'] ?? 'number'),
+                    'label'          => (string) $calculation['label'],
+                    'initial_value'  => (int) ($calculation['initial_value'] ?? 0),
+                    'output_format'  => (string) ($calculation['output_format'] ?? 'number'),
                     'grade_map_json' => $calculation['grade_map_json'] ?? null,
                 ],
             );

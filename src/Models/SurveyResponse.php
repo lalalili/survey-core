@@ -59,11 +59,11 @@ class SurveyResponse extends Model implements HasMedia
     protected function casts(): array
     {
         return [
-            'completion_status' => SurveyResponseCompletionStatus::class,
-            'quality_status' => SurveyResponseQualityStatus::class,
+            'completion_status'  => SurveyResponseCompletionStatus::class,
+            'quality_status'     => SurveyResponseQualityStatus::class,
             'quality_flags_json' => 'array',
-            'calculations_json' => 'array',
-            'submitted_at' => 'datetime',
+            'calculations_json'  => 'array',
+            'submitted_at'       => 'datetime',
         ];
     }
 

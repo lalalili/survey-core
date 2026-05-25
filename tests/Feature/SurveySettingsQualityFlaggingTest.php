@@ -7,7 +7,6 @@ use Lalalili\SurveyCore\Data\SubmissionPayload;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyResponseQualityStatus;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
-use Lalalili\SurveyCore\Events\SurveySubmitted;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyResponse;
@@ -83,8 +82,8 @@ it('falls back to global config min_submission_ms when anomaly.min_seconds is no
 
 it('flags anomaly_duplicate when is_anomaly_duplicate is passed in context', function () {
     $response = SurveyResponse::create([
-        'survey_id'          => qualitySurvey()->id,
-        'completion_status'  => 'complete',
+        'survey_id'         => qualitySurvey()->id,
+        'completion_status' => 'complete',
     ]);
 
     app(EvaluateResponseQualityAction::class)->execute(

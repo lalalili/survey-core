@@ -29,7 +29,7 @@ class SurveyCalculation extends Model
     protected function casts(): array
     {
         return [
-            'initial_value' => 'integer',
+            'initial_value'  => 'integer',
             'grade_map_json' => 'array',
         ];
     }

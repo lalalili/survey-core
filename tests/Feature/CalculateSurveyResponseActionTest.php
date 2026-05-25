@@ -14,10 +14,10 @@ use Lalalili\SurveyCore\Models\Survey;
 function calculationSchema(array $optionOverrides = []): array
 {
     return [
-        'id' => 1,
-        'title' => 'Calc Survey',
-        'status' => 'draft',
-        'version' => 1,
+        'id'           => 1,
+        'title'        => 'Calc Survey',
+        'status'       => 'draft',
+        'version'      => 1,
         'calculations' => [
             ['id' => 'calc_score', 'key' => 'score', 'label' => '總分', 'initial_value' => 0],
             ['id' => 'calc_risk', 'key' => 'risk', 'label' => '風險', 'initial_value' => 1, 'output_format' => 'grade', 'grade_map_json' => [
@@ -26,18 +26,18 @@ function calculationSchema(array $optionOverrides = []): array
             ]],
         ],
         'pages' => [[
-            'id' => 'page_1',
-            'kind' => 'question',
-            'title' => 'Page',
+            'id'       => 'page_1',
+            'kind'     => 'question',
+            'title'    => 'Page',
             'elements' => [[
-                'id' => 'q_1',
-                'type' => 'single_choice',
-                'field_key' => 'choice',
-                'label' => 'Choice',
+                'id'          => 'q_1',
+                'type'        => 'single_choice',
+                'field_key'   => 'choice',
+                'label'       => 'Choice',
                 'description' => '',
-                'required' => true,
+                'required'    => true,
                 'placeholder' => null,
-                'options' => [
+                'options'     => [
                     array_merge(['id' => 'opt_1', 'label' => 'A', 'value' => 'a', 'score_delta_json' => ['score' => 5, 'risk' => 4]], $optionOverrides),
                     ['id' => 'opt_2', 'label' => 'B', 'value' => 'b'],
                 ],

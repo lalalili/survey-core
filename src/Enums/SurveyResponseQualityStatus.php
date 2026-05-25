@@ -11,8 +11,8 @@ enum SurveyResponseQualityStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Accepted => '已接受',
-            self::Flagged => '待檢查',
+            self::Accepted    => '已接受',
+            self::Flagged     => '待檢查',
             self::Quarantined => '已隔離',
         };
     }

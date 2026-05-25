@@ -22,7 +22,7 @@ class TurnstileVerifier
             ->timeout(5)
             ->connectTimeout(3)
             ->post('https://challenges.cloudflare.com/turnstile/v0/siteverify', [
-                'secret' => $secret,
+                'secret'   => $secret,
                 'response' => $token,
                 'remoteip' => $ip,
             ]);

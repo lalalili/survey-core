@@ -19,6 +19,7 @@ use Lalalili\SurveyCore\Events\SurveySubmitted;
 use Lalalili\SurveyCore\Events\SurveyTokenResolved;
 use Lalalili\SurveyCore\Integrations\EmailCampaign\SurveyVariableProvider;
 use Lalalili\SurveyCore\Listeners\DispatchSurveySubmittedWebhook;
+use Lalalili\SurveyCore\Listeners\EvaluateSurveyTriggersListener;
 use Lalalili\SurveyCore\Listeners\MarkTokenViewed;
 use Lalalili\SurveyCore\Listeners\SendSurveyResponseNotification;
 use Lalalili\SurveyCore\Services\Exports\CsvSurveyExportDriver;
@@ -62,6 +63,9 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 '2026_05_08_000003_create_survey_response_events_table',
                 '2026_05_08_000004_create_survey_response_consents_table',
                 '2026_05_18_000001_add_viewed_at_to_survey_tokens_table',
+                '2026_05_23_000001_create_survey_trigger_rules_table',
+                '2026_05_23_000002_create_survey_trigger_dispatches_table',
+                '2026_05_23_000003_create_survey_trigger_allowed_hosts_table',
             ])
             ->runsMigrations()
             ->hasRoutes(['web']);
@@ -71,6 +75,7 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
     {
         Event::listen(SurveySubmitted::class, DispatchSurveySubmittedWebhook::class);
         Event::listen(SurveySubmitted::class, SendSurveyResponseNotification::class);
+        Event::listen(SurveySubmitted::class, EvaluateSurveyTriggersListener::class);
         Event::listen(SurveyTokenResolved::class, MarkTokenViewed::class);
 
         RateLimiter::for('survey-core-submissions', function (Request $request): Limit {
@@ -122,9 +127,9 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
 
         // Export manager with built-in CSV and XLSX drivers
         $this->app->singleton(SurveyExportManager::class, function () {
-            $manager = new SurveyExportManager;
-            $manager->extend('csv', fn () => new CsvSurveyExportDriver);
-            $manager->extend('xlsx', fn () => new XlsxSurveyExportDriver);
+            $manager = new SurveyExportManager();
+            $manager->extend('csv', fn () => new CsvSurveyExportDriver());
+            $manager->extend('xlsx', fn () => new XlsxSurveyExportDriver());
 
             return $manager;
         });

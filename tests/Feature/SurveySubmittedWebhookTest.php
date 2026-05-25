@@ -19,12 +19,12 @@ function webhookSurvey(): Survey
     $survey = Survey::create(['title' => 'Webhook Survey', 'status' => SurveyStatus::Published]);
 
     SurveyField::create([
-        'survey_id' => $survey->id,
-        'type' => SurveyFieldType::ShortText,
-        'label' => 'Name',
-        'field_key' => 'name',
+        'survey_id'   => $survey->id,
+        'type'        => SurveyFieldType::ShortText,
+        'label'       => 'Name',
+        'field_key'   => 'name',
         'is_required' => true,
-        'sort_order' => 1,
+        'sort_order'  => 1,
     ]);
 
     return $survey->load('fields');
@@ -65,7 +65,7 @@ it('does not post when no endpoints are configured', function () {
     );
 
     // Invoke listener directly (synchronously)
-    $listener = new DispatchSurveySubmittedWebhook;
+    $listener = new DispatchSurveySubmittedWebhook();
     $listener->handle($event);
 
     Http::assertNothingSent();
@@ -91,7 +91,7 @@ it('sends a JSON payload with survey, response and answers to each endpoint', fu
         new SubmissionPayload(['name' => 'Carol']),
     );
 
-    $listener = new DispatchSurveySubmittedWebhook;
+    $listener = new DispatchSurveySubmittedWebhook();
     $listener->handle(new SurveySubmitted($response, $survey));
 
     Http::assertSentCount(2);
@@ -126,7 +126,7 @@ it('adds an X-Survey-Signature header when an endpoint has a secret', function (
         new SubmissionPayload(['name' => 'Dave']),
     );
 
-    $listener = new DispatchSurveySubmittedWebhook;
+    $listener = new DispatchSurveySubmittedWebhook();
     $listener->handle(new SurveySubmitted($response, $survey));
 
     Http::assertSent(function ($request) use ($secret) {
@@ -154,6 +154,6 @@ it('re-throws connection exceptions so the queue retries the job', function () {
         new SubmissionPayload(['name' => 'Eve']),
     );
 
-    $listener = new DispatchSurveySubmittedWebhook;
+    $listener = new DispatchSurveySubmittedWebhook();
     $listener->handle(new SurveySubmitted($response, $survey));
 })->throws(ConnectionException::class);

@@ -33,8 +33,8 @@ class SurveyPage extends Model
     protected function casts(): array
     {
         return [
-            'kind' => SurveyPageKind::class,
-            'sort_order' => 'integer',
+            'kind'          => SurveyPageKind::class,
+            'sort_order'    => 'integer',
             'settings_json' => 'array',
         ];
     }

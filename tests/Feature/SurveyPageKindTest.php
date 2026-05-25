@@ -32,11 +32,11 @@ if (! function_exists('pageKindSchema')) {
     function pageKindSchema(array $pages): array
     {
         return [
-            'id' => 1,
-            'title' => 'Kind Survey',
-            'status' => 'draft',
+            'id'      => 1,
+            'title'   => 'Kind Survey',
+            'status'  => 'draft',
             'version' => 1,
-            'pages' => $pages,
+            'pages'   => $pages,
         ];
     }
 }
@@ -45,19 +45,19 @@ if (! function_exists('kindQuestionPage')) {
     function kindQuestionPage(string $id, string $kind = 'question', bool $required = false): array
     {
         return [
-            'id' => $id,
-            'kind' => $kind,
-            'title' => $id,
+            'id'       => $id,
+            'kind'     => $kind,
+            'title'    => $id,
             'elements' => $kind === 'thank_you' ? [] : [[
-                'id' => 'q_'.$id,
-                'type' => 'short_text',
-                'field_key' => 'field_'.$id,
-                'label' => 'Field '.$id,
+                'id'          => 'q_'.$id,
+                'type'        => 'short_text',
+                'field_key'   => 'field_'.$id,
+                'label'       => 'Field '.$id,
                 'description' => '',
-                'required' => $required,
+                'required'    => $required,
                 'placeholder' => null,
-                'options' => [],
-                'settings' => [],
+                'options'     => [],
+                'settings'    => [],
             ]],
         ];
     }
@@ -112,7 +112,7 @@ it('renders the welcome screen before the form', function () {
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, pageKindSchema([
         array_merge(kindQuestionPage('welcome', 'welcome'), [
             'welcome_settings' => ['cta_label' => '開始', 'estimated_time_minutes' => 3, 'subtitle' => '前言'],
-            'elements' => [],
+            'elements'         => [],
         ]),
         kindQuestionPage('page_1'),
     ]));

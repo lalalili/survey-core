@@ -29,6 +29,7 @@ use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyPage;
 use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Models\SurveyResponseConsent;
+use Lalalili\SurveyCore\Models\SurveyToken;
 use Lalalili\SurveyCore\Services\TurnstileVerifier;
 use Lalalili\SurveyCore\Support\ConditionGroupEvaluator;
 
@@ -37,7 +38,7 @@ class PublicSurveyController extends Controller
     public function show(string $publicKey, ResolveSurveyTokenAction $resolveToken): Response|JsonResponse
     {
         $survey = Survey::with([
-            'pages' => fn ($q) => $q->orderBy('sort_order'),
+            'pages'  => fn ($q) => $q->orderBy('sort_order'),
             'fields' => fn ($q) => $q->orderBy('sort_order'),
             'theme',
             'calculations',
@@ -49,7 +50,7 @@ class PublicSurveyController extends Controller
     public function showCollector(string $collectorSlug, ResolveSurveyTokenAction $resolveToken): Response|JsonResponse
     {
         $collector = SurveyCollector::with([
-            'survey.pages' => fn ($q) => $q->orderBy('sort_order'),
+            'survey.pages'  => fn ($q) => $q->orderBy('sort_order'),
             'survey.fields' => fn ($q) => $q->orderBy('sort_order'),
             'survey.theme',
             'survey.calculations',
@@ -102,11 +103,11 @@ class PublicSurveyController extends Controller
         }
 
         $validated = $request->validate([
-            'event' => ['required', 'string', 'in:viewed,started,page_viewed,submitted,abandoned'],
-            'page_key' => ['nullable', 'string', 'max:120'],
+            'event'       => ['required', 'string', 'in:viewed,started,page_viewed,submitted,abandoned'],
+            'page_key'    => ['nullable', 'string', 'max:120'],
             'response_id' => ['nullable', 'integer'],
-            'collector' => ['nullable', 'string', 'max:120'],
-            'metadata' => ['nullable', 'array'],
+            'collector'   => ['nullable', 'string', 'max:120'],
+            'metadata'    => ['nullable', 'array'],
         ]);
 
         $collector = $this->resolveCollector($survey, $request);
@@ -151,6 +152,17 @@ class PublicSurveyController extends Controller
                 $resolved = $resolveToken->execute($survey, (string) $rawToken);
                 SurveyTokenResolved::dispatch($resolved->token, $resolved->recipient);
             } catch (InvalidSurveyTokenException) {
+                $tokenRecord = SurveyToken::where('token', $rawToken)->first();
+                if ($tokenRecord?->isExpired()) {
+                    $theme = $survey->resolvedThemeTokens();
+
+                    return response()->view('survey-core::survey.token_expired', compact('survey', 'theme'), 403);
+                }
+
+                if ($tokenRecord && $this->isMarketingActivityDuplicateToken($survey, $tokenRecord)) {
+                    return $this->alreadySubmittedView($survey);
+                }
+
                 abort(403, '連結無效或已過期。');
             }
         }
@@ -196,6 +208,12 @@ class PublicSurveyController extends Controller
             try {
                 $resolved = $resolveToken->execute($survey, (string) $rawToken);
             } catch (InvalidSurveyTokenException $e) {
+                $tokenRecord = SurveyToken::where('token', $rawToken)->first();
+
+                if ($tokenRecord && $this->isMarketingActivityDuplicateToken($survey, $tokenRecord)) {
+                    return response()->json(['message' => $survey->uniqueness_message ?: '您已填寫過此問卷。'], 403);
+                }
+
                 return response()->json(['message' => $e->getMessage()], 403);
             }
         }
@@ -230,14 +248,14 @@ class PublicSurveyController extends Controller
                 ip: $request->ip() ?? '',
                 userAgent: $request->userAgent() ?? '',
                 qualityContext: [
-                    'elapsed_ms' => $request->integer('_elapsed_ms') ?: null,
-                    'honeypot_hit' => filled($request->input('_hp')),
+                    'elapsed_ms'           => $request->integer('_elapsed_ms') ?: null,
+                    'honeypot_hit'         => filled($request->input('_hp')),
                     'is_anomaly_duplicate' => $this->hasAnomalyDuplicate($survey, $request),
                 ],
                 collector: $collector,
             );
         } catch (SurveyNotAvailableException $e) {
-            return response()->json(['message' => '此問卷目前未開放填寫。'], 403);
+            return response()->json(['message' => $e->getMessage()], 403);
         } catch (SurveyValidationException $e) {
             return response()->json(['message' => '填答內容有誤，請依提示修正。', 'errors' => $e->getErrors()], 422);
         }
@@ -249,10 +267,10 @@ class PublicSurveyController extends Controller
         ]);
 
         $jsonResponse = response()->json([
-            'message' => $this->thankYouMessage($survey, $response->calculations_json ?? []),
+            'message'           => $this->thankYouMessage($survey, $response->calculations_json ?? []),
             'thank_you_page_id' => $this->thankYouPage($survey, $response->calculations_json ?? [])?->page_key,
-            'response_id' => $response->id,
-            'calculations' => $response->calculations_json ?? [],
+            'response_id'       => $response->id,
+            'calculations'      => $response->calculations_json ?? [],
         ], 201);
 
         if ($survey->uniqueness_mode === SurveyUniquenessMode::Cookie) {
@@ -301,11 +319,11 @@ class PublicSurveyController extends Controller
 
         $validated = $request->validate([
             'field_key' => ['required', 'string'],
-            'file' => $fileRules,
+            'file'      => $fileRules,
         ]);
 
         $draftResponse = SurveyResponse::create([
-            'survey_id' => $survey->id,
+            'survey_id'         => $survey->id,
             'completion_status' => SurveyResponseCompletionStatus::Partial,
         ]);
 
@@ -317,7 +335,7 @@ class PublicSurveyController extends Controller
         return response()->json([
             'media_id' => $media->id,
             'filename' => $media->file_name,
-            'size' => $media->size,
+            'size'     => $media->size,
         ], 201);
     }
 
@@ -367,6 +385,11 @@ class PublicSurveyController extends Controller
             return null;
         }
 
+        return $this->alreadySubmittedView($survey);
+    }
+
+    private function alreadySubmittedView(Survey $survey): Response
+    {
         $theme = $survey->resolvedThemeTokens();
 
         return response()->view('survey-core::survey.already_submitted', compact('survey', 'theme'));
@@ -376,8 +399,12 @@ class PublicSurveyController extends Controller
     {
         $uniquenessMode = $survey->uniqueness_mode ?? SurveyUniquenessMode::None;
 
+        if ($this->isMarketingActivityDuplicateToken($survey, $resolved?->token)) {
+            return true;
+        }
+
         return match ($uniquenessMode) {
-            SurveyUniquenessMode::None => false,
+            SurveyUniquenessMode::None  => false,
             SurveyUniquenessMode::Token => $resolved !== null
                 && $resolved->token->max_submissions !== null
                 && $resolved->token->used_count >= $resolved->token->max_submissions,
@@ -393,6 +420,35 @@ class PublicSurveyController extends Controller
                     ->exists(),
             SurveyUniquenessMode::Cookie => $request->cookies->has($this->duplicateCookieName($survey)),
         };
+    }
+
+    private function isMarketingActivityDuplicateToken(Survey $survey, ?SurveyToken $token): bool
+    {
+        if (! $token || ! $token->survey_recipient_id) {
+            return false;
+        }
+
+        $shortLinkClass = 'Lalalili\\MarketingAutomation\\Models\\ActivityShortLink';
+
+        if (! class_exists($shortLinkClass)) {
+            return false;
+        }
+
+        $hasMarketingShortLink = $shortLinkClass::query()
+            ->where(function ($query) use ($token): void {
+                $query->where('survey_token_id', $token->id)
+                    ->orWhere('original_url', 'like', '%t='.$token->token.'%');
+            })
+            ->exists();
+
+        if (! $hasMarketingShortLink) {
+            return false;
+        }
+
+        return $survey->responses()
+            ->where('survey_recipient_id', $token->survey_recipient_id)
+            ->whereNotNull('submitted_at')
+            ->exists();
     }
 
     private function duplicateCookieName(Survey $survey): string
@@ -531,11 +587,11 @@ class PublicSurveyController extends Controller
 
         SurveyResponseConsent::create([
             'survey_response_id' => $response->id,
-            'type' => 'terms',
-            'version' => $survey->settings_json['terms_version'] ?? null,
-            'accepted_at' => now(),
-            'metadata_json' => [
-                'ip' => $request->ip(),
+            'type'               => 'terms',
+            'version'            => $survey->settings_json['terms_version'] ?? null,
+            'accepted_at'        => now(),
+            'metadata_json'      => [
+                'ip'         => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ],
         ]);
@@ -602,11 +658,11 @@ class PublicSurveyController extends Controller
     {
         if (isset($condition['calc_key'])) {
             return [
-                'logic' => 'and',
+                'logic'      => 'and',
                 'conditions' => [[
                     'field_key' => (string) $condition['calc_key'],
-                    'op' => (string) ($condition['op'] ?? 'equals'),
-                    'value' => $condition['value'] ?? null,
+                    'op'        => (string) ($condition['op'] ?? 'equals'),
+                    'value'     => $condition['value'] ?? null,
                 ]],
             ];
         }

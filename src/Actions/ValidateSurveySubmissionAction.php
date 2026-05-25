@@ -109,15 +109,15 @@ class ValidateSurveySubmissionAction
     private function validationMessages(): array
     {
         return [
-            'required' => '「:attribute」為必填，請完成填寫。',
-            'array' => '「:attribute」的填答格式不正確，請重新填寫。',
-            'string' => '「:attribute」的填答格式不正確，請輸入文字。',
-            'email' => '「:attribute」請輸入有效的電子信箱。',
-            'regex' => '「:attribute」格式不正確，請依題目提示填寫。',
-            'date' => '「:attribute」請輸入有效的日期。',
+            'required'    => '「:attribute」為必填，請完成填寫。',
+            'array'       => '「:attribute」的填答格式不正確，請重新填寫。',
+            'string'      => '「:attribute」的填答格式不正確，請輸入文字。',
+            'email'       => '「:attribute」請輸入有效的電子信箱。',
+            'regex'       => '「:attribute」格式不正確，請依題目提示填寫。',
+            'date'        => '「:attribute」請輸入有效的日期。',
             'date_format' => '「:attribute」請輸入有效的時間。',
-            'numeric' => '「:attribute」請輸入數字。',
-            'integer' => '「:attribute」請輸入整數。',
+            'numeric'     => '「:attribute」請輸入數字。',
+            'integer'     => '「:attribute」請輸入整數。',
             'min.numeric' => '「:attribute」不可小於 :min。',
             'max.numeric' => '「:attribute」不可大於 :max。',
             'min.integer' => '「:attribute」不可小於 :min。',
@@ -140,12 +140,12 @@ class ValidateSurveySubmissionAction
     private function typeRules(SurveyField $field): array
     {
         return match ($field->type) {
-            SurveyFieldType::Email => ['email'],
-            SurveyFieldType::Phone => ['regex:/^09\d{8}$/'],
+            SurveyFieldType::Email     => ['email'],
+            SurveyFieldType::Phone     => ['regex:/^09\d{8}$/'],
             SurveyFieldType::ShortText => $this->shortTextFormatRules($field),
-            SurveyFieldType::Date => ['date'],
-            SurveyFieldType::Time => ['date_format:H:i'],
-            SurveyFieldType::Number => array_values(array_filter([
+            SurveyFieldType::Date      => ['date'],
+            SurveyFieldType::Time      => ['date_format:H:i'],
+            SurveyFieldType::Number    => array_values(array_filter([
                 'numeric',
                 isset($field->settings_json['min']) ? 'min:'.$field->settings_json['min'] : null,
                 isset($field->settings_json['max']) ? 'max:'.$field->settings_json['max'] : null,
@@ -155,7 +155,7 @@ class ValidateSurveySubmissionAction
                 isset($field->settings_json['min']) ? 'min:'.$field->settings_json['min'] : null,
                 isset($field->settings_json['max']) ? 'max:'.$field->settings_json['max'] : null,
             ])),
-            SurveyFieldType::Nps => ['integer', 'min:0', 'max:10'],
+            SurveyFieldType::Nps    => ['integer', 'min:0', 'max:10'],
             SurveyFieldType::Rating => ['integer', 'min:1', 'max:'.max(1, (int) ($field->settings_json['count'] ?? 5))],
             SurveyFieldType::MultipleChoice, SurveyFieldType::MatrixSingle,
             SurveyFieldType::MatrixMulti, SurveyFieldType::Ranking,
@@ -166,7 +166,7 @@ class ValidateSurveySubmissionAction
             SurveyFieldType::LongText, SurveyFieldType::SingleChoice,
             SurveyFieldType::Select, SurveyFieldType::SectionTitle,
             SurveyFieldType::DescriptionBlock => ['string'],
-            default => [],
+            default                           => [],
         };
     }
 
@@ -174,9 +174,9 @@ class ValidateSurveySubmissionAction
     private function shortTextFormatRules(SurveyField $field): array
     {
         return match ($field->settings_json['input_format'] ?? null) {
-            'email' => ['string', 'email'],
+            'email'     => ['string', 'email'],
             'mobile_tw' => ['string', 'regex:/^09\d{8}$/'],
-            default => ['string'],
+            default     => ['string'],
         };
     }
 
@@ -240,18 +240,18 @@ class ValidateSurveySubmissionAction
             }
 
             match ($field->type) {
-                SurveyFieldType::Phone => $this->validatePhone($validator, $field, $value),
-                SurveyFieldType::Number => $this->validateNumberRules($validator, $field, $value),
-                SurveyFieldType::MultipleChoice => $this->validateSelectionCount($validator, $field, (array) $value),
+                SurveyFieldType::Phone                                      => $this->validatePhone($validator, $field, $value),
+                SurveyFieldType::Number                                     => $this->validateNumberRules($validator, $field, $value),
+                SurveyFieldType::MultipleChoice                             => $this->validateSelectionCount($validator, $field, (array) $value),
                 SurveyFieldType::MatrixSingle, SurveyFieldType::MatrixMulti => $this->validateMatrix($validator, $field, (array) $value),
-                SurveyFieldType::CascadeSelect => $this->validateCascadeSelect($validator, $field, (array) $value),
-                SurveyFieldType::Ranking => $this->validateRanking($validator, $field, (array) $value),
-                SurveyFieldType::ConstantSum => $this->validateConstantSum($validator, $field, (array) $value),
-                SurveyFieldType::FileUpload => $this->validateFileUploadAnswer($validator, $field, (array) $value),
-                SurveyFieldType::Signature => $this->validateSignature($validator, $field, (array) $value),
-                SurveyFieldType::Address => $this->validateAddress($validator, $field, (array) $value),
-                SurveyFieldType::ShortText, SurveyFieldType::LongText => $this->validateTextRules($validator, $field, (string) $value),
-                default => null,
+                SurveyFieldType::CascadeSelect                              => $this->validateCascadeSelect($validator, $field, (array) $value),
+                SurveyFieldType::Ranking                                    => $this->validateRanking($validator, $field, (array) $value),
+                SurveyFieldType::ConstantSum                                => $this->validateConstantSum($validator, $field, (array) $value),
+                SurveyFieldType::FileUpload                                 => $this->validateFileUploadAnswer($validator, $field, (array) $value),
+                SurveyFieldType::Signature                                  => $this->validateSignature($validator, $field, (array) $value),
+                SurveyFieldType::Address                                    => $this->validateAddress($validator, $field, (array) $value),
+                SurveyFieldType::ShortText, SurveyFieldType::LongText       => $this->validateTextRules($validator, $field, (string) $value),
+                default                                                     => null,
             };
         }
     }
@@ -499,12 +499,12 @@ class ValidateSurveySubmissionAction
     private function addressFieldLabel(string $key): string
     {
         return match ($key) {
-            'country' => '國家',
-            'city' => '縣市',
-            'district' => '鄉鎮區',
-            'address' => '地址',
+            'country'     => '國家',
+            'city'        => '縣市',
+            'district'    => '鄉鎮區',
+            'address'     => '地址',
             'postal_code' => '郵遞區號',
-            default => $key,
+            default       => $key,
         };
     }
 }

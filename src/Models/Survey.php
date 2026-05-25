@@ -43,6 +43,7 @@ use Lalalili\SurveyCore\Enums\SurveyUniquenessMode;
  * @property-read Collection<int, SurveyTag> $tags
  * @property-read SurveyTheme|null $theme
  * @property-read Collection<int, SurveyCalculation> $calculations
+ * @property-read Collection<int, SurveyTriggerRule> $triggerRules
  */
 class Survey extends Model
 {
@@ -158,6 +159,14 @@ class Survey extends Model
     public function calculations(): HasMany
     {
         return $this->hasMany(SurveyCalculation::class);
+    }
+
+    /**
+     * @return HasMany<SurveyTriggerRule, $this>
+     */
+    public function triggerRules(): HasMany
+    {
+        return $this->hasMany(SurveyTriggerRule::class);
     }
 
     /**

@@ -11,7 +11,8 @@ class ExportSurveyResponsesAction
 {
     public function __construct(
         private readonly SurveyExportManager $exportManager,
-    ) {}
+    ) {
+    }
 
     public function execute(Survey $survey, ?string $driver = null): StreamedResponse
     {

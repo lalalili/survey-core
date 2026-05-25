@@ -16,7 +16,7 @@ beforeEach(function () use ($phase3TestCase): void {
     if ($phase3TestCase === TestCase::class) {
         $this->app->register(SurveyCoreServiceProvider::class);
         $this->artisan('migrate', [
-            '--path' => base_path('packages/survey-core/database/migrations'),
+            '--path'     => base_path('packages/survey-core/database/migrations'),
             '--realpath' => true,
         ])->run();
     }

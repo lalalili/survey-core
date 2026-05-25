@@ -37,7 +37,7 @@ class SurveyRecipient extends Model
     protected function casts(): array
     {
         return [
-            'status' => SurveyRecipientStatus::class,
+            'status'       => SurveyRecipientStatus::class,
             'payload_json' => 'array',
         ];
     }

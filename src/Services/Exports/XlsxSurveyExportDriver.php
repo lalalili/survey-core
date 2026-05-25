@@ -18,7 +18,7 @@ class XlsxSurveyExportDriver implements SurveyExportDriver
         $filename = 'survey-responses-'.now()->format('Y-m-d-His').'.xlsx';
 
         return new StreamedResponse(function () use ($rows, $headers) {
-            $writer = new Writer;
+            $writer = new Writer();
             $writer->openToFile('php://output');
 
             $writer->addRow(Row::fromValues($headers));
@@ -32,7 +32,7 @@ class XlsxSurveyExportDriver implements SurveyExportDriver
 
             $writer->close();
         }, 200, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }

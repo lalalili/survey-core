@@ -155,11 +155,11 @@ class SurveyHtmlSanitizer
         $tag = strtolower($element->tagName);
 
         match ($tag) {
-            'a' => $this->sanitizeAnchorAttributes($element),
-            'img' => $this->sanitizeImgAttributes($element),
+            'a'      => $this->sanitizeAnchorAttributes($element),
+            'img'    => $this->sanitizeImgAttributes($element),
             'iframe' => $this->sanitizeIframeAttributes($element),
-            'div' => $this->sanitizeDivAttributes($element),
-            default => $this->stripAllAttributes($element),
+            'div'    => $this->sanitizeDivAttributes($element),
+            default  => $this->stripAllAttributes($element),
         };
     }
 

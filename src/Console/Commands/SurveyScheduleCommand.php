@@ -21,7 +21,7 @@ class SurveyScheduleCommand extends Command
             ->whereNotNull('starts_at')
             ->where('starts_at', '<=', $now)
             ->update([
-                'status' => SurveyStatus::Published->value,
+                'status'       => SurveyStatus::Published->value,
                 'published_at' => $now,
             ]);
 

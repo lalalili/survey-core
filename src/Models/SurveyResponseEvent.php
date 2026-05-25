@@ -34,7 +34,7 @@ class SurveyResponseEvent extends Model
     protected function casts(): array
     {
         return [
-            'occurred_at' => 'datetime',
+            'occurred_at'   => 'datetime',
             'metadata_json' => 'array',
         ];
     }

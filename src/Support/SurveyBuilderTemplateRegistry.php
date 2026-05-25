@@ -111,37 +111,37 @@ class SurveyBuilderTemplateRegistry
     private function template(string $slug, string $name, string $category, array $elements): array
     {
         return [
-            'slug' => $slug,
-            'name' => $name,
-            'category' => $category,
+            'slug'        => $slug,
+            'name'        => $name,
+            'category'    => $category,
             'description' => "{$name}範本",
-            'schema' => [
-                'id' => null,
-                'title' => $name,
-                'status' => 'draft',
-                'version' => 1,
+            'schema'      => [
+                'id'       => null,
+                'title'    => $name,
+                'status'   => 'draft',
+                'version'  => 1,
                 'settings' => [
                     'progress' => [
-                        'mode' => 'bar',
+                        'mode'                => 'bar',
                         'show_estimated_time' => true,
                     ],
                     'show_question_numbers' => true,
-                    'allow_back' => true,
-                    'language' => 'zh-TW',
-                    'uniqueness_mode' => 'none',
-                    'anomaly' => [
-                        'min_seconds' => null,
+                    'allow_back'            => true,
+                    'language'              => 'zh-TW',
+                    'uniqueness_mode'       => 'none',
+                    'anomaly'               => [
+                        'min_seconds'      => null,
                         'detect_duplicate' => 'cookie',
-                        'turnstile' => false,
+                        'turnstile'        => false,
                     ],
                 ],
                 'pages' => [
                     [
-                        'id' => 'page_1',
-                        'kind' => 'question',
-                        'title' => '第 1 頁',
+                        'id'         => 'page_1',
+                        'kind'       => 'question',
+                        'title'      => '第 1 頁',
                         'jump_rules' => [],
-                        'elements' => $elements,
+                        'elements'   => $elements,
                     ],
                 ],
             ],
@@ -197,8 +197,8 @@ class SurveyBuilderTemplateRegistry
     private function nps(string $key, string $label): array
     {
         return $this->element($key, 'nps', $label, true, settings: [
-            'low_label' => '非常不推薦',
-            'high_label' => '非常推薦',
+            'low_label'   => '非常不推薦',
+            'high_label'  => '非常推薦',
             'color_bands' => true,
         ]);
     }
@@ -211,15 +211,15 @@ class SurveyBuilderTemplateRegistry
     private function element(string $key, string $type, string $label, bool $required, string $placeholder = '', array $options = [], array $settings = []): array
     {
         return [
-            'id' => 'q_'.$key,
-            'type' => $type,
-            'field_key' => $key,
-            'label' => $label,
+            'id'          => 'q_'.$key,
+            'type'        => $type,
+            'field_key'   => $key,
+            'label'       => $label,
             'description' => '',
-            'required' => $required,
+            'required'    => $required,
             'placeholder' => $placeholder,
-            'options' => $options,
-            'settings' => $settings,
+            'options'     => $options,
+            'settings'    => $settings,
         ];
     }
 
@@ -231,7 +231,7 @@ class SurveyBuilderTemplateRegistry
     {
         return array_map(
             fn (string $label, int $index): array => [
-                'id' => "opt_{$key}_{$index}",
+                'id'    => "opt_{$key}_{$index}",
                 'label' => $label,
                 'value' => "option_{$index}",
             ],
@@ -247,10 +247,10 @@ class SurveyBuilderTemplateRegistry
     {
         return [
             'input_format' => 'mobile_tw',
-            'input_mode' => 'numeric',
-            'minlength' => 10,
-            'maxlength' => 10,
-            'pattern' => '09[0-9]{8}',
+            'input_mode'   => 'numeric',
+            'minlength'    => 10,
+            'maxlength'    => 10,
+            'pattern'      => '09[0-9]{8}',
         ];
     }
 }

@@ -10,11 +10,11 @@ if (! function_exists('pageKindSchema')) {
     function pageKindSchema(array $pages): array
     {
         return [
-            'id' => 1,
-            'title' => 'Kind Survey',
-            'status' => 'draft',
+            'id'      => 1,
+            'title'   => 'Kind Survey',
+            'status'  => 'draft',
             'version' => 1,
-            'pages' => $pages,
+            'pages'   => $pages,
         ];
     }
 }
@@ -23,19 +23,19 @@ if (! function_exists('kindQuestionPage')) {
     function kindQuestionPage(string $id, string $kind = 'question', bool $required = false): array
     {
         return [
-            'id' => $id,
-            'kind' => $kind,
-            'title' => $id,
+            'id'       => $id,
+            'kind'     => $kind,
+            'title'    => $id,
             'elements' => [[
-                'id' => 'q_'.$id,
-                'type' => 'short_text',
-                'field_key' => 'field_'.$id,
-                'label' => 'Field '.$id,
+                'id'          => 'q_'.$id,
+                'type'        => 'short_text',
+                'field_key'   => 'field_'.$id,
+                'label'       => 'Field '.$id,
                 'description' => '',
-                'required' => $required,
+                'required'    => $required,
                 'placeholder' => null,
-                'options' => [],
-                'settings' => [],
+                'options'     => [],
+                'settings'    => [],
             ]],
         ];
     }
@@ -43,14 +43,14 @@ if (! function_exists('kindQuestionPage')) {
 
 it('merges theme overrides over tokens', function () {
     $theme = SurveyTheme::create([
-        'name' => 'Test',
+        'name'        => 'Test',
         'tokens_json' => ['primary' => '#111111', 'accent' => '#222222'],
-        'is_system' => true,
+        'is_system'   => true,
     ]);
 
     expect($theme->resolvedTokens(['primary' => '#ffffff']))->toMatchArray([
         'primary' => '#ffffff',
-        'accent' => '#222222',
+        'accent'  => '#222222',
     ]);
 });
 

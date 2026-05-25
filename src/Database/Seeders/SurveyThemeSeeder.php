@@ -23,12 +23,12 @@ class SurveyThemeSeeder extends Seeder
     private function themes(): array
     {
         $base = [
-            'surface' => '#f9fafb',
-            'text' => '#111827',
-            'text_muted' => '#6b7280',
-            'border' => '#e5e7eb',
-            'font_family' => 'Inter, sans-serif',
-            'radius' => '0.5rem',
+            'surface'      => '#f9fafb',
+            'text'         => '#111827',
+            'text_muted'   => '#6b7280',
+            'border'       => '#e5e7eb',
+            'font_family'  => 'Inter, sans-serif',
+            'radius'       => '0.5rem',
             'button_style' => 'filled',
         ];
 

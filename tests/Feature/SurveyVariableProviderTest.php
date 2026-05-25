@@ -32,25 +32,25 @@ function makeEmailRecipientObject(?int $audienceListRowId = null): object
 {
     return (object) [
         'audience_list_row_id' => $audienceListRowId,
-        'email' => 'owner@example.com',
-        'user_name' => '車主',
-        'external_id' => $audienceListRowId ? (string) $audienceListRowId : null,
+        'email'                => 'owner@example.com',
+        'user_name'            => '車主',
+        'external_id'          => $audienceListRowId ? (string) $audienceListRowId : null,
     ];
 }
 
 it('provides a personalized survey URL for an audience list recipient', function () {
     $audienceList = AudienceList::create([
-        'name' => '車主名單',
+        'name'         => '車主名單',
         'columns_json' => ['email', 'plate'],
     ]);
     $audienceRow = AudienceListRow::create([
         'audience_list_id' => $audienceList->id,
-        'data_json' => ['email' => 'owner@example.com', 'plate' => 'ABC-1234'],
-        'status' => 'active',
+        'data_json'        => ['email' => 'owner@example.com', 'plate' => 'ABC-1234'],
+        'status'           => 'active',
     ]);
     $survey = Survey::create([
-        'title' => '車主問卷',
-        'status' => SurveyStatus::Published,
+        'title'         => '車主問卷',
+        'status'        => SurveyStatus::Published,
         'settings_json' => [
             'personalization' => [
                 'audience_list_id' => $audienceList->id,
@@ -77,11 +77,11 @@ it('reuses an existing usable survey token for the same recipient', function () 
     $audienceList = AudienceList::create(['name' => '車主名單', 'columns_json' => ['email']]);
     $audienceRow = AudienceListRow::create([
         'audience_list_id' => $audienceList->id,
-        'data_json' => ['email' => 'owner@example.com'],
-        'status' => 'active',
+        'data_json'        => ['email' => 'owner@example.com'],
+        'status'           => 'active',
     ]);
     $survey = Survey::create([
-        'title' => '車主問卷',
+        'title'  => '車主問卷',
         'status' => SurveyStatus::Published,
     ]);
     $provider = new SurveyVariableProvider(app(GenerateSurveyTokenAction::class));
@@ -114,7 +114,7 @@ it('fails rendering when the selected survey no longer exists', function () {
 
 it('fails rendering when the selected survey is not accepting submissions', function () {
     $survey = Survey::create([
-        'title' => '草稿問卷',
+        'title'  => '草稿問卷',
         'status' => SurveyStatus::Draft,
     ]);
     $provider = new SurveyVariableProvider(app(GenerateSurveyTokenAction::class));

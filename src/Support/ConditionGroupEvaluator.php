@@ -40,17 +40,17 @@ final class ConditionGroupEvaluator
         $current = $answers[$fieldKey] ?? null;
 
         return match ($op) {
-            'not_equals' => ! self::equals($current, $expected),
-            'contains' => self::contains($current, $expected),
-            'not_contains' => ! self::contains($current, $expected),
-            'greater_than', '>' => is_numeric($current) && is_numeric($expected) && (float) $current > (float) $expected,
+            'not_equals'                  => ! self::equals($current, $expected),
+            'contains'                    => self::contains($current, $expected),
+            'not_contains'                => ! self::contains($current, $expected),
+            'greater_than', '>'           => is_numeric($current) && is_numeric($expected) && (float) $current > (float) $expected,
             'greater_than_or_equal', '>=' => is_numeric($current) && is_numeric($expected) && (float) $current >= (float) $expected,
-            'less_than', '<' => is_numeric($current) && is_numeric($expected) && (float) $current < (float) $expected,
-            'less_than_or_equal', '<=' => is_numeric($current) && is_numeric($expected) && (float) $current <= (float) $expected,
-            'between' => self::between($current, $expected),
-            'is_empty' => blank($current),
-            'is_not_empty' => filled($current),
-            default => self::equals($current, $expected),
+            'less_than', '<'              => is_numeric($current) && is_numeric($expected) && (float) $current < (float) $expected,
+            'less_than_or_equal', '<='    => is_numeric($current) && is_numeric($expected) && (float) $current <= (float) $expected,
+            'between'                     => self::between($current, $expected),
+            'is_empty'                    => blank($current),
+            'is_not_empty'                => filled($current),
+            default                       => self::equals($current, $expected),
         };
     }
 

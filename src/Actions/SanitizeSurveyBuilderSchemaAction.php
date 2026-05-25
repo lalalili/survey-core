@@ -8,7 +8,8 @@ class SanitizeSurveyBuilderSchemaAction
 {
     public function __construct(
         private readonly SurveyHtmlSanitizer $sanitizer,
-    ) {}
+    ) {
+    }
 
     /**
      * @param  array<string, mixed>  $schema

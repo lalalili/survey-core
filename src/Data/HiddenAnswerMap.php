@@ -5,7 +5,9 @@ namespace Lalalili\SurveyCore\Data;
 final readonly class HiddenAnswerMap
 {
     /** @param  array<string, mixed>  $values  Keyed by field_key */
-    public function __construct(public array $values) {}
+    public function __construct(public array $values)
+    {
+    }
 
     public function get(string $fieldKey): mixed
     {

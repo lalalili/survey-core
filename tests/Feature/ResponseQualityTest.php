@@ -16,13 +16,13 @@ function phase3QualitySurvey(): Survey
 
     foreach (['first', 'second'] as $index => $fieldKey) {
         SurveyField::create([
-            'survey_id' => $survey->id,
-            'type' => SurveyFieldType::SingleChoice,
-            'label' => $fieldKey,
-            'field_key' => $fieldKey,
-            'is_required' => false,
+            'survey_id'    => $survey->id,
+            'type'         => SurveyFieldType::SingleChoice,
+            'label'        => $fieldKey,
+            'field_key'    => $fieldKey,
+            'is_required'  => false,
             'options_json' => [['label' => 'A', 'value' => 'a'], ['label' => 'B', 'value' => 'b']],
-            'sort_order' => $index + 1,
+            'sort_order'   => $index + 1,
         ]);
     }
 

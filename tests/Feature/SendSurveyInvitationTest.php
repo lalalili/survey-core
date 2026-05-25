@@ -11,14 +11,14 @@ use Lalalili\SurveyCore\Models\SurveyToken;
 
 beforeEach(function () {
     $this->survey = Survey::create([
-        'title' => 'Invitation Test Survey',
+        'title'  => 'Invitation Test Survey',
         'status' => SurveyStatus::Published,
     ]);
 
     $this->recipient = SurveyRecipient::create([
         'survey_id' => $this->survey->id,
-        'name' => 'Alice',
-        'email' => 'alice@example.com',
+        'name'      => 'Alice',
+        'email'     => 'alice@example.com',
     ]);
 
     $this->action = app(SendSurveyInvitationAction::class);
@@ -44,9 +44,9 @@ it('reuses an existing active token instead of creating a new one', function () 
     Event::fake([SurveyInvitationDispatched::class]);
 
     $existingToken = SurveyToken::create([
-        'survey_id' => $this->survey->id,
+        'survey_id'           => $this->survey->id,
         'survey_recipient_id' => $this->recipient->id,
-        'status' => SurveyTokenStatus::Active,
+        'status'              => SurveyTokenStatus::Active,
     ]);
 
     $token = $this->action->execute($this->recipient);
@@ -59,9 +59,9 @@ it('deactivates old tokens and issues a new one on resend', function () {
     Event::fake([SurveyInvitationDispatched::class]);
 
     $oldToken = SurveyToken::create([
-        'survey_id' => $this->survey->id,
+        'survey_id'           => $this->survey->id,
         'survey_recipient_id' => $this->recipient->id,
-        'status' => SurveyTokenStatus::Active,
+        'status'              => SurveyTokenStatus::Active,
     ]);
 
     $newToken = $this->action->execute($this->recipient, resend: true);

@@ -13,5 +13,6 @@ class SurveyViewed
     public function __construct(
         public readonly Survey $survey,
         public readonly ?SurveyRecipient $recipient = null,
-    ) {}
+    ) {
+    }
 }

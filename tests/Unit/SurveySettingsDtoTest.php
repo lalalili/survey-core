@@ -28,7 +28,7 @@ it('filters invalid emails when normalising', function (): void {
 
 it('preserves unknown keys in extra', function (): void {
     $settings = SurveySettings::fromArray([
-        'language' => 'zh-TW',
+        'language'      => 'zh-TW',
         'custom_widget' => ['foo' => 'bar'],
     ]);
 
@@ -38,20 +38,20 @@ it('preserves unknown keys in extra', function (): void {
 
 it('round-trips toArray → fromArray without losing data', function (): void {
     $raw = [
-        'language' => 'zh-TW',
+        'language'              => 'zh-TW',
         'show_question_numbers' => false,
-        'allow_back' => false,
-        'notifications' => ['notify_emails' => ['x@example.com']],
-        'anomaly' => ['min_seconds' => 30, 'detect_duplicate' => 'cookie'],
-        'personalization' => [
-            'audience_list_id' => 7,
-            'required' => true,
-            'name_column' => 'full_name',
-            'email_column' => 'email_addr',
+        'allow_back'            => false,
+        'notifications'         => ['notify_emails' => ['x@example.com']],
+        'anomaly'               => ['min_seconds' => 30, 'detect_duplicate' => 'cookie'],
+        'personalization'       => [
+            'audience_list_id'   => 7,
+            'required'           => true,
+            'name_column'        => 'full_name',
+            'email_column'       => 'email_addr',
             'external_id_column' => 'uid',
         ],
         'thank_you_branches' => [['condition' => 'score > 5', 'page_id' => 12]],
-        'custom_extra' => 'preserved',
+        'custom_extra'       => 'preserved',
     ];
 
     $array = SurveySettings::fromArray($raw)->toArray();
@@ -73,11 +73,11 @@ it('round-trips toArray → fromArray without losing data', function (): void {
 });
 
 it('settingsJsonFromSchema merges with existing settings to preserve unknown keys', function (): void {
-    $support = new \Lalalili\SurveyCore\Support\SurveyBuilderSurveySettings;
+    $support = new \Lalalili\SurveyCore\Support\SurveyBuilderSurveySettings();
 
     $existingSettingsJson = [
         'personalization' => ['audience_list_id' => 5, 'required' => true],
-        'custom_key' => 'should_survive',
+        'custom_key'      => 'should_survive',
     ];
 
     $schema = [
@@ -95,18 +95,18 @@ it('settingsJsonFromSchema merges with existing settings to preserve unknown key
 });
 
 it('settingsJsonFromSchema still strips survey column attributes', function (): void {
-    $support = new \Lalalili\SurveyCore\Support\SurveyBuilderSurveySettings;
+    $support = new \Lalalili\SurveyCore\Support\SurveyBuilderSurveySettings();
 
     $schema = [
         'settings' => [
-            'description' => 'ignored',
-            'starts_at' => '2026-01-01T00:00',
-            'ends_at' => '2026-12-31T00:00',
-            'max_responses' => 100,
-            'quota_message' => 'full',
-            'uniqueness_mode' => 'cookie',
+            'description'        => 'ignored',
+            'starts_at'          => '2026-01-01T00:00',
+            'ends_at'            => '2026-12-31T00:00',
+            'max_responses'      => 100,
+            'quota_message'      => 'full',
+            'uniqueness_mode'    => 'cookie',
             'uniqueness_message' => 'dup',
-            'language' => 'zh-TW',
+            'language'           => 'zh-TW',
         ],
     ];
 

@@ -1,0 +1,137 @@
+<?php
+
+namespace Lalalili\SurveyCore\Actions;
+
+use Lalalili\SurveyCore\Models\SurveyResponse;
+
+class EvaluateAnswerRuleTreeAction
+{
+    /**
+     * Evaluate a rule_tree_json against the answers of a SurveyResponse.
+     *
+     * Rule tree format (mirrors BuildRuleTreeQueryAction):
+     *   group node: { "logic": "AND"|"OR", "rules": [...] }
+     *   leaf  node: { "field": "<field_key>", "operator": "<op>", "value": ... }
+     *
+     * Supported operators: =, !=, >, >=, <, <=, in, not_in, contains,
+     *                      not_contains, is_empty, is_not_empty
+     *
+     * @param  array<string, mixed>  $ruleTree
+     */
+    public function execute(SurveyResponse $response, array $ruleTree): bool
+    {
+        $response->loadMissing('answers.field');
+
+        $answerMap = $response->answers
+            ->filter(fn ($a) => $a->field !== null)
+            ->mapWithKeys(fn ($a) => [$a->field->field_key => $a->getValue()])
+            ->all();
+
+        return $this->evaluateNode($ruleTree, $answerMap);
+    }
+
+    /**
+     * @param  array<string, mixed>  $node
+     * @param  array<string, mixed>  $answerMap
+     */
+    private function evaluateNode(array $node, array $answerMap): bool
+    {
+        if (isset($node['logic'])) {
+            return $this->evaluateGroup($node, $answerMap);
+        }
+
+        return $this->evaluateLeaf($node, $answerMap);
+    }
+
+    /**
+     * @param  array<string, mixed>  $group
+     * @param  array<string, mixed>  $answerMap
+     */
+    private function evaluateGroup(array $group, array $answerMap): bool
+    {
+        $logic = strtoupper($group['logic'] ?? 'AND');
+        $rules = $group['rules'] ?? [];
+
+        if (empty($rules)) {
+            return true;
+        }
+
+        foreach ($rules as $rule) {
+            $result = $this->evaluateNode($rule, $answerMap);
+
+            if ($logic === 'AND' && ! $result) {
+                return false;
+            }
+
+            if ($logic === 'OR' && $result) {
+                return true;
+            }
+        }
+
+        return $logic === 'AND';
+    }
+
+    /**
+     * @param  array<string, mixed>  $leaf
+     * @param  array<string, mixed>  $answerMap
+     */
+    private function evaluateLeaf(array $leaf, array $answerMap): bool
+    {
+        $fieldKey = $leaf['field'] ?? '';
+        $operator = $leaf['operator'] ?? '=';
+        $ruleValue = $leaf['value'] ?? null;
+
+        $actual = $answerMap[$fieldKey] ?? null;
+
+        return match ($operator) {
+            '='            => $this->castScalar($actual) == $this->castScalar($ruleValue),
+            '!='           => $this->castScalar($actual) != $this->castScalar($ruleValue),
+            '>'            => (float) $actual > (float) $ruleValue,
+            '>='           => (float) $actual >= (float) $ruleValue,
+            '<'            => (float) $actual < (float) $ruleValue,
+            '<='           => (float) $actual <= (float) $ruleValue,
+            'in'           => $this->inOperator($actual, $ruleValue),
+            'not_in'       => ! $this->inOperator($actual, $ruleValue),
+            'contains'     => str_contains((string) $actual, (string) $ruleValue),
+            'not_contains' => ! str_contains((string) $actual, (string) $ruleValue),
+            'is_empty'     => $this->isEmpty($actual),
+            'is_not_empty' => ! $this->isEmpty($actual),
+            default        => false,
+        };
+    }
+
+    private function castScalar(mixed $value): string
+    {
+        if (is_array($value)) {
+            return implode(',', $value);
+        }
+
+        return (string) $value;
+    }
+
+    private function isEmpty(mixed $value): bool
+    {
+        if ($value === null || $value === '') {
+            return true;
+        }
+
+        if (is_array($value) && count($value) === 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function inOperator(mixed $actual, mixed $ruleValue): bool
+    {
+        $allowedValues = is_array($ruleValue)
+            ? $ruleValue
+            : array_map('trim', explode(',', (string) $ruleValue));
+
+        if (is_array($actual)) {
+            return count(array_intersect($actual, $allowedValues)) > 0;
+        }
+
+        return in_array((string) $actual, $allowedValues, strict: true);
+    }
+}

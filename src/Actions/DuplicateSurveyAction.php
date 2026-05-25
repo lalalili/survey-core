@@ -12,7 +12,14 @@ class DuplicateSurveyAction
     public function execute(Survey $survey): Survey
     {
         return DB::transaction(function () use ($survey) {
-            $clone = $survey->replicate(['public_key', 'status', 'version']);
+            $clone = $survey->replicate([
+                'public_key',
+                'status',
+                'version',
+                'fields_count',
+                'recipients_count',
+                'responses_count',
+            ]);
             $clone->status = SurveyStatus::Draft;
             $clone->title = $survey->title.' (Copy)';
             $clone->version = 1;

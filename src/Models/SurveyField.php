@@ -60,15 +60,15 @@ class SurveyField extends Model
     protected function casts(): array
     {
         return [
-            'type' => SurveyFieldType::class,
-            'is_required' => 'boolean',
-            'is_hidden' => 'boolean',
-            'is_personalized' => 'boolean',
+            'type'             => SurveyFieldType::class,
+            'is_required'      => 'boolean',
+            'is_hidden'        => 'boolean',
+            'is_personalized'  => 'boolean',
             'validation_rules' => 'array',
-            'settings_json' => 'array',
-            'options_json' => 'array',
-            'sort_order' => 'integer',
-            'survey_page_id' => 'integer',
+            'settings_json'    => 'array',
+            'options_json'     => 'array',
+            'sort_order'       => 'integer',
+            'survey_page_id'   => 'integer',
         ];
     }
 
@@ -161,10 +161,10 @@ class SurveyField extends Model
         if (array_is_list($this->options_json)) {
             return array_values(collect($this->options_json)
                 ->map(fn (mixed $option): array => [
-                    'id' => data_get($option, 'id') !== null ? (string) data_get($option, 'id') : null,
-                    'label' => (string) data_get($option, 'label', ''),
-                    'value' => (string) data_get($option, 'value', ''),
-                    'capacity' => data_get($option, 'capacity') !== null ? (int) data_get($option, 'capacity') : null,
+                    'id'        => data_get($option, 'id') !== null ? (string) data_get($option, 'id') : null,
+                    'label'     => (string) data_get($option, 'label', ''),
+                    'value'     => (string) data_get($option, 'value', ''),
+                    'capacity'  => data_get($option, 'capacity') !== null ? (int) data_get($option, 'capacity') : null,
                     'is_hidden' => (bool) data_get($option, 'is_hidden', false),
                 ])
                 ->filter(fn (array $option): bool => $option['value'] !== '')
@@ -174,10 +174,10 @@ class SurveyField extends Model
 
         return array_values(collect($this->options_json)
             ->map(fn (mixed $label, mixed $value): array => [
-                'id' => null,
-                'label' => (string) $label,
-                'value' => (string) $value,
-                'capacity' => null,
+                'id'        => null,
+                'label'     => (string) $label,
+                'value'     => (string) $value,
+                'capacity'  => null,
                 'is_hidden' => false,
             ])
             ->values()
