@@ -3,6 +3,7 @@
 namespace Lalalili\SurveyCore\Console\Commands;
 
 use Illuminate\Console\Command;
+use Lalalili\SurveyCore\Actions\EvaluateAnswerRuleTreeAction;
 use Lalalili\SurveyCore\Actions\ImportSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyAnswer;
@@ -219,11 +220,12 @@ class SeedSurveyDemoCommand extends Command
             ],
             [
                 'name' => '7天內回填贈送維修抵用劵（Demo）',
-                // 「回填」＝填答到最後的推薦題（NPS）視為完成；7 天由動作的 require_valid_token + token 視窗把關。
+                // 明寫「回填距邀請 ≤ 7 天」；有回覆即送（不另設完成條件）。
+                // X 天與發送活動 response_window_days（預設 7）一致；require_valid_token 再防呆。
                 'rule_tree_json' => [
                     'op'       => 'AND',
                     'children' => [
-                        ['field' => 'vehicle_recommend_nps', 'operator' => 'is_not_null', 'value' => null],
+                        ['field' => EvaluateAnswerRuleTreeAction::META_DAYS_SINCE_INVITATION, 'operator' => '<=', 'value' => '7'],
                     ],
                 ],
                 'actions_json' => [

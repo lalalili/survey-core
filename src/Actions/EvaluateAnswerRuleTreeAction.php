@@ -7,6 +7,13 @@ use Lalalili\SurveyCore\Models\SurveyResponse;
 class EvaluateAnswerRuleTreeAction
 {
     /**
+     * Meta pseudo-field：回填距邀請天數（token 產生時間 → 提交時間的天數）。
+     * 供觸發規則設定「回填距邀請 ≤ X 天」之類條件；非問卷答案欄位。
+     */
+    public const META_DAYS_SINCE_INVITATION = 'days_since_invitation';
+
+
+    /**
      * Evaluate a rule_tree_json against the answers of a SurveyResponse.
      *
      * 同時相容兩種規則樹格式：
@@ -22,11 +29,17 @@ class EvaluateAnswerRuleTreeAction
      */
     public function execute(SurveyResponse $response, array $ruleTree): bool
     {
-        $response->loadMissing('answers.field');
+        $response->loadMissing('answers.field', 'token');
 
         $answerMap = $response->answers
             ->mapWithKeys(fn ($a) => [$a->field->field_key => $a->getValue()])
             ->all();
+
+        // 注入 meta：回填距邀請天數。無 token／未提交者給極大值，使「≤ X 天」不成立。
+        $token = $response->token;
+        $answerMap[self::META_DAYS_SINCE_INVITATION] = ($token !== null && $response->submitted_at !== null)
+            ? $token->created_at->diffInDays($response->submitted_at)
+            : PHP_INT_MAX;
 
         return $this->evaluateNode($ruleTree, $answerMap);
     }
