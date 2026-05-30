@@ -67,6 +67,7 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 '2026_05_23_000001_create_survey_trigger_rules_table',
                 '2026_05_23_000002_create_survey_trigger_dispatches_table',
                 '2026_05_23_000003_create_survey_trigger_allowed_hosts_table',
+                '2026_05_30_000001_create_survey_trigger_action_presets_table',
             ])
             ->runsMigrations()
             ->hasRoutes(['web']);

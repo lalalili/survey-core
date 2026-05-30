@@ -9,6 +9,7 @@ use Lalalili\SurveyCore\Models\SurveyAnswer;
 use Lalalili\SurveyCore\Models\SurveyRecipient;
 use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Models\SurveyToken;
+use Lalalili\SurveyCore\Models\SurveyTriggerActionPreset;
 use Lalalili\SurveyCore\Models\SurveyTriggerAllowedHost;
 use Lalalili\SurveyCore\Models\SurveyTriggerDispatch;
 use Lalalili\SurveyCore\Models\SurveyTriggerRule;
@@ -42,9 +43,12 @@ class SeedSurveyDemoCommand extends Command
         $this->info('=== 建立 銷售滿意度 問卷 ===');
         $ssiSurvey = $this->ensureSurvey($importAction, self::SSI_SURVEY_TITLE, 'ssi');
 
+        $this->info('=== 建立 DMS 動作設定（觸發動作預設）===');
+        $presets = $this->seedActionPresets();
+
         $this->info('=== 建立觸發規則 ===');
-        $this->seedTriggerRules($csiSurvey);
-        $this->seedTriggerRules($ssiSurvey);
+        $this->seedTriggerRules($csiSurvey, $presets);
+        $this->seedTriggerRules($ssiSurvey, $presets);
 
         $this->info('=== 建立觸發白名單 ===');
         $this->seedAllowedHosts();
@@ -121,11 +125,87 @@ class SeedSurveyDemoCommand extends Command
         return $schema;
     }
 
-    private function seedTriggerRules(Survey $survey): void
+    /**
+     * 建立兩個系統管理員預設的 DMS 觸發動作，供觸發規則以下拉選單參照。
+     *
+     * @return array<string, SurveyTriggerActionPreset>  以 key 索引
+     */
+    private function seedActionPresets(): array
+    {
+        $presets = [
+            [
+                'key'         => 'dms_case',
+                'name'        => '顧關立案',
+                'description' => '低分填答自動於 DMS 建立顧客關懷案件',
+                'action_json' => [
+                    'type'                => 'http_post',
+                    'name'                => '顧關立案',
+                    'endpoint'            => 'https://example.com/webhook/dms-case',
+                    'headers'             => ['Authorization' => 'Bearer {{env.DMS_TOKEN}}'],
+                    'payload_template'    => [
+                        'source'      => 'survey',
+                        'response_id' => '{{response.id}}',
+                        'mobile'      => '{{recipient.payload.mobile}}',
+                        'license'     => '{{recipient.payload.regono}}',
+                        'nps'         => '{{answer.vehicle_recommend_nps}}',
+                    ],
+                    'timeout'             => 10,
+                    'retry'               => ['times' => 3, 'sleep_ms' => 200],
+                    // 顧管立案需對匿名公開填答也反應，維持 false。
+                    'require_valid_token' => false,
+                ],
+            ],
+            [
+                'key'         => 'repair_voucher',
+                'name'        => '贈送維修抵用劵',
+                'description' => '完成回填於 DMS 發送維修抵用劵（限有效邀請連結）',
+                'action_json' => [
+                    'type'                => 'http_post',
+                    'name'                => '贈送維修抵用劵',
+                    'endpoint'            => 'https://example.com/webhook/repair-voucher',
+                    'headers'             => ['Authorization' => 'Bearer {{env.DMS_TOKEN}}'],
+                    'payload_template'    => [
+                        'source'      => 'survey',
+                        'response_id' => '{{response.id}}',
+                        'mobile'      => '{{recipient.payload.mobile}}',
+                        'license'     => '{{recipient.payload.regono}}',
+                        'owner_name'  => '{{recipient.payload.username}}',
+                    ],
+                    'timeout'             => 10,
+                    'retry'               => ['times' => 3, 'sleep_ms' => 200],
+                    // 發點券：限「邀請連結（token）且未逾期」填答（7 天由 token 視窗把關）。
+                    'require_valid_token' => true,
+                ],
+            ],
+        ];
+
+        $result = [];
+
+        foreach ($presets as $def) {
+            $preset = SurveyTriggerActionPreset::firstOrCreate(
+                ['key' => $def['key']],
+                [
+                    'name'        => $def['name'],
+                    'description' => $def['description'],
+                    'action_json' => $def['action_json'],
+                    'is_active'   => true,
+                ],
+            );
+            $result[$def['key']] = $preset;
+            $this->line("  DMS 動作：{$def['name']}（{$def['key']}）");
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, SurveyTriggerActionPreset>  $presets
+     */
+    private function seedTriggerRules(Survey $survey, array $presets): void
     {
         $rules = [
             [
-                'name'           => '低分客服跟進（Demo）',
+                'name'           => '低分顧關立案（Demo）',
                 'rule_tree_json' => [
                     'logic' => 'AND',
                     'rules' => [
@@ -133,12 +213,12 @@ class SeedSurveyDemoCommand extends Command
                     ],
                 ],
                 'actions_json' => [
-                    ['type' => 'http_post', 'url' => 'https://example.com/webhook/low-nps'],
+                    ['type' => 'preset', 'preset_id' => $presets['dms_case']->id],
                 ],
             ],
             [
-                'name' => '完成自動感謝（Demo）',
-                // 「完成」語意：填答到最後的推薦題（NPS）即視為完成問卷，才寄送感謝。
+                'name' => '7天內回填贈送維修抵用劵（Demo）',
+                // 「回填」＝填答到最後的推薦題（NPS）視為完成；7 天由動作的 require_valid_token + token 視窗把關。
                 'rule_tree_json' => [
                     'logic' => 'AND',
                     'rules' => [
@@ -146,7 +226,7 @@ class SeedSurveyDemoCommand extends Command
                     ],
                 ],
                 'actions_json' => [
-                    ['type' => 'http_post', 'url' => 'https://example.com/webhook/thanks'],
+                    ['type' => 'preset', 'preset_id' => $presets['repair_voucher']->id],
                 ],
             ],
         ];
@@ -238,6 +318,7 @@ class SeedSurveyDemoCommand extends Command
         }
 
         SurveyTriggerAllowedHost::whereIn('host', ['example.com', 'localhost'])->delete();
+        SurveyTriggerActionPreset::whereIn('key', ['dms_case', 'repair_voucher'])->delete();
 
         // Clear survey_id bindings so activities show "未綁定" until next dispatch seed
         if (class_exists(\Lalalili\MarketingAutomation\Models\MarketingActivity::class)) {

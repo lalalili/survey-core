@@ -7,6 +7,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 use Lalalili\SurveyCore\Actions\EvaluateAnswerRuleTreeAction;
 use Lalalili\SurveyCore\Actions\Triggers\DispatchHttpTriggerAction;
+use Lalalili\SurveyCore\Actions\Triggers\ExpandPresetsAction;
 use Lalalili\SurveyCore\Actions\Triggers\ResolveActionPayloadAction;
 use Lalalili\SurveyCore\Enums\TriggerDispatchStatus;
 use Lalalili\SurveyCore\Models\SurveyResponse;
@@ -43,7 +44,10 @@ class RunSurveyTriggerJob implements ShouldQueue
             ->mapWithKeys(fn ($a) => [$a->field->field_key => $a->getValue()])
             ->all();
 
-        foreach ($rule->actions_json as $action) {
+        // 將 preset 參照展開為具體 http_post 動作（向下相容舊有 inline 動作）。
+        $actions = app(ExpandPresetsAction::class)->execute($rule->actions_json ?? []);
+
+        foreach ($actions as $action) {
             if (($action['type'] ?? '') !== 'http_post') {
                 continue;
             }
