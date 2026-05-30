@@ -205,10 +205,11 @@ class SeedSurveyDemoCommand extends Command
     {
         $rules = [
             [
-                'name'           => '低分顧關立案（Demo）',
+                'name' => '低分顧關立案（Demo）',
+                // 規則樹採編輯器格式 {op, children}，後台「篩選條件」可正確顯示與編輯。
                 'rule_tree_json' => [
-                    'logic' => 'AND',
-                    'rules' => [
+                    'op'       => 'AND',
+                    'children' => [
                         ['field' => 'vehicle_recommend_nps', 'operator' => '<=', 'value' => '6'],
                     ],
                 ],
@@ -220,9 +221,9 @@ class SeedSurveyDemoCommand extends Command
                 'name' => '7天內回填贈送維修抵用劵（Demo）',
                 // 「回填」＝填答到最後的推薦題（NPS）視為完成；7 天由動作的 require_valid_token + token 視窗把關。
                 'rule_tree_json' => [
-                    'logic' => 'AND',
-                    'rules' => [
-                        ['field' => 'vehicle_recommend_nps', 'operator' => 'is_not_empty', 'value' => null],
+                    'op'       => 'AND',
+                    'children' => [
+                        ['field' => 'vehicle_recommend_nps', 'operator' => 'is_not_null', 'value' => null],
                     ],
                 ],
                 'actions_json' => [

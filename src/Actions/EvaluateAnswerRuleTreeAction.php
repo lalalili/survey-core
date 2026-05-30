@@ -9,12 +9,14 @@ class EvaluateAnswerRuleTreeAction
     /**
      * Evaluate a rule_tree_json against the answers of a SurveyResponse.
      *
-     * Rule tree format (mirrors BuildRuleTreeQueryAction):
-     *   group node: { "logic": "AND"|"OR", "rules": [...] }
-     *   leaf  node: { "field": "<field_key>", "operator": "<op>", "value": ... }
+     * 同時相容兩種規則樹格式：
+     *   - 觸發評估格式：group { "logic", "rules" }
+     *   - 規則樹編輯器（RuleTreeField / builder-ui-core）格式：group { "op", "children" }
+     * leaf 皆為 { "field", "operator", "value" }。
      *
      * Supported operators: =, !=, >, >=, <, <=, in, not_in, contains,
-     *                      not_contains, is_empty, is_not_empty
+     *   not_contains, starts_with, ends_with,
+     *   is_empty/is_null（為空）, is_not_empty/is_not_null（不為空）
      *
      * @param  array<string, mixed>  $ruleTree
      */
@@ -35,7 +37,8 @@ class EvaluateAnswerRuleTreeAction
      */
     private function evaluateNode(array $node, array $answerMap): bool
     {
-        if (isset($node['logic'])) {
+        // group：兩種格式擇一存在即視為群組（logic/rules 或 op/children）。
+        if (isset($node['logic']) || isset($node['rules']) || isset($node['op']) || isset($node['children'])) {
             return $this->evaluateGroup($node, $answerMap);
         }
 
@@ -48,8 +51,8 @@ class EvaluateAnswerRuleTreeAction
      */
     private function evaluateGroup(array $group, array $answerMap): bool
     {
-        $logic = strtoupper($group['logic'] ?? 'AND');
-        $rules = $group['rules'] ?? [];
+        $logic = strtoupper((string) ($group['logic'] ?? $group['op'] ?? 'AND'));
+        $rules = $group['rules'] ?? $group['children'] ?? [];
 
         if (empty($rules)) {
             return true;
@@ -91,11 +94,13 @@ class EvaluateAnswerRuleTreeAction
             '<='           => (float) $actual <= (float) $ruleValue,
             'in'           => $this->inOperator($actual, $ruleValue),
             'not_in'       => ! $this->inOperator($actual, $ruleValue),
-            'contains'     => str_contains((string) $actual, (string) $ruleValue),
-            'not_contains' => ! str_contains((string) $actual, (string) $ruleValue),
-            'is_empty'     => $this->isEmpty($actual),
-            'is_not_empty' => ! $this->isEmpty($actual),
-            default        => false,
+            'contains'                  => str_contains((string) $actual, (string) $ruleValue),
+            'not_contains'              => ! str_contains((string) $actual, (string) $ruleValue),
+            'starts_with'               => str_starts_with((string) $actual, (string) $ruleValue),
+            'ends_with'                 => str_ends_with((string) $actual, (string) $ruleValue),
+            'is_empty', 'is_null'       => $this->isEmpty($actual),
+            'is_not_empty', 'is_not_null' => ! $this->isEmpty($actual),
+            default                     => false,
         };
     }
 
