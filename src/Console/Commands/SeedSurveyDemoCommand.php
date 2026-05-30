@@ -137,9 +137,15 @@ class SeedSurveyDemoCommand extends Command
                 ],
             ],
             [
-                'name'           => '完成自動感謝（Demo）',
-                'rule_tree_json' => ['logic' => 'AND', 'rules' => []],
-                'actions_json'   => [
+                'name' => '完成自動感謝（Demo）',
+                // 「完成」語意：填答到最後的推薦題（NPS）即視為完成問卷，才寄送感謝。
+                'rule_tree_json' => [
+                    'logic' => 'AND',
+                    'rules' => [
+                        ['field' => 'vehicle_recommend_nps', 'operator' => 'is_not_empty', 'value' => null],
+                    ],
+                ],
+                'actions_json' => [
                     ['type' => 'http_post', 'url' => 'https://example.com/webhook/thanks'],
                 ],
             ],
