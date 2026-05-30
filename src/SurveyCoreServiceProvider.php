@@ -13,6 +13,7 @@ use Lalalili\SurveyCore\Actions\ExportSurveyResponsesAction;
 use Lalalili\SurveyCore\Actions\HydratePersonalizedFieldsAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
 use Lalalili\SurveyCore\Actions\ValidateSurveySubmissionAction;
+use Lalalili\SurveyCore\Console\Commands\SeedSurveyDemoCommand;
 use Lalalili\SurveyCore\Console\Commands\SurveyScheduleCommand;
 use Lalalili\SurveyCore\Contracts\PersonalizationResolver;
 use Lalalili\SurveyCore\Events\SurveySubmitted;
@@ -107,6 +108,7 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 SurveyScheduleCommand::class,
+                SeedSurveyDemoCommand::class,
             ]);
 
             $this->app->booted(function (): void {

@@ -1,6 +1,7 @@
 # survey-core
 
-Laravel 問卷系統核心套件。提供完整的問卷引擎（token 機制、個性化欄位、多頁問卷、跳題邏輯、安全提交、collector 追蹤、事件漏斗、CSV 匯出），無任何 Filament 依賴，可在純 Laravel 專案中使用。
+Laravel 問卷系統核心套件。提供完整的問卷引擎（token 機制、個性化欄位、多頁問卷、跳題邏輯、安全提交、collector 追蹤、事件漏斗、CSV
+匯出），無任何 Filament 依賴，可在純 Laravel 專案中使用。
 
 ## 功能
 
@@ -10,11 +11,16 @@ Laravel 問卷系統核心套件。提供完整的問卷引擎（token 機制、
 - **多頁問卷**：題目依 `page` 欄位分組，前端逐頁填寫，單次提交
 - 公開端 localStorage 草稿續答：依 public key / token / collector 隔離草稿，送出成功後清除
 - CSV 匯出（可擴充至 xlsx 等格式）
-- 商用安全基礎：後端密碼驗證、Turnstile server-side verification、terms consent 記錄、匿名/token 強制規則、route throttle、最短填寫時間檢查
-- Rich HTML sanitizer：Builder schema 儲存/發布時會清理 survey description、terms、welcome content、thank-you message 與題目 description
-- Collector 與事件漏斗：`web_link` / `email_invite` / `qr_code` / `embed_iframe` 等回收入口可用獨立 slug，提交與事件可保存 collector attribution
+- 商用安全基礎：後端密碼驗證、Turnstile server-side verification、terms consent 記錄、匿名/token 強制規則、route
+  throttle、最短填寫時間檢查
+- Rich HTML sanitizer：Builder schema 儲存/發布時會清理 survey description、terms、welcome content、thank-you message 與題目
+  description
+- Collector 與事件漏斗：`web_link` / `email_invite` / `qr_code` / `embed_iframe` 等回收入口可用獨立 slug，提交與事件可保存
+  collector attribution
 - Analytics action：彙總總回應、開始/提交/完成率、每日趨勢、collector 成效、選擇題/NPS/rating 單題分佈
-- 商用題型基礎：Email、手機、地址單欄以 `short_text` 預設建立；legacy `email` / `phone` / `address` 仍可讀取與提交。手機預設採台灣格式驗證（10 碼純數字且 `09` 開頭），`time` / `linear_scale` / `constant_sum` 可用於活動時間、數字滑桿與總計分配，`section_title` / `description_block` / `quote_block` / `divider` 可建立內容區塊，ranking 公開端支援拖曳排序與上下移動
+- 商用題型基礎：Email、手機、地址單欄以 `short_text` 預設建立；legacy `email` / `phone` / `address` 仍可讀取與提交。手機預設採台灣格式驗證（10
+  碼純數字且 `09` 開頭），`time` / `linear_scale` / `constant_sum` 可用於活動時間、數字滑桿與總計分配，`section_title` /
+  `description_block` / `quote_block` / `divider` 可建立內容區塊，ranking 公開端支援拖曳排序與上下移動
 - Events hook 點（SurveyViewed / SurveyStarted / SurveyTokenResolved / SurveySubmitted / SurveyClosed）
 
 ## 安裝
@@ -36,22 +42,22 @@ php artisan vendor:publish --tag=survey-core-config
 
 關鍵設定項目（`config/survey-core.php`）：
 
-| 鍵 | 說明 | 預設 |
-|---|---|---|
-| `route_prefix` | 公開填寫頁 URL 前綴 | `survey` |
-| `route_middleware` | 套用在公開頁的 middleware | `['web']` |
-| `collectors.route_prefix` | collector 短連結 URL 前綴 | `s` |
-| `token_length` | Token 長度（最小 32） | `64` |
-| `token_lifetime_minutes` | Token 有效期（分鐘，null = 永不過期） | `null` |
-| `default_max_submissions` | 每個 token 最多提交次數（null = 不限） | `null` |
-| `security.rate_limit` | submit/upload/events/password route throttle 設定 | `60,1` |
-| `security.turnstile_verify` | 是否啟用 Turnstile server-side verification | `true` |
-| `security.sanitize_html` | Builder schema rich content 白名單 sanitize 開關 | `true` |
-| `security.min_submission_ms` | 最短填寫時間檢查門檻 | `3000` |
-| `analytics.retention_days` | 事件資料保留天數預設值 | `365` |
-| `exports.default_driver` | 匯出驅動（`csv`） | `csv` |
-| `personalization.resolver` | 個性化 resolver 類別（可替換） | `DefaultPersonalizationResolver` |
-| `frontend.css` | 公開頁 CSS 來源（`cdn`、`published`、或自訂 URL） | `cdn` |
+| 鍵                            | 說明                                              | 預設                               |
+|------------------------------|-------------------------------------------------|----------------------------------|
+| `route_prefix`               | 公開填寫頁 URL 前綴                                    | `survey`                         |
+| `route_middleware`           | 套用在公開頁的 middleware                              | `['web']`                        |
+| `collectors.route_prefix`    | collector 短連結 URL 前綴                            | `s`                              |
+| `token_length`               | Token 長度（最小 32）                                 | `64`                             |
+| `token_lifetime_minutes`     | Token 有效期（分鐘，null = 永不過期）                       | `null`                           |
+| `default_max_submissions`    | 每個 token 最多提交次數（null = 不限）                      | `null`                           |
+| `security.rate_limit`        | submit/upload/events/password route throttle 設定 | `60,1`                           |
+| `security.turnstile_verify`  | 是否啟用 Turnstile server-side verification         | `true`                           |
+| `security.sanitize_html`     | Builder schema rich content 白名單 sanitize 開關     | `true`                           |
+| `security.min_submission_ms` | 最短填寫時間檢查門檻                                      | `3000`                           |
+| `analytics.retention_days`   | 事件資料保留天數預設值                                     | `365`                            |
+| `exports.default_driver`     | 匯出驅動（`csv`）                                     | `csv`                            |
+| `personalization.resolver`   | 個性化 resolver 類別（可替換）                            | `DefaultPersonalizationResolver` |
+| `frontend.css`               | 公開頁 CSS 來源（`cdn`、`published`、或自訂 URL）           | `cdn`                            |
 
 ### 前端資產
 
@@ -93,7 +99,7 @@ Token 透過 query string 傳入：`?t={token}`
 
 ### Collector
 
-Collector 用於行銷活動、Email invite、QR code、嵌入 iframe 等不同回收入口。每個 collector 有獨立 slug 與 tracking 設定：
+Collector 用於發送設定、Email invite、QR code、嵌入 iframe 等不同回收入口。每個 collector 有獨立 slug 與 tracking 設定：
 
 ```php
 use Lalalili\SurveyCore\Models\SurveyCollector;
@@ -118,8 +124,10 @@ $url = route('survey.collector.show', $collector->slug);
 
 ### 安全設定
 
-- 密碼保護透過 `POST /survey/{publicKey}/password` 或 `POST /s/{collectorSlug}/password` 在後端驗證，不會把明文密碼輸出到 HTML/JS。
-- Turnstile 啟用條件為問卷 `settings_json.anomaly.turnstile = true` 且 `TURNSTILE_SECRET_KEY` 可用。提交時後端會呼叫 Cloudflare siteverify。
+- 密碼保護透過 `POST /survey/{publicKey}/password` 或 `POST /s/{collectorSlug}/password` 在後端驗證，不會把明文密碼輸出到
+  HTML/JS。
+- Turnstile 啟用條件為問卷 `settings_json.anomaly.turnstile = true` 且 `TURNSTILE_SECRET_KEY` 可用。提交時後端會呼叫
+  Cloudflare siteverify。
 - 若設定 `settings_json.terms_text`，提交必須帶 `_terms_accepted = true`，並在 `survey_response_consents` 記錄同意版本與時間。
 - `settings_json.security.min_submission_ms` 可覆寫全域最短填寫時間門檻。
 
@@ -199,13 +207,13 @@ SurveyField::create(['label' => '整體滿意度', 'page' => 2, ...]);
 
 ## Events
 
-| Event | Payload | 用途 |
-|---|---|---|
-| `SurveyViewed` | `survey, ?recipient` | 觀測瀏覽 |
-| `SurveyTokenResolved` | `token, recipient` | CRM 同步 hook |
-| `SurveyStarted` | `survey, ?recipient` | 漏斗統計 |
-| `SurveySubmitted` | `response, survey, ?recipient` | 通知 / 資料同步 |
-| `SurveyClosed` | `survey` | Webhook |
+| Event                 | Payload                        | 用途          |
+|-----------------------|--------------------------------|-------------|
+| `SurveyViewed`        | `survey, ?recipient`           | 觀測瀏覽        |
+| `SurveyTokenResolved` | `token, recipient`             | CRM 同步 hook |
+| `SurveyStarted`       | `survey, ?recipient`           | 漏斗統計        |
+| `SurveySubmitted`     | `response, survey, ?recipient` | 通知 / 資料同步   |
+| `SurveyClosed`        | `survey`                       | Webhook     |
 
 ```php
 // app/Providers/EventServiceProvider.php

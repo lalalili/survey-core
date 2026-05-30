@@ -31,7 +31,7 @@ class RunSurveyTriggerJob implements ShouldQueue
         DispatchHttpTriggerAction $httpDispatcher,
     ): void {
         $rule = SurveyTriggerRule::findOrFail($this->triggerRuleId);
-        $response = SurveyResponse::with('answers.field')->findOrFail($this->surveyResponseId);
+        $response = SurveyResponse::with(['answers.field', 'recipient', 'token'])->findOrFail($this->surveyResponseId);
 
         $matched = $evaluator->execute($response, $rule->rule_tree_json);
 
@@ -45,6 +45,19 @@ class RunSurveyTriggerJob implements ShouldQueue
 
         foreach ($rule->actions_json as $action) {
             if (($action['type'] ?? '') !== 'http_post') {
+                continue;
+            }
+
+            // 守衛：限「有 token（邀請連結）且未逾期」的填答才觸發（發點券用）。
+            // 預設 false，不影響顧管立案等對匿名填答也要觸發的動作。
+            if (($action['require_valid_token'] ?? false)
+                && ($response->survey_token_id === null || $response->token?->isExpired())) {
+                Log::info('survey-trigger skipped: require_valid_token not satisfied', [
+                    'rule_id'     => $rule->id,
+                    'response_id' => $response->id,
+                    'action'      => $action['name'] ?? null,
+                ]);
+
                 continue;
             }
 

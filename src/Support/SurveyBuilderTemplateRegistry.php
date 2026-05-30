@@ -15,7 +15,7 @@ class SurveyBuilderTemplateRegistry
             'event_registration' => $this->template(
                 slug: 'event_registration',
                 name: '活動報名',
-                category: '行銷活動',
+                category: '發送設定',
                 elements: [
                     $this->shortText('name', '姓名', true, '請輸入姓名'),
                     $this->shortText('email', 'Email', true, 'name@example.com', ['input_format' => 'email', 'input_mode' => 'email']),
@@ -59,7 +59,7 @@ class SurveyBuilderTemplateRegistry
             'lead_capture' => $this->template(
                 slug: 'lead_capture',
                 name: '名單蒐集',
-                category: '行銷活動',
+                category: '發送設定',
                 elements: [
                     $this->shortText('name', '姓名', true, '請輸入姓名'),
                     $this->shortText('email', 'Email', true, 'name@example.com', ['input_format' => 'email', 'input_mode' => 'email']),

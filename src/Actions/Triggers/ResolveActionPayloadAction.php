@@ -10,9 +10,11 @@ class ResolveActionPayloadAction
      * Replace template tokens in a payload template with actual values.
      *
      * Supported tokens:
-     *   {{response.<attr>}}   — SurveyResponse attribute (id, survey_id, submitted_at, …)
-     *   {{answer.<field_key>}} — answer value for the given field key
-     *   {{env.<KEY>}}          — environment variable (read at job-execution time; never stored)
+     *   {{response.<attr>}}          — SurveyResponse attribute (id, survey_id, submitted_at, …)
+     *   {{answer.<field_key>}}       — answer value for the given field key
+     *   {{recipient.<attr>}}         — SurveyRecipient attribute (external_id, email, name)
+     *   {{recipient.payload.<key>}}  — recipient payload_json value (原始名單欄位，如 mobile / license_plate)
+     *   {{env.<KEY>}}                — environment variable (read at job-execution time; never stored)
      *
      * @param  array<string, mixed>  $template  Nested array from actions_json.payload_template
      * @param  array<string, mixed>  $answerMap  field_key => value
@@ -64,6 +66,19 @@ class ResolveActionPayloadAction
                     $val = $answerMap[$key] ?? '';
 
                     return is_array($val) ? implode(',', $val) : (string) $val;
+                }
+
+                if (str_starts_with($token, 'recipient.payload.')) {
+                    $key = substr($token, 18);
+                    $val = ($response->recipient?->payload_json ?? [])[$key] ?? '';
+
+                    return is_array($val) ? implode(',', $val) : (string) $val;
+                }
+
+                if (str_starts_with($token, 'recipient.')) {
+                    $attr = substr($token, 10);
+
+                    return (string) ($response->recipient?->$attr ?? '');
                 }
 
                 if (str_starts_with($token, 'env.')) {
