@@ -223,7 +223,7 @@ class SeedSurveyDemoCommand extends Command
                 // 明寫「回填距邀請 ≤ 7 天」；有回覆即送（不另設完成條件）。
                 // 此「回填距邀請天數」是獎勵積極回填的門檻，與發送活動的「填答有效天數」
                 // （response_window_days，問卷填答時限）是不同用途、刻意設不一樣：
-                // demo 問卷開放 14 天可填，但只有 7 天內回填者才送券。require_valid_token 再防呆。
+                // demo 問卷開放 30 天可填，但只有 7 天內回填者才送券。require_valid_token 再防呆。
                 'rule_tree_json' => [
                     'op'       => 'AND',
                     'children' => [
