@@ -32,6 +32,7 @@ class SurveyRecipient extends Model
         'external_id',
         'payload_json',
         'status',
+        'is_test',
     ];
 
     protected function casts(): array
@@ -39,6 +40,7 @@ class SurveyRecipient extends Model
         return [
             'status'       => SurveyRecipientStatus::class,
             'payload_json' => 'array',
+            'is_test'      => 'boolean',
         ];
     }
 

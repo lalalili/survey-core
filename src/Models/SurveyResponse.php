@@ -54,6 +54,7 @@ class SurveyResponse extends Model implements HasMedia
         'quality_status',
         'quality_flags_json',
         'notes',
+        'is_test',
     ];
 
     protected function casts(): array
@@ -64,6 +65,7 @@ class SurveyResponse extends Model implements HasMedia
             'quality_flags_json' => 'array',
             'calculations_json'  => 'array',
             'submitted_at'       => 'datetime',
+            'is_test'            => 'boolean',
         ];
     }
 

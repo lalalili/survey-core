@@ -28,6 +28,7 @@ class ComputeSurveyAnalyticsAction
         $submittedResponses = SurveyResponse::query()
             ->with('answers')
             ->where('survey_id', $survey->id)
+            ->where('is_test', false)
             ->whereNotNull('submitted_at')
             ->get();
 
