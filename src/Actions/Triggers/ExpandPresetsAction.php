@@ -20,7 +20,7 @@ class ExpandPresetsAction
     public function execute(array $actionsJson): array
     {
         $presetIds = collect($actionsJson)
-            ->filter(fn ($action): bool => is_array($action) && ($action['type'] ?? '') === 'preset')
+            ->filter(fn (array $action): bool => ($action['type'] ?? '') === 'preset')
             ->pluck('preset_id')
             ->filter()
             ->map(fn ($id): int => (int) $id)
@@ -37,10 +37,6 @@ class ExpandPresetsAction
         $expanded = [];
 
         foreach ($actionsJson as $action) {
-            if (! is_array($action)) {
-                continue;
-            }
-
             if (($action['type'] ?? '') !== 'preset') {
                 // 舊有 inline 動作，原樣保留。
                 $expanded[] = $action;

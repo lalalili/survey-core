@@ -12,7 +12,6 @@ class EvaluateAnswerRuleTreeAction
      */
     public const META_DAYS_SINCE_INVITATION = 'days_since_invitation';
 
-
     /**
      * Evaluate a rule_tree_json against the answers of a SurveyResponse.
      *
@@ -37,7 +36,7 @@ class EvaluateAnswerRuleTreeAction
 
         // 注入 meta：回填距邀請天數。無 token／未提交者給極大值，使「≤ X 天」不成立。
         $token = $response->token;
-        $answerMap[self::META_DAYS_SINCE_INVITATION] = ($token !== null && $response->submitted_at !== null)
+        $answerMap[self::META_DAYS_SINCE_INVITATION] = ($token !== null && $token->created_at !== null && $response->submitted_at !== null)
             ? $token->created_at->diffInDays($response->submitted_at)
             : PHP_INT_MAX;
 
@@ -99,21 +98,21 @@ class EvaluateAnswerRuleTreeAction
         $actual = $answerMap[$fieldKey] ?? null;
 
         return match ($operator) {
-            '='            => $this->castScalar($actual) == $this->castScalar($ruleValue),
-            '!='           => $this->castScalar($actual) != $this->castScalar($ruleValue),
-            '>'            => (float) $actual > (float) $ruleValue,
-            '>='           => (float) $actual >= (float) $ruleValue,
-            '<'            => (float) $actual < (float) $ruleValue,
-            '<='           => (float) $actual <= (float) $ruleValue,
-            'in'           => $this->inOperator($actual, $ruleValue),
-            'not_in'       => ! $this->inOperator($actual, $ruleValue),
-            'contains'                  => str_contains((string) $actual, (string) $ruleValue),
-            'not_contains'              => ! str_contains((string) $actual, (string) $ruleValue),
-            'starts_with'               => str_starts_with((string) $actual, (string) $ruleValue),
-            'ends_with'                 => str_ends_with((string) $actual, (string) $ruleValue),
-            'is_empty', 'is_null'       => $this->isEmpty($actual),
+            '=' => $this->castScalar($actual) == $this->castScalar($ruleValue),
+            '!=' => $this->castScalar($actual) != $this->castScalar($ruleValue),
+            '>' => (float) $actual > (float) $ruleValue,
+            '>=' => (float) $actual >= (float) $ruleValue,
+            '<' => (float) $actual < (float) $ruleValue,
+            '<=' => (float) $actual <= (float) $ruleValue,
+            'in' => $this->inOperator($actual, $ruleValue),
+            'not_in' => ! $this->inOperator($actual, $ruleValue),
+            'contains' => str_contains((string) $actual, (string) $ruleValue),
+            'not_contains' => ! str_contains((string) $actual, (string) $ruleValue),
+            'starts_with' => str_starts_with((string) $actual, (string) $ruleValue),
+            'ends_with' => str_ends_with((string) $actual, (string) $ruleValue),
+            'is_empty', 'is_null' => $this->isEmpty($actual),
             'is_not_empty', 'is_not_null' => ! $this->isEmpty($actual),
-            default                     => false,
+            default => false,
         };
     }
 

@@ -3,6 +3,8 @@
 namespace Lalalili\SurveyCore\Console\Commands;
 
 use Illuminate\Console\Command;
+use Lalalili\MarketingAutomation\Models\ActivityTemplate;
+use Lalalili\MarketingAutomation\Models\MarketingActivity;
 use Lalalili\SurveyCore\Actions\EvaluateAnswerRuleTreeAction;
 use Lalalili\SurveyCore\Actions\ImportSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Models\Survey;
@@ -94,7 +96,7 @@ class SeedSurveyDemoCommand extends Command
      */
     private function buildSchema(string $listType): array
     {
-        $examplePath = __DIR__ . '/../../../examples/abc-vehicle-owner-survey.builder.json';
+        $examplePath = __DIR__.'/../../../examples/abc-vehicle-owner-survey.builder.json';
 
         /** @var array<string, mixed> $schema */
         $schema = json_decode((string) file_get_contents($examplePath), true, flags: JSON_THROW_ON_ERROR);
@@ -129,51 +131,51 @@ class SeedSurveyDemoCommand extends Command
     /**
      * 建立兩個系統管理員預設的 DMS 觸發動作，供觸發規則以下拉選單參照。
      *
-     * @return array<string, SurveyTriggerActionPreset>  以 key 索引
+     * @return array<string, SurveyTriggerActionPreset> 以 key 索引
      */
     private function seedActionPresets(): array
     {
         $presets = [
             [
-                'key'         => 'dms_case',
-                'name'        => '顧關立案',
+                'key' => 'dms_case',
+                'name' => '顧關立案',
                 'description' => '低分填答自動於 DMS 建立顧客關懷案件',
                 'action_json' => [
-                    'type'                => 'http_post',
-                    'name'                => '顧關立案',
-                    'endpoint'            => 'https://example.com/webhook/dms-case',
-                    'headers'             => ['Authorization' => 'Bearer {{env.DMS_TOKEN}}'],
-                    'payload_template'    => [
-                        'source'      => 'survey',
+                    'type' => 'http_post',
+                    'name' => '顧關立案',
+                    'endpoint' => 'https://example.com/webhook/dms-case',
+                    'headers' => ['Authorization' => 'Bearer {{env.DMS_TOKEN}}'],
+                    'payload_template' => [
+                        'source' => 'survey',
                         'response_id' => '{{response.id}}',
-                        'mobile'      => '{{recipient.payload.mobile}}',
-                        'license'     => '{{recipient.payload.regono}}',
-                        'nps'         => '{{answer.vehicle_recommend_nps}}',
+                        'mobile' => '{{recipient.payload.mobile}}',
+                        'license' => '{{recipient.payload.regono}}',
+                        'nps' => '{{answer.vehicle_recommend_nps}}',
                     ],
-                    'timeout'             => 10,
-                    'retry'               => ['times' => 3, 'sleep_ms' => 200],
+                    'timeout' => 10,
+                    'retry' => ['times' => 3, 'sleep_ms' => 200],
                     // 顧管立案需對匿名公開填答也反應，維持 false。
                     'require_valid_token' => false,
                 ],
             ],
             [
-                'key'         => 'repair_voucher',
-                'name'        => '贈送維修抵用劵',
+                'key' => 'repair_voucher',
+                'name' => '贈送維修抵用劵',
                 'description' => '完成回填於 DMS 發送維修抵用劵（限有效邀請連結）',
                 'action_json' => [
-                    'type'                => 'http_post',
-                    'name'                => '贈送維修抵用劵',
-                    'endpoint'            => 'https://example.com/webhook/repair-voucher',
-                    'headers'             => ['Authorization' => 'Bearer {{env.DMS_TOKEN}}'],
-                    'payload_template'    => [
-                        'source'      => 'survey',
+                    'type' => 'http_post',
+                    'name' => '贈送維修抵用劵',
+                    'endpoint' => 'https://example.com/webhook/repair-voucher',
+                    'headers' => ['Authorization' => 'Bearer {{env.DMS_TOKEN}}'],
+                    'payload_template' => [
+                        'source' => 'survey',
                         'response_id' => '{{response.id}}',
-                        'mobile'      => '{{recipient.payload.mobile}}',
-                        'license'     => '{{recipient.payload.regono}}',
-                        'owner_name'  => '{{recipient.payload.username}}',
+                        'mobile' => '{{recipient.payload.mobile}}',
+                        'license' => '{{recipient.payload.regono}}',
+                        'owner_name' => '{{recipient.payload.username}}',
                     ],
-                    'timeout'             => 10,
-                    'retry'               => ['times' => 3, 'sleep_ms' => 200],
+                    'timeout' => 10,
+                    'retry' => ['times' => 3, 'sleep_ms' => 200],
                     // 發點券：限「邀請連結（token）且未逾期」填答（7 天由 token 視窗把關）。
                     'require_valid_token' => true,
                 ],
@@ -186,10 +188,10 @@ class SeedSurveyDemoCommand extends Command
             $preset = SurveyTriggerActionPreset::firstOrCreate(
                 ['key' => $def['key']],
                 [
-                    'name'        => $def['name'],
+                    'name' => $def['name'],
                     'description' => $def['description'],
                     'action_json' => $def['action_json'],
-                    'is_active'   => true,
+                    'is_active' => true,
                 ],
             );
             $result[$def['key']] = $preset;
@@ -209,7 +211,7 @@ class SeedSurveyDemoCommand extends Command
                 'name' => '低分顧關立案（Demo）',
                 // 規則樹採編輯器格式 {op, children}，後台「篩選條件」可正確顯示與編輯。
                 'rule_tree_json' => [
-                    'op'       => 'AND',
+                    'op' => 'AND',
                     'children' => [
                         ['field' => 'vehicle_recommend_nps', 'operator' => '<=', 'value' => '6'],
                     ],
@@ -225,7 +227,7 @@ class SeedSurveyDemoCommand extends Command
                 // （response_window_days，問卷填答時限）是不同用途、刻意設不一樣：
                 // demo 問卷開放 30 天可填，但只有 7 天內回填者才送券。require_valid_token 再防呆。
                 'rule_tree_json' => [
-                    'op'       => 'AND',
+                    'op' => 'AND',
                     'children' => [
                         ['field' => EvaluateAnswerRuleTreeAction::META_DAYS_SINCE_INVITATION, 'operator' => '<=', 'value' => '7'],
                     ],
@@ -240,9 +242,9 @@ class SeedSurveyDemoCommand extends Command
             SurveyTriggerRule::firstOrCreate(
                 ['survey_id' => $survey->id, 'name' => $def['name']],
                 [
-                    'is_active'       => true,
-                    'rule_tree_json'  => $def['rule_tree_json'],
-                    'actions_json'    => $def['actions_json'],
+                    'is_active' => true,
+                    'rule_tree_json' => $def['rule_tree_json'],
+                    'actions_json' => $def['actions_json'],
                     'triggered_count' => 0,
                 ],
             );
@@ -268,24 +270,24 @@ class SeedSurveyDemoCommand extends Command
 
     private function bindSurveyIdToActivities(Survey $csiSurvey, Survey $ssiSurvey): void
     {
-        if (! class_exists(\Lalalili\MarketingAutomation\Models\MarketingActivity::class)) {
+        if (! class_exists(MarketingActivity::class)) {
             return;
         }
 
-        $csiCount = \Lalalili\MarketingAutomation\Models\MarketingActivity::where('name', 'like', '%服務滿意度%（Demo）')
+        $csiCount = MarketingActivity::where('name', 'like', '%服務滿意度%（Demo）')
             ->update(['survey_id' => $csiSurvey->id]);
-        $ssiCount = \Lalalili\MarketingAutomation\Models\MarketingActivity::where('name', 'like', '%銷售滿意度%（Demo）')
+        $ssiCount = MarketingActivity::where('name', 'like', '%銷售滿意度%（Demo）')
             ->update(['survey_id' => $ssiSurvey->id]);
 
         $this->line("  MarketingActivity 綁定：服務滿意度 {$csiCount} 筆、銷售滿意度 {$ssiCount} 筆");
 
-        if (! class_exists(\Lalalili\MarketingAutomation\Models\ActivityTemplate::class)) {
+        if (! class_exists(ActivityTemplate::class)) {
             return;
         }
 
-        $csiTpl = \Lalalili\MarketingAutomation\Models\ActivityTemplate::where('name', 'like', '%服務滿意度%（Demo）')
+        $csiTpl = ActivityTemplate::where('name', 'like', '%服務滿意度%（Demo）')
             ->update(['survey_id' => $csiSurvey->id]);
-        $ssiTpl = \Lalalili\MarketingAutomation\Models\ActivityTemplate::where('name', 'like', '%銷售滿意度%（Demo）')
+        $ssiTpl = ActivityTemplate::where('name', 'like', '%銷售滿意度%（Demo）')
             ->update(['survey_id' => $ssiSurvey->id]);
 
         $this->line("  ActivityTemplate 綁定：服務滿意度 {$csiTpl} 筆、銷售滿意度 {$ssiTpl} 筆");
@@ -326,13 +328,13 @@ class SeedSurveyDemoCommand extends Command
         SurveyTriggerActionPreset::whereIn('key', ['dms_case', 'repair_voucher'])->delete();
 
         // Clear survey_id bindings so activities show "未綁定" until next dispatch seed
-        if (class_exists(\Lalalili\MarketingAutomation\Models\MarketingActivity::class)) {
-            \Lalalili\MarketingAutomation\Models\MarketingActivity::where('name', 'like', '%（Demo）')
+        if (class_exists(MarketingActivity::class)) {
+            MarketingActivity::where('name', 'like', '%（Demo）')
                 ->update(['survey_id' => null]);
         }
 
-        if (class_exists(\Lalalili\MarketingAutomation\Models\ActivityTemplate::class)) {
-            \Lalalili\MarketingAutomation\Models\ActivityTemplate::where('name', 'like', '%（Demo）')
+        if (class_exists(ActivityTemplate::class)) {
+            ActivityTemplate::where('name', 'like', '%（Demo）')
                 ->update(['survey_id' => null]);
         }
 

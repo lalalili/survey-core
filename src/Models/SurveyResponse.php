@@ -27,6 +27,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property SurveyResponseQualityStatus $quality_status
  * @property array<string, mixed>|null $quality_flags_json
  * @property string|null $notes
+ * @property bool $is_test
  * @property Carbon|null $created_at
  * @property-read Survey $survey
  * @property-read SurveyRecipient|null $recipient
@@ -60,12 +61,12 @@ class SurveyResponse extends Model implements HasMedia
     protected function casts(): array
     {
         return [
-            'completion_status'  => SurveyResponseCompletionStatus::class,
-            'quality_status'     => SurveyResponseQualityStatus::class,
+            'completion_status' => SurveyResponseCompletionStatus::class,
+            'quality_status' => SurveyResponseQualityStatus::class,
             'quality_flags_json' => 'array',
-            'calculations_json'  => 'array',
-            'submitted_at'       => 'datetime',
-            'is_test'            => 'boolean',
+            'calculations_json' => 'array',
+            'submitted_at' => 'datetime',
+            'is_test' => 'boolean',
         ];
     }
 

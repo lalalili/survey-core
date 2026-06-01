@@ -70,15 +70,17 @@ class ResolveActionPayloadAction
 
                 if (str_starts_with($token, 'recipient.payload.')) {
                     $key = substr($token, 18);
-                    $val = ($response->recipient?->payload_json ?? [])[$key] ?? '';
+                    $payload = $response->recipient?->payload_json;
+                    $val = is_array($payload) ? ($payload[$key] ?? '') : '';
 
                     return is_array($val) ? implode(',', $val) : (string) $val;
                 }
 
                 if (str_starts_with($token, 'recipient.')) {
                     $attr = substr($token, 10);
+                    $recipient = $response->recipient;
 
-                    return (string) ($response->recipient?->$attr ?? '');
+                    return $recipient !== null ? (string) ($recipient->$attr ?? '') : '';
                 }
 
                 if (str_starts_with($token, 'env.')) {

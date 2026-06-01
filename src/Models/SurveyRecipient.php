@@ -16,6 +16,7 @@ use Lalalili\SurveyCore\Enums\SurveyRecipientStatus;
  * @property string|null $email
  * @property string|null $external_id
  * @property array<string, mixed>|null $payload_json
+ * @property bool $is_test
  * @property SurveyRecipientStatus $status
  * @property-read Survey $survey
  * @property-read AudienceListRow|null $audienceListRow
@@ -38,9 +39,9 @@ class SurveyRecipient extends Model
     protected function casts(): array
     {
         return [
-            'status'       => SurveyRecipientStatus::class,
+            'status' => SurveyRecipientStatus::class,
             'payload_json' => 'array',
-            'is_test'      => 'boolean',
+            'is_test' => 'boolean',
         ];
     }
 

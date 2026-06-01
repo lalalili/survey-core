@@ -14,7 +14,7 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property bool $is_active
  * @property array<string, mixed> $rule_tree_json
- * @property array<string, mixed> $actions_json
+ * @property array<int, array<string, mixed>> $actions_json
  * @property Carbon|null $last_triggered_at
  * @property int $triggered_count
  * @property-read Survey $survey
@@ -35,11 +35,11 @@ class SurveyTriggerRule extends Model
     protected function casts(): array
     {
         return [
-            'is_active'         => 'boolean',
-            'rule_tree_json'    => 'array',
-            'actions_json'      => 'array',
+            'is_active' => 'boolean',
+            'rule_tree_json' => 'array',
+            'actions_json' => 'array',
             'last_triggered_at' => 'datetime',
-            'triggered_count'   => 'integer',
+            'triggered_count' => 'integer',
         ];
     }
 

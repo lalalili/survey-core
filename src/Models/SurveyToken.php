@@ -20,6 +20,7 @@ use Lalalili\SurveyCore\Enums\SurveyTokenStatus;
  * @property int $used_count
  * @property Carbon|null $last_used_at
  * @property Carbon|null $viewed_at
+ * @property Carbon|null $created_at
  * @property SurveyTokenStatus $status
  * @property-read Survey $survey
  * @property-read SurveyRecipient|null $recipient
@@ -42,12 +43,12 @@ class SurveyToken extends Model
     protected function casts(): array
     {
         return [
-            'status'          => SurveyTokenStatus::class,
-            'expires_at'      => 'datetime',
-            'last_used_at'    => 'datetime',
-            'viewed_at'       => 'datetime',
+            'status' => SurveyTokenStatus::class,
+            'expires_at' => 'datetime',
+            'last_used_at' => 'datetime',
+            'viewed_at' => 'datetime',
             'max_submissions' => 'integer',
-            'used_count'      => 'integer',
+            'used_count' => 'integer',
         ];
     }
 
