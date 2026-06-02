@@ -30,9 +30,9 @@ class SeedSurveyDemoCommand extends Command
 
     protected $description = '塞入問卷 Demo 資料（問卷結構、觸發規則、白名單）';
 
-    private const CSI_SURVEY_TITLE = '服務滿意度 售後服務滿意度調查（Demo）';
+    private const CSI_SURVEY_TITLE = '售後服務滿意度問卷（Demo）';
 
-    private const SSI_SURVEY_TITLE = '銷售滿意度 銷售滿意度調查（Demo）';
+    private const SSI_SURVEY_TITLE = '銷售滿意度問卷（Demo）';
 
     public function handle(ImportSurveyBuilderSchemaAction $importAction): int
     {
