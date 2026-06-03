@@ -101,24 +101,48 @@ class SeedSurveyDemoCommand extends Command
         /** @var array<string, mixed> $schema */
         $schema = json_decode((string) file_get_contents($examplePath), true, flags: JSON_THROW_ON_ERROR);
 
-        foreach ($schema['pages'] as &$page) {
-            if (($page['id'] ?? '') !== 'page_basic') {
-                continue;
-            }
+        // 銷售滿意度（SSI）：完全對齊客戶「銷售滿意度問卷.xlsx」——僅保留 10 題銷售題，
+        // 移除模板額外的「車輛使用體驗」頁，並逐題校正題目文字。
+        if ($listType === 'ssi') {
+            $keepPages = ['page_welcome', 'page_basic', 'page_sales_core', 'page_sales_test_drive', 'page_sales_delivery'];
+            $schema['pages'] = array_values(array_filter(
+                $schema['pages'],
+                fn (array $page): bool => in_array($page['id'] ?? '', $keepPages, true),
+            ));
+        }
 
+        $ssiLabels = $this->ssiQuestionLabels();
+
+        foreach ($schema['pages'] as &$page) {
             foreach ($page['elements'] as &$element) {
-                if (($element['field_key'] ?? '') === 'purchase_service_center') {
+                $key = $element['field_key'] ?? '';
+
+                if ($key === 'purchase_service_center') {
                     $element['is_hidden'] = true;
                     $element['personalized_key'] = 'dept';
                     $element['required'] = false;
-                    $element['label'] = $listType === 'csi' ? '服務部門' : '銷售部門';
+                    $element['label'] = $listType === 'csi' ? '服務部門' : '您購車的展示服務中心:';
                 }
 
-                if (($element['field_key'] ?? '') === 'vehicle_plate_number') {
+                if ($key === 'vehicle_plate_number') {
                     $element['is_hidden'] = true;
                     $element['personalized_key'] = 'regono';
                     $element['required'] = false;
-                    $element['label'] = '車牌號碼';
+                    $element['label'] = $listType === 'csi'
+                        ? '車牌號碼'
+                        : '您愛車的牌照號碼 (請正確填寫以避免保修抵用金無法入帳):';
+                }
+
+                // SSI 銷售題逐題對齊客戶原始問卷文字。
+                if ($listType === 'ssi' && isset($ssiLabels[$key])) {
+                    $element['label'] = $ssiLabels[$key];
+                }
+
+                // 試乘/試駕體驗滿意度（3-2）僅在「有試乘/試駕（是）」時顯示，對齊客戶問卷分支，
+                // 使未試駕者不需作答此必填題、且彙整平均僅計實際試駕者。
+                if ($listType === 'ssi' && $key === 'sales_test_drive_satisfaction') {
+                    $element['show_if_field_key'] = 'sales_test_drive_experience';
+                    $element['show_if_value'] = 'yes';
                 }
             }
             unset($element);
@@ -126,6 +150,28 @@ class SeedSurveyDemoCommand extends Command
         unset($page);
 
         return $schema;
+    }
+
+    /**
+     * 客戶「銷售滿意度問卷.xlsx」10 題銷售題的原始題目文字（field_key => label）。
+     *
+     * @return array<string, string>
+     */
+    private function ssiQuestionLabels(): array
+    {
+        return [
+            'sales_overall_satisfaction'                    => '1. 請問您對於此次購車過程整體滿意度？(1~10分，10分最高分)',
+            'sales_vehicle_intro_satisfaction'              => '2. 請問您對於銷售顧問在車輛介紹及服務積極滿意度？(1~10分，10分最高分)',
+            'sales_test_drive_experience'                   => '3. 請問您本次購車是否有試乘/試駕體驗？',
+            'sales_test_drive_satisfaction'                 => '請問您對於銷售顧問在試乘/試駕體驗說明及服務積極滿意度？(1~10分，10分最高分)',
+            'sales_charging_knowledge_satisfaction'         => '4. 請問您對於銷售顧問在充電服務等專業知識說明及服務積極滿意度？(1~10分，10分最高分)',
+            'sales_pre_delivery_service_satisfaction'       => '5. 請問您對於銷售顧問在交車前，相關家用充電、保險、分期、配件等手續辦理服務滿意度？(1~10分，10分最高分)',
+            'sales_delivery_checklist_satisfaction'         => '6. 請問交車時對銷售顧問按照交車確認單，逐一說明車輛功能的滿意度？(1~10分，10分最高分)',
+            'sales_service_center_intro_satisfaction'       => '7. 請問交車時對銷售顧問介紹服務中心聯絡方式及服務時間的滿意度？(1~10分，10分最高分)',
+            'sales_delivery_vehicle_condition_satisfaction' => '8. 請問您對於交車當天車輛外觀、內裝狀況滿意度？(1~10分，10分最高分)',
+            'sales_post_delivery_follow_up'                 => '9. 請問於交車後，銷售顧問是否主動關懷您車輛的使用狀況？(是/否)',
+            'sales_purchase_delivery_feedback'              => '10. 本次 購車、交車的過程中，若有任何建議，邀請您回饋',
+        ];
     }
 
     /**
@@ -137,45 +183,45 @@ class SeedSurveyDemoCommand extends Command
     {
         $presets = [
             [
-                'key' => 'dms_case',
-                'name' => '顧關立案',
+                'key'         => 'dms_case',
+                'name'        => '顧關立案',
                 'description' => '低分填答自動於 DMS 建立顧客關懷案件',
                 'action_json' => [
-                    'type' => 'http_post',
-                    'name' => '顧關立案',
-                    'endpoint' => 'https://example.com/webhook/dms-case',
-                    'headers' => ['Authorization' => 'Bearer {{env.DMS_TOKEN}}'],
+                    'type'             => 'http_post',
+                    'name'             => '顧關立案',
+                    'endpoint'         => 'https://example.com/webhook/dms-case',
+                    'headers'          => ['Authorization' => 'Bearer {{env.DMS_TOKEN}}'],
                     'payload_template' => [
-                        'source' => 'survey',
+                        'source'      => 'survey',
                         'response_id' => '{{response.id}}',
-                        'mobile' => '{{recipient.payload.mobile}}',
-                        'license' => '{{recipient.payload.regono}}',
-                        'nps' => '{{answer.vehicle_recommend_nps}}',
+                        'mobile'      => '{{recipient.payload.mobile}}',
+                        'license'     => '{{recipient.payload.regono}}',
+                        'nps'         => '{{answer.vehicle_recommend_nps}}',
                     ],
                     'timeout' => 10,
-                    'retry' => ['times' => 3, 'sleep_ms' => 200],
+                    'retry'   => ['times' => 3, 'sleep_ms' => 200],
                     // 顧管立案需對匿名公開填答也反應，維持 false。
                     'require_valid_token' => false,
                 ],
             ],
             [
-                'key' => 'repair_voucher',
-                'name' => '贈送維修抵用劵',
+                'key'         => 'repair_voucher',
+                'name'        => '贈送維修抵用劵',
                 'description' => '完成回填於 DMS 發送維修抵用劵（限有效邀請連結）',
                 'action_json' => [
-                    'type' => 'http_post',
-                    'name' => '贈送維修抵用劵',
-                    'endpoint' => 'https://example.com/webhook/repair-voucher',
-                    'headers' => ['Authorization' => 'Bearer {{env.DMS_TOKEN}}'],
+                    'type'             => 'http_post',
+                    'name'             => '贈送維修抵用劵',
+                    'endpoint'         => 'https://example.com/webhook/repair-voucher',
+                    'headers'          => ['Authorization' => 'Bearer {{env.DMS_TOKEN}}'],
                     'payload_template' => [
-                        'source' => 'survey',
+                        'source'      => 'survey',
                         'response_id' => '{{response.id}}',
-                        'mobile' => '{{recipient.payload.mobile}}',
-                        'license' => '{{recipient.payload.regono}}',
-                        'owner_name' => '{{recipient.payload.username}}',
+                        'mobile'      => '{{recipient.payload.mobile}}',
+                        'license'     => '{{recipient.payload.regono}}',
+                        'owner_name'  => '{{recipient.payload.username}}',
                     ],
                     'timeout' => 10,
-                    'retry' => ['times' => 3, 'sleep_ms' => 200],
+                    'retry'   => ['times' => 3, 'sleep_ms' => 200],
                     // 發點券：限「邀請連結（token）且未逾期」填答（7 天由 token 視窗把關）。
                     'require_valid_token' => true,
                 ],
@@ -188,10 +234,10 @@ class SeedSurveyDemoCommand extends Command
             $preset = SurveyTriggerActionPreset::firstOrCreate(
                 ['key' => $def['key']],
                 [
-                    'name' => $def['name'],
+                    'name'        => $def['name'],
                     'description' => $def['description'],
                     'action_json' => $def['action_json'],
-                    'is_active' => true,
+                    'is_active'   => true,
                 ],
             );
             $result[$def['key']] = $preset;
@@ -211,7 +257,7 @@ class SeedSurveyDemoCommand extends Command
                 'name' => '低分顧關立案（Demo）',
                 // 規則樹採編輯器格式 {op, children}，後台「篩選條件」可正確顯示與編輯。
                 'rule_tree_json' => [
-                    'op' => 'AND',
+                    'op'       => 'AND',
                     'children' => [
                         ['field' => 'vehicle_recommend_nps', 'operator' => '<=', 'value' => '6'],
                     ],
@@ -227,7 +273,7 @@ class SeedSurveyDemoCommand extends Command
                 // （response_window_days，問卷填答時限）是不同用途、刻意設不一樣：
                 // demo 問卷開放 30 天可填，但只有 7 天內回填者才送券。require_valid_token 再防呆。
                 'rule_tree_json' => [
-                    'op' => 'AND',
+                    'op'       => 'AND',
                     'children' => [
                         ['field' => EvaluateAnswerRuleTreeAction::META_DAYS_SINCE_INVITATION, 'operator' => '<=', 'value' => '7'],
                     ],
@@ -242,9 +288,9 @@ class SeedSurveyDemoCommand extends Command
             SurveyTriggerRule::firstOrCreate(
                 ['survey_id' => $survey->id, 'name' => $def['name']],
                 [
-                    'is_active' => true,
-                    'rule_tree_json' => $def['rule_tree_json'],
-                    'actions_json' => $def['actions_json'],
+                    'is_active'       => true,
+                    'rule_tree_json'  => $def['rule_tree_json'],
+                    'actions_json'    => $def['actions_json'],
                     'triggered_count' => 0,
                 ],
             );
