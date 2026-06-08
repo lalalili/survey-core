@@ -13,6 +13,7 @@ use Lalalili\SurveyCore\Actions\ExportSurveyResponsesAction;
 use Lalalili\SurveyCore\Actions\HydratePersonalizedFieldsAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
 use Lalalili\SurveyCore\Actions\ValidateSurveySubmissionAction;
+use Lalalili\SurveyCore\Console\Commands\PrunePartialDraftsCommand;
 use Lalalili\SurveyCore\Console\Commands\SeedSurveyDemoCommand;
 use Lalalili\SurveyCore\Console\Commands\SurveyScheduleCommand;
 use Lalalili\SurveyCore\Contracts\PersonalizationResolver;
@@ -70,6 +71,7 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 '2026_05_30_000001_create_survey_trigger_action_presets_table',
                 '2026_06_01_000001_add_is_test_to_survey_recipients_table',
                 '2026_06_01_000002_add_is_test_to_survey_responses_table',
+                '2026_06_05_204010_add_category_to_surveys_table',
             ])
             ->runsMigrations()
             ->hasRoutes(['web']);
@@ -112,12 +114,18 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
             $this->commands([
                 SurveyScheduleCommand::class,
                 SeedSurveyDemoCommand::class,
+                PrunePartialDraftsCommand::class,
             ]);
 
             $this->app->booted(function (): void {
-                $this->app->make(Schedule::class)
-                    ->command(SurveyScheduleCommand::class)
+                $schedule = $this->app->make(Schedule::class);
+
+                $schedule->command(SurveyScheduleCommand::class)
                     ->everyMinute()
+                    ->withoutOverlapping();
+
+                $schedule->command(PrunePartialDraftsCommand::class)
+                    ->daily()
                     ->withoutOverlapping();
             });
         }
@@ -132,9 +140,9 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
 
         // Export manager with built-in CSV and XLSX drivers
         $this->app->singleton(SurveyExportManager::class, function () {
-            $manager = new SurveyExportManager();
-            $manager->extend('csv', fn () => new CsvSurveyExportDriver());
-            $manager->extend('xlsx', fn () => new XlsxSurveyExportDriver());
+            $manager = new SurveyExportManager;
+            $manager->extend('csv', fn () => new CsvSurveyExportDriver);
+            $manager->extend('xlsx', fn () => new XlsxSurveyExportDriver);
 
             return $manager;
         });

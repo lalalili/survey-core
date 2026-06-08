@@ -3,11 +3,11 @@
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyAnswer;
 use Lalalili\SurveyCore\Models\SurveyCollector;
-use Lalalili\SurveyCore\Models\SurveyResponseConsent;
-use Lalalili\SurveyCore\Models\SurveyResponseEvent;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyRecipient;
 use Lalalili\SurveyCore\Models\SurveyResponse;
+use Lalalili\SurveyCore\Models\SurveyResponseConsent;
+use Lalalili\SurveyCore\Models\SurveyResponseEvent;
 use Lalalili\SurveyCore\Models\SurveyToken;
 use Lalalili\SurveyCore\Services\DefaultPersonalizationResolver;
 
@@ -20,14 +20,14 @@ return [
     | Override any model to swap out the default implementation.
     */
     'models' => [
-        'survey'           => Survey::class,
-        'field'            => SurveyField::class,
-        'recipient'        => SurveyRecipient::class,
-        'token'            => SurveyToken::class,
-        'response'         => SurveyResponse::class,
-        'answer'           => SurveyAnswer::class,
-        'collector'        => SurveyCollector::class,
-        'response_event'   => SurveyResponseEvent::class,
+        'survey' => Survey::class,
+        'field' => SurveyField::class,
+        'recipient' => SurveyRecipient::class,
+        'token' => SurveyToken::class,
+        'response' => SurveyResponse::class,
+        'answer' => SurveyAnswer::class,
+        'collector' => SurveyCollector::class,
+        'response_event' => SurveyResponseEvent::class,
         'response_consent' => SurveyResponseConsent::class,
     ],
 
@@ -37,14 +37,14 @@ return [
     |--------------------------------------------------------------------------
     */
     'table_names' => [
-        'surveys'                  => 'surveys',
-        'survey_fields'            => 'survey_fields',
-        'survey_recipients'        => 'survey_recipients',
-        'survey_tokens'            => 'survey_tokens',
-        'survey_responses'         => 'survey_responses',
-        'survey_answers'           => 'survey_answers',
-        'survey_collectors'        => 'survey_collectors',
-        'survey_response_events'   => 'survey_response_events',
+        'surveys' => 'surveys',
+        'survey_fields' => 'survey_fields',
+        'survey_recipients' => 'survey_recipients',
+        'survey_tokens' => 'survey_tokens',
+        'survey_responses' => 'survey_responses',
+        'survey_answers' => 'survey_answers',
+        'survey_collectors' => 'survey_collectors',
+        'survey_response_events' => 'survey_response_events',
         'survey_response_consents' => 'survey_response_consents',
     ],
 
@@ -89,11 +89,11 @@ return [
     'default_allow_multiple_submissions' => false,
 
     'security' => [
-        'rate_limit'        => '60,1',
-        'turnstile_verify'  => true,
-        'sanitize_html'     => true,
+        'rate_limit' => '60,1',
+        'turnstile_verify' => true,
+        'sanitize_html' => true,
         'min_submission_ms' => 3000,
-        'ip_blacklist'      => [],
+        'ip_blacklist' => [],
     ],
 
     'analytics' => [
@@ -107,6 +107,18 @@ return [
     */
     'exports' => [
         'default_driver' => 'csv',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Uploads
+    |--------------------------------------------------------------------------
+    | 檔案上傳會先建立一筆 Partial 暫存草稿回覆承載媒體。送出後媒體會被搬到
+    | 正式回覆並立即刪除已搬空的草稿；未送出而遭放棄的草稿，則由
+    | `survey:prune-partial-drafts` 於超過保留時數後清除。
+    */
+    'uploads' => [
+        'partial_draft_retention_hours' => 24,
     ],
 
     /*
@@ -151,8 +163,8 @@ return [
     */
     'webhooks' => [
         'endpoints' => [],
-        'timeout'   => 10,
-        'tries'     => 3,
+        'timeout' => 10,
+        'tries' => 3,
     ],
 
     /*
@@ -163,7 +175,7 @@ return [
     | Turnstile. Set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY in .env.
     */
     'turnstile' => [
-        'site_key'   => env('TURNSTILE_SITE_KEY'),
+        'site_key' => env('TURNSTILE_SITE_KEY'),
         'secret_key' => env('TURNSTILE_SECRET_KEY'),
     ],
 

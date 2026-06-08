@@ -246,8 +246,41 @@ class SubmitSurveyResponseAction
             return;
         }
 
+        $previousOwnerType = $media->model_type;
+        $previousOwnerId = $media->model_id;
+
         $media->model_type = $response->getMorphClass();
         $media->model_id = $response->getKey();
         $media->save();
+
+        $this->deleteEmptiedDraftResponse($previousOwnerType, $previousOwnerId, $response);
+    }
+
+    /**
+     * 媒體搬到正式回覆後，刪除已被搬空的 Partial 暫存草稿（避免孤兒列堆積）。
+     */
+    private function deleteEmptiedDraftResponse(?string $previousOwnerType, int|string|null $previousOwnerId, SurveyResponse $response): void
+    {
+        if ($previousOwnerId === null || (int) $previousOwnerId === (int) $response->getKey()) {
+            return;
+        }
+
+        if ($previousOwnerType !== $response->getMorphClass()) {
+            return;
+        }
+
+        $draft = SurveyResponse::query()->find($previousOwnerId);
+
+        if (! $draft instanceof SurveyResponse) {
+            return;
+        }
+
+        $isEmptiedDraft = $draft->completion_status === SurveyResponseCompletionStatus::Partial
+            && $draft->submitted_at === null
+            && $draft->getMedia('survey_files')->isEmpty();
+
+        if ($isEmptiedDraft) {
+            $draft->delete();
+        }
     }
 }

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Lalalili\SurveyCore\Data\SurveySettings;
+use Lalalili\SurveyCore\Enums\SurveyCategory;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Enums\SurveyUniquenessMode;
 
@@ -17,6 +18,7 @@ use Lalalili\SurveyCore\Enums\SurveyUniquenessMode;
  * @property string $title
  * @property string|null $description
  * @property SurveyStatus $status
+ * @property SurveyCategory|null $category
  * @property string $public_key
  * @property bool $allow_anonymous
  * @property bool $allow_multiple_submissions
@@ -51,6 +53,7 @@ class Survey extends Model
         'title',
         'description',
         'status',
+        'category',
         'public_key',
         'allow_anonymous',
         'allow_multiple_submissions',
@@ -73,19 +76,20 @@ class Survey extends Model
     protected function casts(): array
     {
         return [
-            'status'                     => SurveyStatus::class,
-            'allow_anonymous'            => 'boolean',
+            'status' => SurveyStatus::class,
+            'category' => SurveyCategory::class,
+            'allow_anonymous' => 'boolean',
             'allow_multiple_submissions' => 'boolean',
-            'max_responses'              => 'integer',
-            'starts_at'                  => 'datetime',
-            'ends_at'                    => 'datetime',
-            'uniqueness_mode'            => SurveyUniquenessMode::class,
-            'settings_json'              => 'array',
-            'theme_overrides_json'       => 'array',
-            'version'                    => 'integer',
-            'draft_schema'               => 'array',
-            'published_schema'           => 'array',
-            'published_at'               => 'datetime',
+            'max_responses' => 'integer',
+            'starts_at' => 'datetime',
+            'ends_at' => 'datetime',
+            'uniqueness_mode' => SurveyUniquenessMode::class,
+            'settings_json' => 'array',
+            'theme_overrides_json' => 'array',
+            'version' => 'integer',
+            'draft_schema' => 'array',
+            'published_schema' => 'array',
+            'published_at' => 'datetime',
         ];
     }
 
@@ -175,15 +179,15 @@ class Survey extends Model
     public function resolvedThemeTokens(): array
     {
         $defaults = [
-            'primary'      => '#6366f1',
-            'accent'       => '#f59e0b',
-            'background'   => '#ffffff',
-            'surface'      => '#f9fafb',
-            'text'         => '#111827',
-            'text_muted'   => '#6b7280',
-            'border'       => '#e5e7eb',
-            'font_family'  => 'system-ui, sans-serif',
-            'radius'       => '0.5rem',
+            'primary' => '#6366f1',
+            'accent' => '#f59e0b',
+            'background' => '#ffffff',
+            'surface' => '#f9fafb',
+            'text' => '#111827',
+            'text_muted' => '#6b7280',
+            'border' => '#e5e7eb',
+            'font_family' => 'system-ui, sans-serif',
+            'radius' => '0.5rem',
             'button_style' => 'filled',
         ];
 

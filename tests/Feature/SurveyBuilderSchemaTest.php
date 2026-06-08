@@ -744,3 +744,31 @@ it('does not bump the version when publishing an unchanged published survey', fu
         ->and($published->version)->toBe(2)
         ->and($published->published_schema['title'])->toBe('Already Published');
 });
+
+it('rejects enabling turnstile when server secret_key is not configured', function () {
+    config(['survey-core.turnstile.secret_key' => null]);
+
+    app(ValidateSurveyBuilderSchemaAction::class)->execute(builderSchema([
+        'settings' => ['anomaly' => ['turnstile' => true]],
+    ]));
+})->throws(SurveyValidationException::class);
+
+it('allows enabling turnstile when server secret_key is configured', function () {
+    config(['survey-core.turnstile.secret_key' => 'test-secret']);
+
+    $validated = app(ValidateSurveyBuilderSchemaAction::class)->execute(builderSchema([
+        'settings' => ['anomaly' => ['turnstile' => true]],
+    ]));
+
+    expect($validated['settings']['anomaly']['turnstile'])->toBeTrue();
+});
+
+it('allows turnstile disabled even without secret_key', function () {
+    config(['survey-core.turnstile.secret_key' => null]);
+
+    $validated = app(ValidateSurveyBuilderSchemaAction::class)->execute(builderSchema([
+        'settings' => ['anomaly' => ['turnstile' => false]],
+    ]));
+
+    expect($validated['settings']['anomaly']['turnstile'] ?? false)->toBeFalse();
+});

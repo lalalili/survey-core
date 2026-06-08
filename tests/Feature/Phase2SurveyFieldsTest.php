@@ -8,6 +8,7 @@ use Lalalili\SurveyCore\Contracts\PersonalizationResolver;
 use Lalalili\SurveyCore\Data\SubmissionPayload;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyPageKind;
+use Lalalili\SurveyCore\Enums\SurveyResponseCompletionStatus;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
 use Lalalili\SurveyCore\Http\Controllers\PublicSurveyController;
@@ -286,11 +287,17 @@ it('uploads files through media library and stores returned media metadata as an
 
     $upload->assertCreated();
 
+    // 上傳時建立的 Partial 暫存草稿
+    $draft = SurveyResponse::where('completion_status', SurveyResponseCompletionStatus::Partial->value)->sole();
+
     $response = app(SubmitSurveyResponseAction::class)->execute(
         $survey->refresh()->load('fields'),
         new SubmissionPayload(['resume' => $upload->json()]),
     );
 
     expect($response->answers->first()->getValue()['media_id'])->toBe($upload->json('media_id'))
-        ->and(SurveyResponse::find($response->id)?->getMedia('survey_files'))->toHaveCount(1);
+        ->and(SurveyResponse::find($response->id)?->getMedia('survey_files'))->toHaveCount(1)
+        // 媒體搬到正式回覆後，已搬空的暫存草稿應被刪除
+        ->and(SurveyResponse::find($draft->id))->toBeNull()
+        ->and(SurveyResponse::where('completion_status', SurveyResponseCompletionStatus::Partial->value)->count())->toBe(0);
 });

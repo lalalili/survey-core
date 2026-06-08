@@ -2,6 +2,7 @@
 
 namespace Lalalili\SurveyCore\Actions;
 
+use Illuminate\Database\Eloquent\Collection;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Services\Exports\SurveyExportManager;
@@ -11,28 +12,50 @@ class ExportSurveyResponsesAction
 {
     public function __construct(
         private readonly SurveyExportManager $exportManager,
-    ) {
-    }
+    ) {}
 
-    public function execute(Survey $survey, ?string $driver = null): StreamedResponse
+    /**
+     * 匯出問卷回覆。
+     *
+     * 預設匯出該問卷的全部回覆；若提供 $responses，則只匯出該子集
+     * （例如列表頁批次勾選的回覆），且子集中的回覆必須皆屬於 $survey。
+     *
+     * $answersOnly = true 時只輸出各題答案欄，省略 metadata（Response ID、
+     * 提交時間、IP、完成狀態、收件人）與計算欄。
+     *
+     * @param  Collection<int, SurveyResponse>|null  $responses
+     */
+    public function execute(Survey $survey, ?string $driver = null, ?Collection $responses = null, bool $answersOnly = false): StreamedResponse
     {
         $driver ??= config('survey-core.exports.default_driver', 'csv');
 
-        $survey->load(['fields', 'calculations', 'responses.answers.field', 'responses.recipient', 'responses.token']);
+        $survey->loadMissing(['fields', 'calculations']);
+
+        if ($responses === null) {
+            $survey->load(['responses.answers.field', 'responses.recipient', 'responses.token']);
+            $responses = $survey->responses;
+        } else {
+            $responses = $responses
+                ->filter(fn (SurveyResponse $response): bool => $response->survey_id === $survey->id)
+                ->values();
+            $responses->load(['answers.field', 'recipient', 'token']);
+        }
 
         $fields = $survey->fields;
         $calculations = $survey->calculations;
 
-        $headers = array_merge(
-            ['Response ID', 'Submitted At', 'IP', 'Completion Status', 'Recipient Name', 'Recipient Email', 'Recipient External ID'],
-            $fields->pluck('label')->all(),
-            $calculations->pluck('label')->all(),
-        );
+        $headers = $answersOnly
+            ? $fields->pluck('label')->all()
+            : array_merge(
+                ['Response ID', 'Submitted At', 'IP', 'Completion Status', 'Recipient Name', 'Recipient Email', 'Recipient External ID'],
+                $fields->pluck('label')->all(),
+                $calculations->pluck('label')->all(),
+            );
 
-        $rows = $survey->responses->map(function (SurveyResponse $response) use ($fields, $calculations): array {
+        $rows = $responses->map(function (SurveyResponse $response) use ($fields, $calculations, $answersOnly): array {
             $answersByFieldId = $response->answers->keyBy('survey_field_id');
 
-            $row = [
+            $row = $answersOnly ? [] : [
                 $response->id,
                 $response->submitted_at?->toIso8601String(),
                 $response->ip,
@@ -48,8 +71,10 @@ class ExportSurveyResponsesAction
                 $row[] = is_array($value) ? implode(', ', $value) : $value;
             }
 
-            foreach ($calculations as $calculation) {
-                $row[] = $response->calculations_json[$calculation->key] ?? null;
+            if (! $answersOnly) {
+                foreach ($calculations as $calculation) {
+                    $row[] = $response->calculations_json[$calculation->key] ?? null;
+                }
             }
 
             return $row;

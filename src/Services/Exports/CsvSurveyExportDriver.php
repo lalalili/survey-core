@@ -25,15 +25,16 @@ class CsvSurveyExportDriver implements SurveyExportDriver
             // UTF-8 BOM for Excel compatibility
             fwrite($handle, "\xEF\xBB\xBF");
 
-            fputcsv($handle, $headers);
+            // 顯式帶入 $escape（PHP 8.4 起未帶會觸發棄用警告；空字串為 RFC 4180 相容值）
+            fputcsv($handle, $headers, ',', '"', '');
 
             foreach ($rows as $row) {
-                fputcsv($handle, array_map(fn ($v) => $v ?? '', $row));
+                fputcsv($handle, array_map(fn ($v) => $v ?? '', $row), ',', '"', '');
             }
 
             fclose($handle);
         }, 200, [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }
