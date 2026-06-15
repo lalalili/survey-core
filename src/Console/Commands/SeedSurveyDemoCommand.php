@@ -3,8 +3,6 @@
 namespace Lalalili\SurveyCore\Console\Commands;
 
 use Illuminate\Console\Command;
-use Lalalili\MarketingAutomation\Models\ActivityTemplate;
-use Lalalili\MarketingAutomation\Models\MarketingActivity;
 use Lalalili\SurveyCore\Actions\EvaluateAnswerRuleTreeAction;
 use Lalalili\SurveyCore\Actions\ImportSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Models\Survey;
@@ -25,6 +23,10 @@ use Lalalili\SurveyCore\Models\SurveyTriggerRule;
  */
 class SeedSurveyDemoCommand extends Command
 {
+    private const ACTIVITY_TEMPLATE_CLASS = 'Lalalili\\MarketingAutomation\\Models\\ActivityTemplate';
+
+    private const MARKETING_ACTIVITY_CLASS = 'Lalalili\\MarketingAutomation\\Models\\MarketingActivity';
+
     protected $signature = 'survey:seed-demo
                             {--fresh : 先刪除舊的 demo 問卷資料再重建}';
 
@@ -316,24 +318,32 @@ class SeedSurveyDemoCommand extends Command
 
     private function bindSurveyIdToActivities(Survey $csiSurvey, Survey $ssiSurvey): void
     {
-        if (! class_exists(MarketingActivity::class)) {
+        if (! class_exists(self::MARKETING_ACTIVITY_CLASS)) {
+            $this->line('  MarketingActivity 綁定：略過（未安裝 lalalili/marketing-automation）');
+
             return;
         }
 
-        $csiCount = MarketingActivity::where('name', 'like', '%服務滿意度%（Demo）')
+        $marketingActivityClass = self::MARKETING_ACTIVITY_CLASS;
+
+        $csiCount = $marketingActivityClass::where('name', 'like', '%服務滿意度%（Demo）')
             ->update(['survey_id' => $csiSurvey->id]);
-        $ssiCount = MarketingActivity::where('name', 'like', '%銷售滿意度%（Demo）')
+        $ssiCount = $marketingActivityClass::where('name', 'like', '%銷售滿意度%（Demo）')
             ->update(['survey_id' => $ssiSurvey->id]);
 
         $this->line("  MarketingActivity 綁定：服務滿意度 {$csiCount} 筆、銷售滿意度 {$ssiCount} 筆");
 
-        if (! class_exists(ActivityTemplate::class)) {
+        if (! class_exists(self::ACTIVITY_TEMPLATE_CLASS)) {
+            $this->line('  ActivityTemplate 綁定：略過（未安裝 lalalili/marketing-automation）');
+
             return;
         }
 
-        $csiTpl = ActivityTemplate::where('name', 'like', '%服務滿意度%（Demo）')
+        $activityTemplateClass = self::ACTIVITY_TEMPLATE_CLASS;
+
+        $csiTpl = $activityTemplateClass::where('name', 'like', '%服務滿意度%（Demo）')
             ->update(['survey_id' => $csiSurvey->id]);
-        $ssiTpl = ActivityTemplate::where('name', 'like', '%銷售滿意度%（Demo）')
+        $ssiTpl = $activityTemplateClass::where('name', 'like', '%銷售滿意度%（Demo）')
             ->update(['survey_id' => $ssiSurvey->id]);
 
         $this->line("  ActivityTemplate 綁定：服務滿意度 {$csiTpl} 筆、銷售滿意度 {$ssiTpl} 筆");
@@ -374,13 +384,17 @@ class SeedSurveyDemoCommand extends Command
         SurveyTriggerActionPreset::whereIn('key', ['dms_case', 'repair_voucher'])->delete();
 
         // Clear survey_id bindings so activities show "未綁定" until next dispatch seed
-        if (class_exists(MarketingActivity::class)) {
-            MarketingActivity::where('name', 'like', '%（Demo）')
+        if (class_exists(self::MARKETING_ACTIVITY_CLASS)) {
+            $marketingActivityClass = self::MARKETING_ACTIVITY_CLASS;
+
+            $marketingActivityClass::where('name', 'like', '%（Demo）')
                 ->update(['survey_id' => null]);
         }
 
-        if (class_exists(ActivityTemplate::class)) {
-            ActivityTemplate::where('name', 'like', '%（Demo）')
+        if (class_exists(self::ACTIVITY_TEMPLATE_CLASS)) {
+            $activityTemplateClass = self::ACTIVITY_TEMPLATE_CLASS;
+
+            $activityTemplateClass::where('name', 'like', '%（Demo）')
                 ->update(['survey_id' => null]);
         }
 
