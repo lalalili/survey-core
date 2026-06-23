@@ -2,6 +2,7 @@
 
 use Illuminate\Events\CallQueuedListener;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Lalalili\EmailCampaign\Actions\SendTransactionalEmailAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
@@ -10,6 +11,7 @@ use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Events\SurveySubmitted;
 use Lalalili\SurveyCore\Listeners\SendSurveyResponseNotification;
+use Lalalili\SurveyCore\Mail\SurveyResponseReceivedMail;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyField;
 
@@ -87,6 +89,24 @@ it('sends notification to global config recipients', function () {
         ->withArgs(fn ($to) => in_array('admin@example.com', $to) && in_array('manager@example.com', $to) && count($to) === 2);
 
     (new SendSurveyResponseNotification())->handle($event);
+});
+
+it('falls back to Laravel mail when email campaign integration is disabled', function () {
+    Mail::fake();
+
+    $mock = Mockery::mock(SendTransactionalEmailAction::class);
+    app()->instance(SendTransactionalEmailAction::class, $mock);
+    $mock->shouldNotReceive('executeWithMailable');
+
+    config()->set('survey-core.integrations.email_campaign.enabled', false);
+    config()->set('survey-core.notifications.new_response_notify_emails', ['admin@example.com']);
+
+    $survey = notificationSurvey();
+    $event = submitAndGetEvent($survey);
+
+    (new SendSurveyResponseNotification())->handle($event);
+
+    Mail::assertQueued(SurveyResponseReceivedMail::class, fn (SurveyResponseReceivedMail $mail) => $mail->hasTo('admin@example.com'));
 });
 
 // ── Per-survey recipients ─────────────────────────────────────────────────────

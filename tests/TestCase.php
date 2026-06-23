@@ -15,12 +15,17 @@ abstract class TestCase extends PackageTestCase
 {
     protected function getPackageProviders($app): array
     {
-        return [
+        $providers = [
             AudienceCoreServiceProvider::class,
-            EmailCampaignServiceProvider::class,
             MediaLibraryServiceProvider::class,
             SurveyCoreServiceProvider::class,
         ];
+
+        if (class_exists(EmailCampaignServiceProvider::class)) {
+            $providers[] = EmailCampaignServiceProvider::class;
+        }
+
+        return $providers;
     }
 
     protected function defineDatabaseMigrations(): void
@@ -50,7 +55,11 @@ abstract class TestCase extends PackageTestCase
         });
 
         $this->loadMigrationsFrom(__DIR__.'/../../audience-core/database/migrations');
-        $this->loadMigrationsFrom(__DIR__.'/../../email-campaign/database/migrations');
+
+        if (class_exists(EmailCampaignServiceProvider::class)) {
+            $this->loadMigrationsFrom(__DIR__.'/../../email-campaign/database/migrations');
+        }
+
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         DB::statement('PRAGMA foreign_keys = ON');
     }

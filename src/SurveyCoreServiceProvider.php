@@ -27,6 +27,7 @@ use Lalalili\SurveyCore\Listeners\SendSurveyResponseNotification;
 use Lalalili\SurveyCore\Services\Exports\CsvSurveyExportDriver;
 use Lalalili\SurveyCore\Services\Exports\SurveyExportManager;
 use Lalalili\SurveyCore\Services\Exports\XlsxSurveyExportDriver;
+use Lalalili\SurveyCore\Support\EmailCampaignIntegration;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -103,10 +104,8 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
             __DIR__.'/../resources/views' => resource_path('views/vendor/survey-core'),
         ], 'survey-core-views');
 
-        $variableProviderRegistry = 'Lalalili\\EmailCampaign\\Support\\VariableProviderRegistry';
-
-        if (class_exists($variableProviderRegistry)) {
-            $this->app->make($variableProviderRegistry)
+        if (EmailCampaignIntegration::enabled()) {
+            $this->app->make(EmailCampaignIntegration::variableProviderRegistryClass())
                 ->register($this->app->make(SurveyVariableProvider::class));
         }
 

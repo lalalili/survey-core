@@ -134,6 +134,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Optional Integrations
+    |--------------------------------------------------------------------------
+    | Set email_campaign.enabled to false to keep survey-core from registering
+    | email-campaign variable providers or using the tracked transactional mail
+    | pipeline, even when lalalili/email-campaign is installed.
+    */
+    'integrations' => [
+        'email_campaign' => [
+            'enabled' => env('SURVEY_EMAIL_CAMPAIGN_ENABLED'),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Notifications
     |--------------------------------------------------------------------------
     | Email notification sent when a new response is submitted.

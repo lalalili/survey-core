@@ -6,6 +6,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Mail;
 use Lalalili\SurveyCore\Events\SurveySubmitted;
 use Lalalili\SurveyCore\Mail\SurveyResponseReceivedMail;
+use Lalalili\SurveyCore\Support\EmailCampaignIntegration;
 
 class SendSurveyResponseNotification implements ShouldQueue
 {
@@ -19,10 +20,9 @@ class SendSurveyResponseNotification implements ShouldQueue
 
         $mailable = new SurveyResponseReceivedMail($event->survey, $event->response);
 
-        // Route through email-campaign transactional pipeline for delivery tracking when available
-        $transactionalClass = 'Lalalili\\EmailCampaign\\Actions\\SendTransactionalEmailAction';
+        $transactionalClass = EmailCampaignIntegration::transactionalEmailActionClass();
 
-        if (class_exists($transactionalClass)) {
+        if (EmailCampaignIntegration::enabled() && class_exists($transactionalClass)) {
             app($transactionalClass)->executeWithMailable(
                 $recipients,
                 $mailable,
