@@ -286,6 +286,7 @@ it('uploads files through media library and stores returned media metadata as an
     ]);
 
     $upload->assertCreated();
+    expect($upload->json('upload_token'))->toBeString()->not->toBe('');
 
     // 上傳時建立的 Partial 暫存草稿
     $draft = SurveyResponse::where('completion_status', SurveyResponseCompletionStatus::Partial->value)->sole();
@@ -301,3 +302,48 @@ it('uploads files through media library and stores returned media metadata as an
         ->and(SurveyResponse::find($draft->id))->toBeNull()
         ->and(SurveyResponse::where('completion_status', SurveyResponseCompletionStatus::Partial->value)->count())->toBe(0);
 });
+
+it('rejects file upload answers when the upload token is missing', function (): void {
+    if (! Schema::hasTable('media')) {
+        Schema::create('media', function ($table): void {
+            $table->id();
+            $table->morphs('model');
+            $table->uuid()->nullable()->unique();
+            $table->string('collection_name');
+            $table->string('name');
+            $table->string('file_name');
+            $table->string('mime_type')->nullable();
+            $table->string('disk');
+            $table->string('conversions_disk')->nullable();
+            $table->unsignedBigInteger('size');
+            $table->json('manipulations');
+            $table->json('custom_properties');
+            $table->json('generated_conversions');
+            $table->json('responsive_images');
+            $table->unsignedInteger('order_column')->nullable()->index();
+            $table->nullableTimestamps();
+        });
+    }
+
+    $survey = phase2Survey();
+    phase2Field($survey, SurveyFieldType::FileUpload, [
+        'field_key' => 'resume',
+        'settings_json' => ['max_size_mb' => 1, 'allowed_mimes' => ['pdf']],
+    ]);
+
+    $upload = $this->post('/survey-test/'.$survey->public_key.'/upload', [
+        'field_key' => 'resume',
+        'file' => UploadedFile::fake()->create('resume.pdf', 12, 'application/pdf'),
+    ]);
+
+    app(SubmitSurveyResponseAction::class)->execute(
+        $survey->refresh()->load('fields'),
+        new SubmissionPayload([
+            'resume' => [
+                'media_id' => $upload->json('media_id'),
+                'filename' => $upload->json('filename'),
+                'size' => $upload->json('size'),
+            ],
+        ]),
+    );
+})->throws(SurveyValidationException::class);

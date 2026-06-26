@@ -21,8 +21,7 @@ class SurveyResponseReceivedMail extends Mailable implements ShouldQueue
     public function __construct(
         public readonly Survey $survey,
         public readonly SurveyResponse $response,
-    ) {
-    }
+    ) {}
 
     public function envelope(): Envelope
     {
@@ -36,12 +35,13 @@ class SurveyResponseReceivedMail extends Mailable implements ShouldQueue
         return new Content(
             view: 'survey-core::mail.response-received',
             with: [
-                'surveyTitle'    => $this->survey->title,
-                'responseId'     => $this->response->id,
-                'submittedAt'    => $this->response->submitted_at?->format('Y-m-d H:i'),
-                'recipientName'  => $this->response->recipient?->name,
+                'surveyTitle' => $this->survey->title,
+                'responseId' => $this->response->id,
+                'responseNumber' => $this->response->response_number,
+                'submittedAt' => $this->response->submitted_at?->format('Y-m-d H:i'),
+                'recipientName' => $this->response->recipient?->name,
                 'recipientEmail' => $this->response->recipient?->email,
-                'collectorName'  => $this->response->collector?->name,
+                'collectorName' => $this->response->collector?->name,
             ],
         );
     }

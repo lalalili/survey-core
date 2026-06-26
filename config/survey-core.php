@@ -96,6 +96,26 @@ return [
         'ip_blacklist' => [],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Phone Validation
+    |--------------------------------------------------------------------------
+    | Regex patterns and error messages for phone / mobile fields, keyed by
+    | locale. A field may override the locale via settings_json['phone_locale'];
+    | otherwise `default_locale` applies. Defaults preserve the Taiwan 09 format.
+    */
+    'phone' => [
+        'default_locale' => env('SURVEY_PHONE_LOCALE', 'tw'),
+        'patterns' => [
+            'tw' => '/^09\d{8}$/',
+            'intl' => '/^\+?[1-9]\d{6,14}$/',
+        ],
+        'messages' => [
+            'tw' => '請輸入 09 開頭的 10 碼手機號碼。',
+            'intl' => '請輸入有效的電話號碼（可含國碼，例如 +886912345678）。',
+        ],
+    ],
+
     'analytics' => [
         'retention_days' => 365,
     ],
@@ -119,6 +139,13 @@ return [
     */
     'uploads' => [
         'partial_draft_retention_hours' => 24,
+        'token_ttl_minutes' => 30,
+    ],
+
+    'builder_images' => [
+        'disk' => env('SURVEY_BUILDER_IMAGES_DISK', 'public'),
+        'max_size' => (int) env('SURVEY_BUILDER_IMAGES_MAX_SIZE', 5120),
+        'accepted_mimes' => ['jpg', 'jpeg', 'png', 'webp', 'gif'],
     ],
 
     /*
@@ -158,6 +185,21 @@ return [
     */
     'notifications' => [
         'new_response_notify_emails' => [],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Trigger Actions
+    |--------------------------------------------------------------------------
+    | HTTP trigger headers may reference selected environment variables with
+    | {{env.KEY}} tokens. Keep this list narrow to avoid exposing unrelated
+    | process environment values through user-configured webhook headers.
+    */
+    'triggers' => [
+        'header_env_keys' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('SURVEY_TRIGGER_HEADER_ENV_KEYS', '')),
+        ))),
     ],
 
     /*

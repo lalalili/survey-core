@@ -6,19 +6,20 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Lalalili\SurveyCore\Data\SurveySettings;
-use Lalalili\SurveyCore\Enums\SurveyCategory;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Enums\SurveyUniquenessMode;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 /**
  * @property int $id
  * @property string $title
  * @property string|null $description
  * @property SurveyStatus $status
- * @property SurveyCategory|null $category
+ * @property string|null $category
  * @property string $public_key
  * @property bool $allow_anonymous
  * @property bool $allow_multiple_submissions
@@ -49,6 +50,9 @@ use Lalalili\SurveyCore\Enums\SurveyUniquenessMode;
  */
 class Survey extends Model
 {
+    use LogsActivity;
+    use SoftDeletes;
+
     protected $fillable = [
         'title',
         'description',
@@ -77,7 +81,6 @@ class Survey extends Model
     {
         return [
             'status' => SurveyStatus::class,
-            'category' => SurveyCategory::class,
             'allow_anonymous' => 'boolean',
             'allow_multiple_submissions' => 'boolean',
             'max_responses' => 'integer',

@@ -8,19 +8,19 @@ if (! function_exists('kindQuestionPage')) {
     function kindQuestionPage(string $id, string $kind = 'question', bool $required = false): array
     {
         return [
-            'id'       => $id,
-            'kind'     => $kind,
-            'title'    => $id,
+            'id' => $id,
+            'kind' => $kind,
+            'title' => $id,
             'elements' => [[
-                'id'          => 'q_'.$id,
-                'type'        => 'short_text',
-                'field_key'   => 'field_'.$id,
-                'label'       => 'Field '.$id,
+                'id' => 'q_'.$id,
+                'type' => 'short_text',
+                'field_key' => 'field_'.$id,
+                'label' => 'Field '.$id,
                 'description' => '',
-                'required'    => $required,
+                'required' => $required,
                 'placeholder' => null,
-                'options'     => [],
-                'settings'    => [],
+                'options' => [],
+                'settings' => [],
             ]],
         ];
     }
@@ -29,18 +29,18 @@ if (! function_exists('kindQuestionPage')) {
 function progressSchema(string $mode = 'bar', int $estimatedMinutes = 5): array
 {
     return [
-        'id'       => 1,
-        'title'    => 'Progress Survey',
-        'status'   => 'draft',
-        'version'  => 1,
+        'id' => 1,
+        'title' => 'Progress Survey',
+        'status' => 'draft',
+        'version' => 1,
         'settings' => ['progress' => ['mode' => $mode, 'show_estimated_time' => true]],
-        'pages'    => [
+        'pages' => [
             [
-                'id'               => 'welcome',
-                'kind'             => 'welcome',
-                'title'            => 'Welcome',
+                'id' => 'welcome',
+                'kind' => 'welcome',
+                'title' => 'Welcome',
                 'welcome_settings' => ['cta_label' => 'Start', 'estimated_time_minutes' => $estimatedMinutes, 'subtitle' => 'Intro'],
-                'elements'         => [],
+                'elements' => [],
             ],
             kindQuestionPage('page_1'),
             kindQuestionPage('page_2'),

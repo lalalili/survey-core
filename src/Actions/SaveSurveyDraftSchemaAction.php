@@ -13,8 +13,7 @@ class SaveSurveyDraftSchemaAction
         private readonly SanitizeSurveyBuilderSchemaAction $sanitizeSchema,
         private readonly SyncSurveyBuilderSchemaToFieldsAction $syncSchemaToFields,
         private readonly SurveyBuilderSurveySettings $surveySettings,
-    ) {
-    }
+    ) {}
 
     /**
      * @param  array<string, mixed>  $schema
@@ -25,19 +24,25 @@ class SaveSurveyDraftSchemaAction
         $schema = $this->sanitizeSchema->execute($schema);
         $schema = $this->surveySettings->normalizeSchema($schema);
 
-        return DB::transaction(function () use ($survey, $schema): Survey {
-            $survey->update([
-                ...$this->surveySettings->surveyAttributesFromSchema($schema),
-                'settings_json'        => $this->surveySettings->settingsJsonFromSchema($schema, $survey->settings_json),
-                'theme_id'             => $schema['theme_id'] ?? null,
-                'theme_overrides_json' => $schema['theme_overrides'] ?? null,
-                'draft_schema'         => $schema,
-            ]);
+        $survey->disableLogging();
 
-            $refreshed = $survey->refresh();
-            $this->syncSchemaToFields->execute($refreshed, $schema);
+        try {
+            return DB::transaction(function () use ($survey, $schema): Survey {
+                $survey->update([
+                    ...$this->surveySettings->surveyAttributesFromSchema($schema),
+                    'settings_json' => $this->surveySettings->settingsJsonFromSchema($schema, $survey->settings_json),
+                    'theme_id' => $schema['theme_id'] ?? null,
+                    'theme_overrides_json' => $schema['theme_overrides'] ?? null,
+                    'draft_schema' => $schema,
+                ]);
 
-            return $refreshed->refresh();
-        });
+                $refreshed = $survey->refresh();
+                $this->syncSchemaToFields->execute($refreshed, $schema);
+
+                return $refreshed->refresh();
+            });
+        } finally {
+            $survey->enableLogging();
+        }
     }
 }

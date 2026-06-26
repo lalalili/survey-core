@@ -24,11 +24,11 @@ class GenerateSurveyTokenAction
         }
 
         return SurveyToken::create([
-            'survey_id'           => $survey->id,
+            'survey_id' => $survey->id,
             'survey_recipient_id' => $recipient->id,
-            'max_submissions'     => $maxSubmissions ?? config('survey-core.default_max_submissions'),
-            'expires_at'          => $expiresAt,
-            'status'              => SurveyTokenStatus::Active,
+            'max_submissions' => $maxSubmissions ?? config('survey-core.default_max_submissions'),
+            'expires_at' => $expiresAt,
+            'status' => SurveyTokenStatus::Active,
         ]);
     }
 }

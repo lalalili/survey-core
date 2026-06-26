@@ -13,7 +13,9 @@ use Lalalili\SurveyCore\Actions\ExportSurveyResponsesAction;
 use Lalalili\SurveyCore\Actions\HydratePersonalizedFieldsAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
 use Lalalili\SurveyCore\Actions\ValidateSurveySubmissionAction;
+use Lalalili\SurveyCore\Console\Commands\CheckTurnstileConfigCommand;
 use Lalalili\SurveyCore\Console\Commands\PrunePartialDraftsCommand;
+use Lalalili\SurveyCore\Console\Commands\RunTriggerRulesCommand;
 use Lalalili\SurveyCore\Console\Commands\SeedSurveyDemoCommand;
 use Lalalili\SurveyCore\Console\Commands\SurveyScheduleCommand;
 use Lalalili\SurveyCore\Contracts\PersonalizationResolver;
@@ -28,6 +30,7 @@ use Lalalili\SurveyCore\Services\Exports\CsvSurveyExportDriver;
 use Lalalili\SurveyCore\Services\Exports\SurveyExportManager;
 use Lalalili\SurveyCore\Services\Exports\XlsxSurveyExportDriver;
 use Lalalili\SurveyCore\Support\EmailCampaignIntegration;
+use Lalalili\SurveyCore\Support\SurveyFileUploadToken;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -73,6 +76,12 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 '2026_06_01_000001_add_is_test_to_survey_recipients_table',
                 '2026_06_01_000002_add_is_test_to_survey_responses_table',
                 '2026_06_05_204010_add_category_to_surveys_table',
+                '2026_06_11_000001_add_schedule_to_survey_trigger_rules',
+                '2026_06_11_000002_create_survey_trigger_rule_runs_table',
+                '2026_06_12_000001_add_invitation_opened_at_to_survey_recipients_table',
+                '2026_06_15_000001_add_soft_deletes_to_surveys',
+                '2026_06_15_000002_add_soft_deletes_to_survey_responses',
+                '2026_06_18_175033_add_response_number_to_survey_responses_table',
             ])
             ->runsMigrations()
             ->hasRoutes(['web']);
@@ -114,12 +123,18 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 SurveyScheduleCommand::class,
                 SeedSurveyDemoCommand::class,
                 PrunePartialDraftsCommand::class,
+                RunTriggerRulesCommand::class,
+                CheckTurnstileConfigCommand::class,
             ]);
 
             $this->app->booted(function (): void {
                 $schedule = $this->app->make(Schedule::class);
 
                 $schedule->command(SurveyScheduleCommand::class)
+                    ->everyMinute()
+                    ->withoutOverlapping();
+
+                $schedule->command(RunTriggerRulesCommand::class)
                     ->everyMinute()
                     ->withoutOverlapping();
 
@@ -159,6 +174,7 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 $app->make(ValidateSurveySubmissionAction::class),
                 $app->make(CalculateSurveyResponseAction::class),
                 $app->make(EvaluateResponseQualityAction::class),
+                $app->make(SurveyFileUploadToken::class),
             );
         });
 

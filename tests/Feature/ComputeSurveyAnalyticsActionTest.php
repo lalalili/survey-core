@@ -13,23 +13,23 @@ use Lalalili\SurveyCore\Models\SurveyResponseEvent;
 
 it('computes totals, collector performance, daily trend, and question distributions', function (): void {
     $survey = Survey::create([
-        'title'           => 'Analytics',
-        'status'          => SurveyStatus::Published,
+        'title' => 'Analytics',
+        'status' => SurveyStatus::Published,
         'allow_anonymous' => true,
     ]);
 
     $collector = SurveyCollector::create([
         'survey_id' => $survey->id,
-        'type'      => 'web_link',
-        'name'      => 'Landing page',
-        'slug'      => 'landing-page',
+        'type' => 'web_link',
+        'name' => 'Landing page',
+        'slug' => 'landing-page',
     ]);
 
     $choice = SurveyField::create([
-        'survey_id'    => $survey->id,
-        'type'         => SurveyFieldType::SingleChoice,
-        'label'        => 'Plan',
-        'field_key'    => 'plan',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::SingleChoice,
+        'label' => 'Plan',
+        'field_key' => 'plan',
         'options_json' => [
             ['label' => 'Basic', 'value' => 'basic'],
             ['label' => 'Pro', 'value' => 'pro'],
@@ -38,37 +38,37 @@ it('computes totals, collector performance, daily trend, and question distributi
     ]);
 
     $nps = SurveyField::create([
-        'survey_id'  => $survey->id,
-        'type'       => SurveyFieldType::Nps,
-        'label'      => 'NPS',
-        'field_key'  => 'nps',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::Nps,
+        'label' => 'NPS',
+        'field_key' => 'nps',
         'sort_order' => 2,
     ]);
 
     SurveyResponseEvent::create([
-        'survey_id'           => $survey->id,
+        'survey_id' => $survey->id,
         'survey_collector_id' => $collector->id,
-        'event'               => 'started',
-        'occurred_at'         => now()->subDay(),
+        'event' => 'started',
+        'occurred_at' => now()->subDay(),
     ]);
     SurveyResponseEvent::create([
-        'survey_id'           => $survey->id,
+        'survey_id' => $survey->id,
         'survey_collector_id' => $collector->id,
-        'event'               => 'started',
-        'occurred_at'         => now(),
+        'event' => 'started',
+        'occurred_at' => now(),
     ]);
 
     $first = SurveyResponse::create([
-        'survey_id'           => $survey->id,
+        'survey_id' => $survey->id,
         'survey_collector_id' => $collector->id,
-        'submitted_at'        => now(),
-        'completion_status'   => SurveyResponseCompletionStatus::Complete,
+        'submitted_at' => now(),
+        'completion_status' => SurveyResponseCompletionStatus::Complete,
     ]);
     $second = SurveyResponse::create([
-        'survey_id'           => $survey->id,
+        'survey_id' => $survey->id,
         'survey_collector_id' => $collector->id,
-        'submitted_at'        => now(),
-        'completion_status'   => SurveyResponseCompletionStatus::Complete,
+        'submitted_at' => now(),
+        'completion_status' => SurveyResponseCompletionStatus::Complete,
     ]);
 
     SurveyAnswer::create(['survey_response_id' => $first->id, 'survey_field_id' => $choice->id, 'answer_text' => 'basic']);
@@ -83,16 +83,16 @@ it('computes totals, collector performance, daily trend, and question distributi
 
     expect($analytics['totals'])
         ->toMatchArray([
-            'responses'       => 2,
-            'started'         => 2,
-            'submitted'       => 2,
+            'responses' => 2,
+            'started' => 2,
+            'submitted' => 2,
             'completion_rate' => 100.0,
         ])
         ->and($analytics['collectors'][0])
         ->toMatchArray([
-            'collector_id'    => $collector->id,
-            'started'         => 2,
-            'submitted'       => 2,
+            'collector_id' => $collector->id,
+            'started' => 2,
+            'submitted' => 2,
             'completion_rate' => 100.0,
         ])
         ->and($analytics['daily'])->toBe([
@@ -110,4 +110,73 @@ it('computes totals, collector performance, daily trend, and question distributi
             ['value' => '7', 'count' => 1],
             ['value' => '9', 'count' => 1],
         ]);
+});
+
+it('filters totals, daily trend, and question stats by collector', function (): void {
+    $survey = Survey::create([
+        'title' => 'Analytics by collector',
+        'status' => SurveyStatus::Published,
+        'allow_anonymous' => true,
+    ]);
+
+    $webLink = SurveyCollector::create([
+        'survey_id' => $survey->id,
+        'type' => 'web_link',
+        'name' => 'Web link',
+        'slug' => 'web-link',
+    ]);
+    $emailInvite = SurveyCollector::create([
+        'survey_id' => $survey->id,
+        'type' => 'email_invite',
+        'name' => 'Email invite',
+        'slug' => 'email-invite',
+    ]);
+
+    $nps = SurveyField::create([
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::Nps,
+        'label' => 'NPS',
+        'field_key' => 'nps',
+        'sort_order' => 1,
+    ]);
+
+    foreach ([$webLink, $emailInvite] as $collector) {
+        SurveyResponseEvent::create([
+            'survey_id' => $survey->id,
+            'survey_collector_id' => $collector->id,
+            'event' => 'started',
+            'occurred_at' => now(),
+        ]);
+    }
+
+    $webResponse = SurveyResponse::create([
+        'survey_id' => $survey->id,
+        'survey_collector_id' => $webLink->id,
+        'submitted_at' => now(),
+        'completion_status' => SurveyResponseCompletionStatus::Complete,
+    ]);
+    $emailResponse = SurveyResponse::create([
+        'survey_id' => $survey->id,
+        'survey_collector_id' => $emailInvite->id,
+        'submitted_at' => now(),
+        'completion_status' => SurveyResponseCompletionStatus::Complete,
+    ]);
+
+    SurveyAnswer::create(['survey_response_id' => $webResponse->id, 'survey_field_id' => $nps->id, 'answer_text' => '10']);
+    SurveyAnswer::create(['survey_response_id' => $emailResponse->id, 'survey_field_id' => $nps->id, 'answer_text' => '2']);
+
+    $filtered = app(ComputeSurveyAnalyticsAction::class)->execute($survey, $webLink->id);
+
+    expect($filtered['totals'])
+        ->toMatchArray(['responses' => 1, 'started' => 1, 'submitted' => 1])
+        ->and($filtered['daily'])->toBe([
+            ['date' => now()->toDateString(), 'started' => 1, 'submitted' => 1],
+        ])
+        ->and($filtered['questions'][0]['answered'])->toBe(1)
+        ->and($filtered['questions'][0]['average'])->toBe(10.0);
+
+    $unfiltered = app(ComputeSurveyAnalyticsAction::class)->execute($survey);
+
+    expect($unfiltered['totals']['submitted'])->toBe(2)
+        ->and($unfiltered['questions'][0]['average'])->toBe(6.0);
 });

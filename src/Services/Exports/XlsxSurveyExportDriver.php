@@ -18,7 +18,7 @@ class XlsxSurveyExportDriver implements SurveyExportDriver
         $filename = 'survey-responses-'.now()->format('Y-m-d-His').'.xlsx';
 
         return new StreamedResponse(function () use ($rows, $headers) {
-            $writer = new Writer();
+            $writer = new Writer;
             $writer->openToFile('php://output');
 
             $writer->addRow(Row::fromValues($headers));
@@ -32,9 +32,30 @@ class XlsxSurveyExportDriver implements SurveyExportDriver
 
             $writer->close();
         }, 200, [
-            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
+    }
+
+    /**
+     * @param  iterable<array<array-key, mixed>>  $rows
+     * @param  list<string>  $headers
+     */
+    public function writeToPath(string $localPath, iterable $rows, array $headers): void
+    {
+        $writer = new Writer;
+        $writer->openToFile($localPath);
+
+        $writer->addRow(Row::fromValues($headers));
+
+        foreach ($rows as $row) {
+            $writer->addRow(Row::fromValues(array_values(array_map(
+                fn (mixed $value): bool|\DateInterval|\DateTimeInterface|float|int|string|null => $this->normalizeCellValue($value),
+                $row,
+            ))));
+        }
+
+        $writer->close();
     }
 
     private function normalizeCellValue(mixed $value): bool|\DateInterval|\DateTimeInterface|float|int|string|null

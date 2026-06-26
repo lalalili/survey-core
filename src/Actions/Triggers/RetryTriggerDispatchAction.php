@@ -12,7 +12,7 @@ class RetryTriggerDispatchAction
     {
         $dispatch->update([
             'status' => TriggerDispatchStatus::Pending,
-            'error'  => null,
+            'error' => null,
         ]);
 
         RunSurveyTriggerJob::dispatch($dispatch->survey_trigger_rule_id, $dispatch->survey_response_id);

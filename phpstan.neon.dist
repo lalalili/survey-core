@@ -8,7 +8,7 @@ parameters:
         - database/
 
     level: 8
-    tmpDir: build/phpstan
+    tmpDir: ../../storage/framework/cache/phpstan/survey-core
     checkModelProperties: false
 
     ignoreErrors:

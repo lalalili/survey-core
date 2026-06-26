@@ -43,12 +43,12 @@ class EvaluateResponseQualityAction
 
         $status = match (true) {
             in_array('honeypot_hit', $flags, true) => SurveyResponseQualityStatus::Quarantined,
-            count($flags) > 0                      => SurveyResponseQualityStatus::Flagged,
-            default                                => SurveyResponseQualityStatus::Accepted,
+            count($flags) > 0 => SurveyResponseQualityStatus::Flagged,
+            default => SurveyResponseQualityStatus::Accepted,
         };
 
         $response->update([
-            'quality_status'     => $status,
+            'quality_status' => $status,
             'quality_flags_json' => $flags === [] ? null : $flags,
         ]);
 

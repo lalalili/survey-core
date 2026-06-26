@@ -29,7 +29,7 @@ class SurveyTriggerActionPreset extends Model
     {
         return [
             'action_json' => 'array',
-            'is_active'   => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 }

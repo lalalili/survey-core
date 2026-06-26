@@ -21,7 +21,7 @@ class ComputeSurveyAnalyticsAction
      *     questions: list<array<string, mixed>>
      * }
      */
-    public function execute(Survey $survey): array
+    public function execute(Survey $survey, ?int $collectorId = null): array
     {
         $survey->loadMissing(['fields', 'collectors']);
 
@@ -30,10 +30,12 @@ class ComputeSurveyAnalyticsAction
             ->where('survey_id', $survey->id)
             ->where('is_test', false)
             ->whereNotNull('submitted_at')
+            ->when($collectorId !== null, fn ($query) => $query->where('survey_collector_id', $collectorId))
             ->get();
 
         $events = SurveyResponseEvent::query()
             ->where('survey_id', $survey->id)
+            ->when($collectorId !== null, fn ($query) => $query->where('survey_collector_id', $collectorId))
             ->get();
 
         $startedCount = $events->where('event', 'started')->count();
@@ -41,14 +43,14 @@ class ComputeSurveyAnalyticsAction
 
         return [
             'totals' => [
-                'responses'       => $submittedCount,
-                'started'         => $startedCount,
-                'submitted'       => $submittedCount,
+                'responses' => $submittedCount,
+                'started' => $startedCount,
+                'submitted' => $submittedCount,
                 'completion_rate' => $this->rate($submittedCount, max($startedCount, $submittedCount)),
             ],
-            'daily'      => $this->dailyTrend($events, $submittedResponses),
+            'daily' => $this->dailyTrend($events, $submittedResponses),
             'collectors' => $this->collectorPerformance($survey->collectors, $events, $submittedResponses),
-            'questions'  => $this->questionStats($survey->fields, $submittedResponses),
+            'questions' => $this->questionStats($survey->fields, $submittedResponses),
         ];
     }
 
@@ -76,8 +78,8 @@ class ComputeSurveyAnalyticsAction
 
         return array_values($dates
             ->map(fn (string $date): array => [
-                'date'      => $date,
-                'started'   => $events->filter(fn (SurveyResponseEvent $event): bool => $event->event === 'started' && $event->occurred_at->toDateString() === $date)->count(),
+                'date' => $date,
+                'started' => $events->filter(fn (SurveyResponseEvent $event): bool => $event->event === 'started' && $event->occurred_at->toDateString() === $date)->count(),
                 'submitted' => $responses->filter(fn (SurveyResponse $response): bool => $this->responseDateString($response) === $date)->count(),
             ])
             ->all());
@@ -102,12 +104,12 @@ class ComputeSurveyAnalyticsAction
                     ->count();
 
                 return [
-                    'collector_id'    => $collector->id,
-                    'name'            => $collector->name,
-                    'type'            => $collector->type,
-                    'slug'            => $collector->slug,
-                    'started'         => $started,
-                    'submitted'       => $submitted,
+                    'collector_id' => $collector->id,
+                    'name' => $collector->name,
+                    'type' => $collector->type,
+                    'slug' => $collector->slug,
+                    'started' => $started,
+                    'submitted' => $submitted,
                     'completion_rate' => $this->rate($submitted, max($started, $submitted)),
                 ];
             })
@@ -141,11 +143,11 @@ class ComputeSurveyAnalyticsAction
             ->values();
 
         $base = [
-            'field_id'  => $field->id,
+            'field_id' => $field->id,
             'field_key' => $field->field_key,
-            'label'     => $field->label,
-            'type'      => $field->type->value,
-            'answered'  => $answers->count(),
+            'label' => $field->label,
+            'type' => $field->type->value,
+            'answered' => $answers->count(),
         ];
 
         return match ($field->type) {
@@ -157,13 +159,13 @@ class ComputeSurveyAnalyticsAction
             SurveyFieldType::Rating,
             SurveyFieldType::Nps,
             SurveyFieldType::LinearScale => array_merge($base, [
-                'average'      => $this->average($answers),
+                'average' => $this->average($answers),
                 'distribution' => $this->numericDistribution($answers),
             ]),
             SurveyFieldType::Number => array_merge($base, [
                 'average' => $this->average($answers),
-                'min'     => $this->numericMin($answers),
-                'max'     => $this->numericMax($answers),
+                'min' => $this->numericMin($answers),
+                'max' => $this->numericMax($answers),
             ]),
             SurveyFieldType::MatrixSingle,
             SurveyFieldType::MatrixMulti => array_merge($base, [
@@ -313,8 +315,8 @@ class ComputeSurveyAnalyticsAction
         }
 
         return [
-            'rows'   => $rows,
-            'cols'   => $cols,
+            'rows' => $rows,
+            'cols' => $cols,
             'counts' => $counts,
         ];
     }
@@ -349,10 +351,10 @@ class ComputeSurveyAnalyticsAction
                 $count = $rankCounts[$key] ?? 0;
 
                 return [
-                    'value'    => $key,
-                    'label'    => (string) $option['label'],
+                    'value' => $key,
+                    'label' => (string) $option['label'],
                     'avg_rank' => $count > 0 ? round($rankSums[$key] / $count, 2) : null,
-                    'count'    => $count,
+                    'count' => $count,
                 ];
             })
             ->sortBy('avg_rank')
@@ -393,7 +395,7 @@ class ComputeSurveyAnalyticsAction
                 return [
                     'value' => $key,
                     'label' => (string) $option['label'],
-                    'avg'   => $count > 0 ? round($sums[$key] / $count, 2) : null,
+                    'avg' => $count > 0 ? round($sums[$key] / $count, 2) : null,
                 ];
             })
             ->values()

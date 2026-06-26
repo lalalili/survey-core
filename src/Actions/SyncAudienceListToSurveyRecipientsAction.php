@@ -11,9 +11,7 @@ use Lalalili\SurveyCore\Models\SurveyRecipient;
 
 class SyncAudienceListToSurveyRecipientsAction
 {
-    public function __construct(private readonly GenerateSurveyTokenAction $generateToken)
-    {
-    }
+    public function __construct(private readonly GenerateSurveyTokenAction $generateToken) {}
 
     public function execute(Survey $survey, bool $generateTokens = true): int
     {
@@ -44,7 +42,7 @@ class SyncAudienceListToSurveyRecipientsAction
                             ->where('field_key', (string) $fieldKey)
                             ->where('is_hidden', true)
                             ->update([
-                                'is_personalized'  => true,
+                                'is_personalized' => true,
                                 'personalized_key' => (string) $column,
                             ]);
                     }
@@ -61,15 +59,15 @@ class SyncAudienceListToSurveyRecipientsAction
 
                         $recipient = SurveyRecipient::updateOrCreate(
                             [
-                                'survey_id'            => $survey->id,
+                                'survey_id' => $survey->id,
                                 'audience_list_row_id' => $row->id,
                             ],
                             [
-                                'name'         => $nameColumn !== '' ? ($data[$nameColumn] ?? null) : null,
-                                'email'        => $emailColumn !== '' ? ($data[$emailColumn] ?? null) : null,
-                                'external_id'  => $externalIdColumn !== '' ? ($data[$externalIdColumn] ?? null) : (string) $row->id,
+                                'name' => $nameColumn !== '' ? ($data[$nameColumn] ?? null) : null,
+                                'email' => $emailColumn !== '' ? ($data[$emailColumn] ?? null) : null,
+                                'external_id' => $externalIdColumn !== '' ? ($data[$externalIdColumn] ?? null) : (string) $row->id,
                                 'payload_json' => $data,
-                                'status'       => SurveyRecipientStatus::Active,
+                                'status' => SurveyRecipientStatus::Active,
                             ],
                         );
 

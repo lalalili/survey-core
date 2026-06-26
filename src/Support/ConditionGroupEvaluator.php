@@ -4,12 +4,22 @@ namespace Lalalili\SurveyCore\Support;
 
 final class ConditionGroupEvaluator
 {
+    private const MAX_DEPTH = 10;
+
     /**
+     * Evaluate a condition group. Each entry under `conditions` is either a leaf
+     * condition (`{field_key, op, value}`) or a nested group (`{logic, conditions}`),
+     * allowing arbitrarily nested AND/OR trees. `$depth` guards malformed input.
+     *
      * @param  array<string, mixed>  $group
      * @param  array<string, mixed>  $answers
      */
-    public static function passes(array $group, array $answers): bool
+    public static function passes(array $group, array $answers, int $depth = 0): bool
     {
+        if ($depth > self::MAX_DEPTH) {
+            return true;
+        }
+
         $rawConditions = is_array($group['conditions'] ?? null) ? $group['conditions'] : [];
         $conditions = collect($rawConditions)
             ->filter(fn (mixed $condition): bool => is_array($condition))
@@ -21,11 +31,25 @@ final class ConditionGroupEvaluator
 
         $logic = strtolower((string) ($group['logic'] ?? 'and'));
 
+        $evaluate = fn (array $condition): bool => self::isGroup($condition)
+            ? self::passes($condition, $answers, $depth + 1)
+            : self::conditionPasses($condition, $answers);
+
         if ($logic === 'or') {
-            return $conditions->contains(fn (array $condition): bool => self::conditionPasses($condition, $answers));
+            return $conditions->contains($evaluate);
         }
 
-        return $conditions->every(fn (array $condition): bool => self::conditionPasses($condition, $answers));
+        return $conditions->every($evaluate);
+    }
+
+    /**
+     * A node is a nested group when it carries its own `conditions` array.
+     *
+     * @param  array<string, mixed>  $node
+     */
+    private static function isGroup(array $node): bool
+    {
+        return array_key_exists('conditions', $node) && is_array($node['conditions']);
     }
 
     /**
@@ -40,17 +64,17 @@ final class ConditionGroupEvaluator
         $current = $answers[$fieldKey] ?? null;
 
         return match ($op) {
-            'not_equals'                  => ! self::equals($current, $expected),
-            'contains'                    => self::contains($current, $expected),
-            'not_contains'                => ! self::contains($current, $expected),
-            'greater_than', '>'           => is_numeric($current) && is_numeric($expected) && (float) $current > (float) $expected,
+            'not_equals' => ! self::equals($current, $expected),
+            'contains' => self::contains($current, $expected),
+            'not_contains' => ! self::contains($current, $expected),
+            'greater_than', '>' => is_numeric($current) && is_numeric($expected) && (float) $current > (float) $expected,
             'greater_than_or_equal', '>=' => is_numeric($current) && is_numeric($expected) && (float) $current >= (float) $expected,
-            'less_than', '<'              => is_numeric($current) && is_numeric($expected) && (float) $current < (float) $expected,
-            'less_than_or_equal', '<='    => is_numeric($current) && is_numeric($expected) && (float) $current <= (float) $expected,
-            'between'                     => self::between($current, $expected),
-            'is_empty'                    => blank($current),
-            'is_not_empty'                => filled($current),
-            default                       => self::equals($current, $expected),
+            'less_than', '<' => is_numeric($current) && is_numeric($expected) && (float) $current < (float) $expected,
+            'less_than_or_equal', '<=' => is_numeric($current) && is_numeric($expected) && (float) $current <= (float) $expected,
+            'between' => self::between($current, $expected),
+            'is_empty' => blank($current),
+            'is_not_empty' => filled($current),
+            default => self::equals($current, $expected),
         };
     }
 

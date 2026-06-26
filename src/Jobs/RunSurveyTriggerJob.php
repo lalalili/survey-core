@@ -23,8 +23,7 @@ class RunSurveyTriggerJob implements ShouldQueue
     public function __construct(
         public readonly int $triggerRuleId,
         public readonly int $surveyResponseId,
-    ) {
-    }
+    ) {}
 
     public function handle(
         EvaluateAnswerRuleTreeAction $evaluator,
@@ -57,9 +56,9 @@ class RunSurveyTriggerJob implements ShouldQueue
             if (($action['require_valid_token'] ?? false)
                 && ($response->survey_token_id === null || $response->token?->isExpired())) {
                 Log::info('survey-trigger skipped: require_valid_token not satisfied', [
-                    'rule_id'     => $rule->id,
+                    'rule_id' => $rule->id,
                     'response_id' => $response->id,
-                    'action'      => $action['name'] ?? null,
+                    'action' => $action['name'] ?? null,
                 ]);
 
                 continue;
@@ -68,7 +67,7 @@ class RunSurveyTriggerJob implements ShouldQueue
             $dispatch = SurveyTriggerDispatch::firstOrCreate(
                 [
                     'survey_trigger_rule_id' => $rule->id,
-                    'survey_response_id'     => $response->id,
+                    'survey_response_id' => $response->id,
                 ],
                 ['status' => TriggerDispatchStatus::Pending],
             );
@@ -92,7 +91,7 @@ class RunSurveyTriggerJob implements ShouldQueue
         $rule->saveQuietly();
 
         Log::info('survey-trigger fired', [
-            'rule_id'     => $rule->id,
+            'rule_id' => $rule->id,
             'response_id' => $response->id,
         ]);
     }

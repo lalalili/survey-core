@@ -29,8 +29,9 @@ class PrunePartialDraftsCommand extends Command
         $deleted = 0;
 
         foreach ($drafts as $draft) {
-            // delete() 會一併清掉關聯媒體（Spatie HasMedia 透過 model 事件）。
-            $draft->delete();
+            // forceDelete() 永久移除草稿並一併清掉關聯媒體（Spatie HasMedia 僅在
+            // force delete 時清媒體）；prune 目的是釋放空間，故不可用軟刪除。
+            $draft->forceDelete();
             $deleted++;
         }
 

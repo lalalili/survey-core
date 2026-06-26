@@ -12,10 +12,10 @@ enum SurveyStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Draft     => '草稿',
+            self::Draft => '草稿',
             self::Published => '已發佈',
-            self::Closed    => '已關閉',
-            self::Archived  => '已封存',
+            self::Closed => '已關閉',
+            self::Archived => '已封存',
         };
     }
 

@@ -9,6 +9,7 @@ use Lalalili\AudienceCore\AudienceCoreServiceProvider;
 use Lalalili\EmailCampaign\EmailCampaignServiceProvider;
 use Lalalili\PackageTestingSupport\PackageTestCase;
 use Lalalili\SurveyCore\SurveyCoreServiceProvider;
+use Spatie\Activitylog\ActivitylogServiceProvider;
 use Spatie\MediaLibrary\MediaLibraryServiceProvider;
 
 abstract class TestCase extends PackageTestCase
@@ -17,6 +18,7 @@ abstract class TestCase extends PackageTestCase
     {
         $providers = [
             AudienceCoreServiceProvider::class,
+            ActivitylogServiceProvider::class,
             MediaLibraryServiceProvider::class,
             SurveyCoreServiceProvider::class,
         ];
@@ -32,6 +34,18 @@ abstract class TestCase extends PackageTestCase
     {
         Schema::create('users', function (Blueprint $table): void {
             $table->id();
+            $table->timestamps();
+        });
+
+        Schema::create('activity_log', function (Blueprint $table): void {
+            $table->id();
+            $table->string('log_name')->nullable()->index();
+            $table->text('description');
+            $table->nullableMorphs('subject', 'subject');
+            $table->string('event')->nullable();
+            $table->nullableMorphs('causer', 'causer');
+            $table->json('attribute_changes')->nullable();
+            $table->json('properties')->nullable();
             $table->timestamps();
         });
 

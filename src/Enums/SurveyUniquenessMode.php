@@ -13,10 +13,10 @@ enum SurveyUniquenessMode: string
     public function label(): string
     {
         return match ($this) {
-            self::None   => '不限制',
-            self::Email  => 'Email',
-            self::Token  => 'Token',
-            self::Ip     => 'IP',
+            self::None => '不限制',
+            self::Email => 'Email',
+            self::Token => 'Token',
+            self::Ip => 'IP',
             self::Cookie => 'Cookie',
         };
     }

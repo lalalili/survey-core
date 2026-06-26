@@ -6,7 +6,7 @@ use Lalalili\SurveyCore\Models\SurveyRecipient;
 use Lalalili\SurveyCore\Services\DefaultPersonalizationResolver;
 
 beforeEach(function () {
-    $this->resolver = new DefaultPersonalizationResolver();
+    $this->resolver = new DefaultPersonalizationResolver;
 });
 
 it('resolves a matching personalized key from recipient payload', function () {

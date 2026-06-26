@@ -9,9 +9,7 @@ use Lalalili\SurveyCore\Models\SurveyToken;
 
 class SendSurveyInvitationAction
 {
-    public function __construct(private readonly GenerateSurveyTokenAction $generateToken)
-    {
-    }
+    public function __construct(private readonly GenerateSurveyTokenAction $generateToken) {}
 
     /**
      * Issue (or reissue) an invitation token and fire SurveyInvitationDispatched.

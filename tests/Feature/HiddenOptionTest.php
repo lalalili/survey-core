@@ -13,10 +13,10 @@ require __DIR__.'/Phase3TestSupport.php';
 it('does not render hidden options on the public page', function () {
     $survey = Survey::create(['title' => 'Hidden Option', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     SurveyField::create([
-        'survey_id'    => $survey->id,
-        'type'         => SurveyFieldType::SingleChoice,
-        'label'        => 'Choice',
-        'field_key'    => 'choice',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::SingleChoice,
+        'label' => 'Choice',
+        'field_key' => 'choice',
         'options_json' => [
             ['label' => 'Visible', 'value' => 'visible'],
             ['label' => 'Old', 'value' => 'old', 'is_hidden' => true],
@@ -33,12 +33,12 @@ it('does not render hidden options on the public page', function () {
 it('keeps historical answers for hidden option values readable', function () {
     $survey = Survey::create(['title' => 'History', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     $field = SurveyField::create([
-        'survey_id'    => $survey->id,
-        'type'         => SurveyFieldType::SingleChoice,
-        'label'        => 'Choice',
-        'field_key'    => 'choice',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::SingleChoice,
+        'label' => 'Choice',
+        'field_key' => 'choice',
         'options_json' => [['label' => 'Old', 'value' => 'old', 'is_hidden' => true]],
-        'sort_order'   => 1,
+        'sort_order' => 1,
     ]);
     $response = SurveyResponse::create(['survey_id' => $survey->id, 'submitted_at' => now(), 'completion_status' => 'complete']);
     $answer = SurveyAnswer::create(['survey_response_id' => $response->id, 'survey_field_id' => $field->id, 'answer_text' => 'old']);
@@ -62,17 +62,17 @@ it('syncs hidden option settings from builder schema', function () {
 
     app(SyncSurveyBuilderSchemaToFieldsAction::class)->execute($survey, [
         'pages' => [[
-            'id'       => 'page_1',
-            'title'    => 'Page 1',
+            'id' => 'page_1',
+            'title' => 'Page 1',
             'elements' => [[
-                'id'          => 'q1',
-                'type'        => 'single_choice',
-                'field_key'   => 'choice',
-                'label'       => 'Choice',
+                'id' => 'q1',
+                'type' => 'single_choice',
+                'field_key' => 'choice',
+                'label' => 'Choice',
                 'description' => '',
-                'required'    => false,
-                'settings'    => [],
-                'options'     => [['id' => 'old', 'label' => 'Old', 'value' => 'old', 'is_hidden' => true]],
+                'required' => false,
+                'settings' => [],
+                'options' => [['id' => 'old', 'label' => 'Old', 'value' => 'old', 'is_hidden' => true]],
             ]],
         ]],
     ]);

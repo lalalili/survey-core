@@ -19,21 +19,21 @@ require __DIR__.'/Phase3TestSupport.php';
 function commercialSurveyCoreSurvey(array $attributes = [], array $settings = []): Survey
 {
     $survey = Survey::create(array_merge([
-        'title'           => 'Commercial survey',
-        'status'          => SurveyStatus::Published,
+        'title' => 'Commercial survey',
+        'status' => SurveyStatus::Published,
         'allow_anonymous' => true,
-        'settings_json'   => array_replace_recursive([
+        'settings_json' => array_replace_recursive([
             'security' => ['min_submission_ms' => 0],
         ], $settings),
     ], $attributes));
 
     SurveyField::create([
-        'survey_id'   => $survey->id,
-        'type'        => SurveyFieldType::ShortText,
-        'label'       => 'Name',
-        'field_key'   => 'name',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Name',
+        'field_key' => 'name',
         'is_required' => true,
-        'sort_order'  => 1,
+        'sort_order' => 1,
     ]);
 
     return $survey->load('fields');
@@ -59,9 +59,9 @@ it('keeps password-protected survey secrets out of the public HTML and unlocks s
     $this->withSession(['survey-core.password.'.$survey->id => true]);
 
     $this->postJson(route('survey.submit', $survey->public_key), [
-        'answers'     => ['name' => 'Alice'],
+        'answers' => ['name' => 'Alice'],
         '_elapsed_ms' => 1000,
-        '_password'   => 'launch-code',
+        '_password' => 'launch-code',
     ])->assertCreated();
 });
 
@@ -71,7 +71,7 @@ it('rejects anonymous public submissions when the survey requires a token', func
     ]);
 
     $this->postJson(route('survey.submit', $survey->public_key), [
-        'answers'     => ['name' => 'Alice'],
+        'answers' => ['name' => 'Alice'],
         '_elapsed_ms' => 1000,
     ])->assertForbidden();
 });
@@ -91,32 +91,32 @@ it('verifies turnstile tokens server-side before accepting a response', function
     ]);
 
     $this->postJson(route('survey.submit', $survey->public_key), [
-        'answers'          => ['name' => 'Alice'],
-        '_elapsed_ms'      => 1000,
+        'answers' => ['name' => 'Alice'],
+        '_elapsed_ms' => 1000,
         '_turnstile_token' => 'bad-token',
     ])->assertUnprocessable();
 
     $this->postJson(route('survey.submit', $survey->public_key), [
-        'answers'          => ['name' => 'Alice'],
-        '_elapsed_ms'      => 1000,
+        'answers' => ['name' => 'Alice'],
+        '_elapsed_ms' => 1000,
         '_turnstile_token' => 'good-token',
     ])->assertCreated();
 });
 
 it('requires terms acceptance and records the consent with the response', function (): void {
     $survey = commercialSurveyCoreSurvey(settings: [
-        'terms_text'    => 'I agree to the campaign terms.',
+        'terms_text' => 'I agree to the campaign terms.',
         'terms_version' => 'campaign-2026-05',
     ]);
 
     $this->postJson(route('survey.submit', $survey->public_key), [
-        'answers'     => ['name' => 'Alice'],
+        'answers' => ['name' => 'Alice'],
         '_elapsed_ms' => 1000,
     ])->assertUnprocessable();
 
     $this->postJson(route('survey.submit', $survey->public_key), [
-        'answers'         => ['name' => 'Alice'],
-        '_elapsed_ms'     => 1000,
+        'answers' => ['name' => 'Alice'],
+        '_elapsed_ms' => 1000,
         '_terms_accepted' => true,
     ])->assertCreated();
 
@@ -130,10 +130,10 @@ it('requires terms acceptance and records the consent with the response', functi
 it('attaches collector attribution to submitted responses', function (): void {
     $survey = commercialSurveyCoreSurvey();
     $collector = SurveyCollector::create([
-        'survey_id'     => $survey->id,
-        'type'          => 'qr_code',
-        'name'          => 'Event QR',
-        'slug'          => 'event-qr',
+        'survey_id' => $survey->id,
+        'type' => 'qr_code',
+        'name' => 'Event QR',
+        'slug' => 'event-qr',
         'tracking_json' => ['utm_campaign' => 'expo'],
     ]);
 
@@ -144,7 +144,7 @@ it('attaches collector attribution to submitted responses', function (): void {
         'publicKey' => $survey->public_key,
         'collector' => $collector->slug,
     ]), [
-        'answers'     => ['name' => 'Alice'],
+        'answers' => ['name' => 'Alice'],
         '_elapsed_ms' => 1000,
     ])->assertCreated();
 
@@ -159,26 +159,26 @@ it('records started events and dispatches SurveyStarted with token recipient con
     ]);
     $recipient = SurveyRecipient::create([
         'survey_id' => $survey->id,
-        'email'     => 'demo@example.com',
+        'email' => 'demo@example.com',
     ]);
     $token = SurveyToken::create([
-        'survey_id'           => $survey->id,
+        'survey_id' => $survey->id,
         'survey_recipient_id' => $recipient->id,
-        'token'               => 'token-123',
+        'token' => 'token-123',
     ]);
     $collector = SurveyCollector::create([
         'survey_id' => $survey->id,
-        'type'      => 'email_invite',
-        'name'      => 'Email invite',
-        'slug'      => 'email-invite',
+        'type' => 'email_invite',
+        'name' => 'Email invite',
+        'slug' => 'email-invite',
     ]);
 
     $this->postJson(route('survey.events', [
         'publicKey' => $survey->public_key,
-        't'         => $token->token,
+        't' => $token->token,
         'collector' => $collector->slug,
     ]), [
-        'event'    => 'started',
+        'event' => 'started',
         'page_key' => 'page_1',
         'metadata' => ['source' => 'email'],
     ])->assertSuccessful();

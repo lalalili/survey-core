@@ -68,6 +68,10 @@ class ValidateSurveyBuilderSchemaAction
                     $fail('尚未於伺服器設定 Turnstile 金鑰（survey-core.turnstile.secret_key），無法啟用人機驗證；請先完成設定再開啟。');
                 }
             }],
+            'settings.redirect' => ['nullable', 'array'],
+            'settings.redirect.url' => ['nullable', 'string', 'max:2048'],
+            'settings.redirect.mode' => ['nullable', 'string', Rule::in(['link', 'auto'])],
+            'settings.redirect.delay_seconds' => ['nullable', 'integer', 'min:0', 'max:30'],
             'theme_id' => ['nullable', 'integer'],
             'theme_overrides' => ['nullable', 'array'],
             'calculations' => ['nullable', 'array'],

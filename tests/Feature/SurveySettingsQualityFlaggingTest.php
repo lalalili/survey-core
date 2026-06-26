@@ -18,18 +18,18 @@ beforeEach(function () {
 function qualitySurvey(?array $settingsJson = null): Survey
 {
     $survey = Survey::create([
-        'title'         => 'Quality Survey',
-        'status'        => SurveyStatus::Published,
+        'title' => 'Quality Survey',
+        'status' => SurveyStatus::Published,
         'settings_json' => $settingsJson,
     ]);
 
     SurveyField::create([
-        'survey_id'   => $survey->id,
-        'type'        => SurveyFieldType::ShortText,
-        'label'       => 'Name',
-        'field_key'   => 'q_name',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Name',
+        'field_key' => 'q_name',
         'is_required' => true,
-        'sort_order'  => 1,
+        'sort_order' => 1,
     ]);
 
     return $survey->load('fields');
@@ -82,7 +82,7 @@ it('falls back to global config min_submission_ms when anomaly.min_seconds is no
 
 it('flags anomaly_duplicate when is_anomaly_duplicate is passed in context', function () {
     $response = SurveyResponse::create([
-        'survey_id'         => qualitySurvey()->id,
+        'survey_id' => qualitySurvey()->id,
         'completion_status' => 'complete',
     ]);
 
@@ -100,7 +100,7 @@ it('flags anomaly_duplicate when is_anomaly_duplicate is passed in context', fun
 it('does not flag anomaly_duplicate when is_anomaly_duplicate is false', function () {
     $survey = qualitySurvey();
     $response = SurveyResponse::create([
-        'survey_id'         => $survey->id,
+        'survey_id' => $survey->id,
         'completion_status' => 'complete',
     ]);
 

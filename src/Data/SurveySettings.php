@@ -46,11 +46,14 @@ final class SurveySettings
         // ── Thank-you branching ───────────────────────────────────────────────
         /** @var array<int, mixed> */
         public readonly array $thankYouBranches = [],
+        // ── Thank-you redirect ────────────────────────────────────────────────
+        public readonly ?string $redirectUrl = null,
+        public readonly string $redirectMode = 'link',        // 'link'|'auto'
+        public readonly int $redirectDelaySeconds = 5,
         // ── Catch-all for future/unknown keys ────────────────────────────────
         /** @var array<string, mixed> */
         public readonly array $extra = [],
-    ) {
-    }
+    ) {}
 
     /**
      * @param  array<string, mixed>  $raw
@@ -72,6 +75,7 @@ final class SurveySettings
             'anomaly',
             'personalization',
             'thank_you_branches',
+            'redirect',
         ];
 
         $extra = array_diff_key($raw, array_flip($known));
@@ -99,6 +103,11 @@ final class SurveySettings
             thankYouBranches: is_array($raw['thank_you_branches'] ?? null)
                 ? $raw['thank_you_branches']
                 : [],
+            redirectUrl: self::sanitizeRedirectUrl(data_get($raw, 'redirect.url')),
+            redirectMode: in_array(data_get($raw, 'redirect.mode'), ['link', 'auto'], true)
+                ? (string) data_get($raw, 'redirect.mode')
+                : 'link',
+            redirectDelaySeconds: self::clampDelaySeconds(data_get($raw, 'redirect.delay_seconds')),
             extra: $extra,
         );
     }
@@ -169,11 +178,46 @@ final class SurveySettings
             $data['thank_you_branches'] = $this->thankYouBranches;
         }
 
+        if ($this->redirectUrl !== null) {
+            $data['redirect'] = [
+                'url' => $this->redirectUrl,
+                'mode' => $this->redirectMode,
+                'delay_seconds' => $this->redirectDelaySeconds,
+            ];
+        }
+
         return array_merge($this->extra, $data);
     }
 
     /**
-     * @param  mixed  $value
+     * Accept only absolute http(s) URLs; reject javascript:/data:/other schemes
+     * to prevent an open-redirect / XSS vector on the public survey page.
+     */
+    private static function sanitizeRedirectUrl(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $url = trim($value);
+
+        if ($url === '') {
+            return null;
+        }
+
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+
+        return in_array($scheme, ['http', 'https'], true) ? $url : null;
+    }
+
+    private static function clampDelaySeconds(mixed $value): int
+    {
+        $seconds = is_numeric($value) ? (int) $value : 5;
+
+        return max(0, min(30, $seconds));
+    }
+
+    /**
      * @return list<string>
      */
     private static function normalizeEmails(mixed $value): array

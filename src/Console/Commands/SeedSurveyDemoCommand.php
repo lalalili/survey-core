@@ -3,6 +3,9 @@
 namespace Lalalili\SurveyCore\Console\Commands;
 
 use Illuminate\Console\Command;
+use Lalalili\AudienceCore\Models\AudienceList;
+use Lalalili\MarketingAutomation\Models\ActivityTemplate;
+use Lalalili\MarketingAutomation\Models\MarketingActivity;
 use Lalalili\SurveyCore\Actions\EvaluateAnswerRuleTreeAction;
 use Lalalili\SurveyCore\Actions\ImportSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Models\Survey;
@@ -23,10 +26,6 @@ use Lalalili\SurveyCore\Models\SurveyTriggerRule;
  */
 class SeedSurveyDemoCommand extends Command
 {
-    private const ACTIVITY_TEMPLATE_CLASS = 'Lalalili\\MarketingAutomation\\Models\\ActivityTemplate';
-
-    private const MARKETING_ACTIVITY_CLASS = 'Lalalili\\MarketingAutomation\\Models\\MarketingActivity';
-
     protected $signature = 'survey:seed-demo
                             {--fresh : 先刪除舊的 demo 問卷資料再重建}';
 
@@ -36,17 +35,29 @@ class SeedSurveyDemoCommand extends Command
 
     private const SSI_SURVEY_TITLE = '銷售滿意度問卷（Demo）';
 
+    private const IQS_SURVEY_TITLE = '新車品質滿意度問卷（Demo）';
+
     public function handle(ImportSurveyBuilderSchemaAction $importAction): int
     {
         if ($this->option('fresh')) {
             $this->cleanup();
         }
 
+        $csiList = AudienceList::where('name', '售後服務滿意度調查名單')->first();
+        $ssiList = AudienceList::where('name', '新車銷售滿意度調查名單')->first();
+        $iqsList = AudienceList::where('name', '新車品質調查名單')->first();
+
         $this->info('=== 建立 服務滿意度 問卷 ===');
         $csiSurvey = $this->ensureSurvey($importAction, self::CSI_SURVEY_TITLE, 'csi');
+        $this->bindPersonalizationList($csiSurvey, $csiList, 'name');
 
         $this->info('=== 建立 銷售滿意度 問卷 ===');
         $ssiSurvey = $this->ensureSurvey($importAction, self::SSI_SURVEY_TITLE, 'ssi');
+        $this->bindPersonalizationList($ssiSurvey, $ssiList, 'name');
+
+        $this->info('=== 建立 新車品質 問卷 ===');
+        $iqsSurvey = $this->ensureSurvey($importAction, self::IQS_SURVEY_TITLE, 'iqs');
+        $this->bindPersonalizationList($iqsSurvey, $iqsList, 'name');
 
         $this->info('=== 建立 DMS 動作設定（觸發動作預設）===');
         $presets = $this->seedActionPresets();
@@ -54,12 +65,13 @@ class SeedSurveyDemoCommand extends Command
         $this->info('=== 建立觸發規則 ===');
         $this->seedTriggerRules($csiSurvey, $presets);
         $this->seedTriggerRules($ssiSurvey, $presets);
+        $this->seedTriggerRules($iqsSurvey, $presets);
 
         $this->info('=== 建立觸發白名單 ===');
         $this->seedAllowedHosts();
 
         $this->info('=== 回綁 survey_id 至發送設定 + 活動模板 ===');
-        $this->bindSurveyIdToActivities($csiSurvey, $ssiSurvey);
+        $this->bindSurveyIdToActivities($csiSurvey, $ssiSurvey, $iqsSurvey);
 
         $this->info('');
         $this->info('✓ 問卷結構 Demo 資料完成！（名單/Token/回應由 marketing:seed-demo-dispatches 建立）');
@@ -68,12 +80,40 @@ class SeedSurveyDemoCommand extends Command
         return self::SUCCESS;
     }
 
+    private function bindPersonalizationList(Survey $survey, ?AudienceList $list, string $nameColumn): void
+    {
+        if ($list === null) {
+            $this->line("  個性化名單：找不到對應名單，跳過設定（{$survey->title}）");
+
+            return;
+        }
+
+        $settings = $survey->settings_json ?? [];
+        $settings['personalization'] = [
+            'audience_list_id' => $list->id,
+            'name_column' => $nameColumn,
+        ];
+        $survey->settings_json = $settings;
+        $survey->save();
+
+        $this->line("  個性化名單：{$list->name}（ID {$list->id}）→ {$survey->title}");
+    }
+
     private function ensureSurvey(ImportSurveyBuilderSchemaAction $importAction, string $title, string $listType): Survey
     {
+        // 問卷分類驅動各角色資料範圍（app\Enums\SurveyCategory：CSI/SSI/IQS）。
+        // listType（csi/ssi/iqs）轉大寫即對應 enum 值，不從 package 反向引用 app 層。
+        $category = strtoupper($listType);
+
         $existing = Survey::where('title', $title)->first();
 
         if ($existing) {
-            $this->line("  沿用既有問卷：{$title}（ID {$existing->id}）");
+            // 既有問卷補設分類（早期 demo 未設 category）。
+            if ($existing->category !== $category) {
+                $existing->category = $category;
+                $existing->save();
+            }
+            $this->line("  沿用既有問卷：{$title}（ID {$existing->id}，分類 {$category}）");
 
             return $existing;
         }
@@ -82,7 +122,9 @@ class SeedSurveyDemoCommand extends Command
         $schema['title'] = $title;
 
         $survey = $importAction->execute($schema, $title, publish: true);
-        $this->line("  建立問卷：{$title}（ID {$survey->id}）");
+        $survey->category = $category;
+        $survey->save();
+        $this->line("  建立問卷：{$title}（ID {$survey->id}，分類 {$category}）");
 
         return $survey;
     }
@@ -113,6 +155,15 @@ class SeedSurveyDemoCommand extends Command
             ));
         }
 
+        // 新車品質（IQS）：僅保留「車輛使用體驗」品質評分頁（含推薦 NPS），移除銷售題。
+        if ($listType === 'iqs') {
+            $keepPages = ['page_welcome', 'page_basic', 'page_vehicle_experience_a', 'page_vehicle_experience_b'];
+            $schema['pages'] = array_values(array_filter(
+                $schema['pages'],
+                fn (array $page): bool => in_array($page['id'] ?? '', $keepPages, true),
+            ));
+        }
+
         $ssiLabels = $this->ssiQuestionLabels();
 
         foreach ($schema['pages'] as &$page) {
@@ -123,16 +174,21 @@ class SeedSurveyDemoCommand extends Command
                     $element['is_hidden'] = true;
                     $element['personalized_key'] = 'dept';
                     $element['required'] = false;
-                    $element['label'] = $listType === 'csi' ? '服務部門' : '您購車的展示服務中心:';
+                    $element['label'] = match ($listType) {
+                        'csi' => '服務部門',
+                        'iqs' => '交車服務中心',
+                        default => '您購車的展示服務中心:',
+                    };
                 }
 
                 if ($key === 'vehicle_plate_number') {
                     $element['is_hidden'] = true;
                     $element['personalized_key'] = 'regono';
                     $element['required'] = false;
-                    $element['label'] = $listType === 'csi'
-                        ? '車牌號碼'
-                        : '您愛車的牌照號碼 (請正確填寫以避免保修抵用金無法入帳):';
+                    $element['label'] = match ($listType) {
+                        'csi', 'iqs' => '車牌號碼',
+                        default => '您愛車的牌照號碼 (請正確填寫以避免保修抵用金無法入帳):',
+                    };
                 }
 
                 // SSI 銷售題逐題對齊客戶原始問卷文字。
@@ -162,17 +218,17 @@ class SeedSurveyDemoCommand extends Command
     private function ssiQuestionLabels(): array
     {
         return [
-            'sales_overall_satisfaction'                    => '1. 請問您對於此次購車過程整體滿意度？(1~10分，10分最高分)',
-            'sales_vehicle_intro_satisfaction'              => '2. 請問您對於銷售顧問在車輛介紹及服務積極滿意度？(1~10分，10分最高分)',
-            'sales_test_drive_experience'                   => '3. 請問您本次購車是否有試乘/試駕體驗？',
-            'sales_test_drive_satisfaction'                 => '請問您對於銷售顧問在試乘/試駕體驗說明及服務積極滿意度？(1~10分，10分最高分)',
-            'sales_charging_knowledge_satisfaction'         => '4. 請問您對於銷售顧問在充電服務等專業知識說明及服務積極滿意度？(1~10分，10分最高分)',
-            'sales_pre_delivery_service_satisfaction'       => '5. 請問您對於銷售顧問在交車前，相關家用充電、保險、分期、配件等手續辦理服務滿意度？(1~10分，10分最高分)',
-            'sales_delivery_checklist_satisfaction'         => '6. 請問交車時對銷售顧問按照交車確認單，逐一說明車輛功能的滿意度？(1~10分，10分最高分)',
-            'sales_service_center_intro_satisfaction'       => '7. 請問交車時對銷售顧問介紹服務中心聯絡方式及服務時間的滿意度？(1~10分，10分最高分)',
+            'sales_overall_satisfaction' => '1. 請問您對於此次購車過程整體滿意度？(1~10分，10分最高分)',
+            'sales_vehicle_intro_satisfaction' => '2. 請問您對於銷售顧問在車輛介紹及服務積極滿意度？(1~10分，10分最高分)',
+            'sales_test_drive_experience' => '3. 請問您本次購車是否有試乘/試駕體驗？',
+            'sales_test_drive_satisfaction' => '請問您對於銷售顧問在試乘/試駕體驗說明及服務積極滿意度？(1~10分，10分最高分)',
+            'sales_charging_knowledge_satisfaction' => '4. 請問您對於銷售顧問在充電服務等專業知識說明及服務積極滿意度？(1~10分，10分最高分)',
+            'sales_pre_delivery_service_satisfaction' => '5. 請問您對於銷售顧問在交車前，相關家用充電、保險、分期、配件等手續辦理服務滿意度？(1~10分，10分最高分)',
+            'sales_delivery_checklist_satisfaction' => '6. 請問交車時對銷售顧問按照交車確認單，逐一說明車輛功能的滿意度？(1~10分，10分最高分)',
+            'sales_service_center_intro_satisfaction' => '7. 請問交車時對銷售顧問介紹服務中心聯絡方式及服務時間的滿意度？(1~10分，10分最高分)',
             'sales_delivery_vehicle_condition_satisfaction' => '8. 請問您對於交車當天車輛外觀、內裝狀況滿意度？(1~10分，10分最高分)',
-            'sales_post_delivery_follow_up'                 => '9. 請問於交車後，銷售顧問是否主動關懷您車輛的使用狀況？(是/否)',
-            'sales_purchase_delivery_feedback'              => '10. 本次 購車、交車的過程中，若有任何建議，邀請您回饋',
+            'sales_post_delivery_follow_up' => '9. 請問於交車後，銷售顧問是否主動關懷您車輛的使用狀況？(是/否)',
+            'sales_purchase_delivery_feedback' => '10. 本次 購車、交車的過程中，若有任何建議，邀請您回饋',
         ];
     }
 
@@ -185,45 +241,45 @@ class SeedSurveyDemoCommand extends Command
     {
         $presets = [
             [
-                'key'         => 'dms_case',
-                'name'        => '顧關立案',
+                'key' => 'dms_case',
+                'name' => '顧關立案',
                 'description' => '低分填答自動於 DMS 建立顧客關懷案件',
                 'action_json' => [
-                    'type'             => 'http_post',
-                    'name'             => '顧關立案',
-                    'endpoint'         => 'https://example.com/webhook/dms-case',
-                    'headers'          => ['Authorization' => 'Bearer {{env.DMS_TOKEN}}'],
+                    'type' => 'http_post',
+                    'name' => '顧關立案',
+                    'endpoint' => 'https://example.com/webhook/dms-case',
+                    'headers' => ['Authorization' => 'Bearer {{env.DMS_TOKEN}}'],
                     'payload_template' => [
-                        'source'      => 'survey',
+                        'source' => 'survey',
                         'response_id' => '{{response.id}}',
-                        'mobile'      => '{{recipient.payload.mobile}}',
-                        'license'     => '{{recipient.payload.regono}}',
-                        'nps'         => '{{answer.vehicle_recommend_nps}}',
+                        'mobile' => '{{recipient.payload.mobile}}',
+                        'license' => '{{recipient.payload.regono}}',
+                        'nps' => '{{answer.vehicle_recommend_nps}}',
                     ],
                     'timeout' => 10,
-                    'retry'   => ['times' => 3, 'sleep_ms' => 200],
+                    'retry' => ['times' => 3, 'sleep_ms' => 200],
                     // 顧管立案需對匿名公開填答也反應，維持 false。
                     'require_valid_token' => false,
                 ],
             ],
             [
-                'key'         => 'repair_voucher',
-                'name'        => '贈送維修抵用劵',
+                'key' => 'repair_voucher',
+                'name' => '贈送維修抵用劵',
                 'description' => '完成回填於 DMS 發送維修抵用劵（限有效邀請連結）',
                 'action_json' => [
-                    'type'             => 'http_post',
-                    'name'             => '贈送維修抵用劵',
-                    'endpoint'         => 'https://example.com/webhook/repair-voucher',
-                    'headers'          => ['Authorization' => 'Bearer {{env.DMS_TOKEN}}'],
+                    'type' => 'http_post',
+                    'name' => '贈送維修抵用劵',
+                    'endpoint' => 'https://example.com/webhook/repair-voucher',
+                    'headers' => ['Authorization' => 'Bearer {{env.DMS_TOKEN}}'],
                     'payload_template' => [
-                        'source'      => 'survey',
+                        'source' => 'survey',
                         'response_id' => '{{response.id}}',
-                        'mobile'      => '{{recipient.payload.mobile}}',
-                        'license'     => '{{recipient.payload.regono}}',
-                        'owner_name'  => '{{recipient.payload.username}}',
+                        'mobile' => '{{recipient.payload.mobile}}',
+                        'license' => '{{recipient.payload.regono}}',
+                        'owner_name' => '{{recipient.payload.username}}',
                     ],
                     'timeout' => 10,
-                    'retry'   => ['times' => 3, 'sleep_ms' => 200],
+                    'retry' => ['times' => 3, 'sleep_ms' => 200],
                     // 發點券：限「邀請連結（token）且未逾期」填答（7 天由 token 視窗把關）。
                     'require_valid_token' => true,
                 ],
@@ -236,10 +292,10 @@ class SeedSurveyDemoCommand extends Command
             $preset = SurveyTriggerActionPreset::firstOrCreate(
                 ['key' => $def['key']],
                 [
-                    'name'        => $def['name'],
+                    'name' => $def['name'],
                     'description' => $def['description'],
                     'action_json' => $def['action_json'],
-                    'is_active'   => true,
+                    'is_active' => true,
                 ],
             );
             $result[$def['key']] = $preset;
@@ -259,7 +315,7 @@ class SeedSurveyDemoCommand extends Command
                 'name' => '低分顧關立案（Demo）',
                 // 規則樹採編輯器格式 {op, children}，後台「篩選條件」可正確顯示與編輯。
                 'rule_tree_json' => [
-                    'op'       => 'AND',
+                    'op' => 'AND',
                     'children' => [
                         ['field' => 'vehicle_recommend_nps', 'operator' => '<=', 'value' => '6'],
                     ],
@@ -275,7 +331,7 @@ class SeedSurveyDemoCommand extends Command
                 // （response_window_days，問卷填答時限）是不同用途、刻意設不一樣：
                 // demo 問卷開放 30 天可填，但只有 7 天內回填者才送券。require_valid_token 再防呆。
                 'rule_tree_json' => [
-                    'op'       => 'AND',
+                    'op' => 'AND',
                     'children' => [
                         ['field' => EvaluateAnswerRuleTreeAction::META_DAYS_SINCE_INVITATION, 'operator' => '<=', 'value' => '7'],
                     ],
@@ -290,9 +346,9 @@ class SeedSurveyDemoCommand extends Command
             SurveyTriggerRule::firstOrCreate(
                 ['survey_id' => $survey->id, 'name' => $def['name']],
                 [
-                    'is_active'       => true,
-                    'rule_tree_json'  => $def['rule_tree_json'],
-                    'actions_json'    => $def['actions_json'],
+                    'is_active' => true,
+                    'rule_tree_json' => $def['rule_tree_json'],
+                    'actions_json' => $def['actions_json'],
                     'triggered_count' => 0,
                 ],
             );
@@ -316,44 +372,40 @@ class SeedSurveyDemoCommand extends Command
         }
     }
 
-    private function bindSurveyIdToActivities(Survey $csiSurvey, Survey $ssiSurvey): void
+    private function bindSurveyIdToActivities(Survey $csiSurvey, Survey $ssiSurvey, Survey $iqsSurvey): void
     {
-        if (! class_exists(self::MARKETING_ACTIVITY_CLASS)) {
-            $this->line('  MarketingActivity 綁定：略過（未安裝 lalalili/marketing-automation）');
-
+        if (! class_exists(MarketingActivity::class)) {
             return;
         }
 
-        $marketingActivityClass = self::MARKETING_ACTIVITY_CLASS;
-
-        $csiCount = $marketingActivityClass::where('name', 'like', '%服務滿意度%（Demo）')
+        $csiCount = MarketingActivity::where('name', 'like', '%服務滿意度%（Demo）')
             ->update(['survey_id' => $csiSurvey->id]);
-        $ssiCount = $marketingActivityClass::where('name', 'like', '%銷售滿意度%（Demo）')
+        $ssiCount = MarketingActivity::where('name', 'like', '%銷售滿意度%（Demo）')
             ->update(['survey_id' => $ssiSurvey->id]);
+        $iqsCount = MarketingActivity::where('name', 'like', '%新車品質%（Demo）')
+            ->update(['survey_id' => $iqsSurvey->id]);
 
-        $this->line("  MarketingActivity 綁定：服務滿意度 {$csiCount} 筆、銷售滿意度 {$ssiCount} 筆");
+        $this->line("  MarketingActivity 綁定：服務滿意度 {$csiCount} 筆、銷售滿意度 {$ssiCount} 筆、新車品質 {$iqsCount} 筆");
 
-        if (! class_exists(self::ACTIVITY_TEMPLATE_CLASS)) {
-            $this->line('  ActivityTemplate 綁定：略過（未安裝 lalalili/marketing-automation）');
-
+        if (! class_exists(ActivityTemplate::class)) {
             return;
         }
 
-        $activityTemplateClass = self::ACTIVITY_TEMPLATE_CLASS;
-
-        $csiTpl = $activityTemplateClass::where('name', 'like', '%服務滿意度%（Demo）')
+        $csiTpl = ActivityTemplate::where('name', 'like', '%服務滿意度%（Demo）')
             ->update(['survey_id' => $csiSurvey->id]);
-        $ssiTpl = $activityTemplateClass::where('name', 'like', '%銷售滿意度%（Demo）')
+        $ssiTpl = ActivityTemplate::where('name', 'like', '%銷售滿意度%（Demo）')
             ->update(['survey_id' => $ssiSurvey->id]);
+        $iqsTpl = ActivityTemplate::where('name', 'like', '%新車品質%（Demo）')
+            ->update(['survey_id' => $iqsSurvey->id]);
 
-        $this->line("  ActivityTemplate 綁定：服務滿意度 {$csiTpl} 筆、銷售滿意度 {$ssiTpl} 筆");
+        $this->line("  ActivityTemplate 綁定：服務滿意度 {$csiTpl} 筆、銷售滿意度 {$ssiTpl} 筆、新車品質 {$iqsTpl} 筆");
     }
 
     private function cleanup(): void
     {
         $this->warn('清除舊 Demo 問卷資料...');
 
-        foreach ([self::CSI_SURVEY_TITLE, self::SSI_SURVEY_TITLE] as $title) {
+        foreach ([self::CSI_SURVEY_TITLE, self::SSI_SURVEY_TITLE, self::IQS_SURVEY_TITLE] as $title) {
             $survey = Survey::where('title', $title)->first();
 
             if (! $survey) {
@@ -384,17 +436,13 @@ class SeedSurveyDemoCommand extends Command
         SurveyTriggerActionPreset::whereIn('key', ['dms_case', 'repair_voucher'])->delete();
 
         // Clear survey_id bindings so activities show "未綁定" until next dispatch seed
-        if (class_exists(self::MARKETING_ACTIVITY_CLASS)) {
-            $marketingActivityClass = self::MARKETING_ACTIVITY_CLASS;
-
-            $marketingActivityClass::where('name', 'like', '%（Demo）')
+        if (class_exists(MarketingActivity::class)) {
+            MarketingActivity::where('name', 'like', '%（Demo）')
                 ->update(['survey_id' => null]);
         }
 
-        if (class_exists(self::ACTIVITY_TEMPLATE_CLASS)) {
-            $activityTemplateClass = self::ACTIVITY_TEMPLATE_CLASS;
-
-            $activityTemplateClass::where('name', 'like', '%（Demo）')
+        if (class_exists(ActivityTemplate::class)) {
+            ActivityTemplate::where('name', 'like', '%（Demo）')
                 ->update(['survey_id' => null]);
         }
 

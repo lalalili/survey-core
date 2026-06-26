@@ -11,6 +11,5 @@ final readonly class SubmissionPayload
     public function __construct(
         public array $visibleAnswers,
         public ?ResolvedToken $tokenContext = null,
-    ) {
-    }
+    ) {}
 }

@@ -33,6 +33,7 @@ use Lalalili\SurveyCore\Models\SurveyResponseConsent;
 use Lalalili\SurveyCore\Models\SurveyToken;
 use Lalalili\SurveyCore\Services\TurnstileVerifier;
 use Lalalili\SurveyCore\Support\ConditionGroupEvaluator;
+use Lalalili\SurveyCore\Support\SurveyFileUploadToken;
 
 class PublicSurveyController extends Controller
 {
@@ -271,6 +272,7 @@ class PublicSurveyController extends Controller
             'message' => $this->thankYouMessage($survey, $response->calculations_json ?? []),
             'thank_you_page_id' => $this->thankYouPage($survey, $response->calculations_json ?? [])?->page_key,
             'response_id' => $response->id,
+            'response_number' => $response->response_number,
             'calculations' => $response->calculations_json ?? [],
         ], 201);
 
@@ -286,7 +288,7 @@ class PublicSurveyController extends Controller
         return $jsonResponse;
     }
 
-    public function upload(string $publicKey, Request $request): JsonResponse
+    public function upload(string $publicKey, Request $request, SurveyFileUploadToken $uploadToken): JsonResponse
     {
         $survey = Survey::with('fields')->where('public_key', $publicKey)->firstOrFail();
 
@@ -335,6 +337,7 @@ class PublicSurveyController extends Controller
 
         return response()->json([
             'media_id' => $media->id,
+            'upload_token' => $uploadToken->issue($media, $draftResponse, $field),
             'filename' => $media->file_name,
             'size' => $media->size,
         ], 201);
@@ -614,7 +617,14 @@ class PublicSurveyController extends Controller
                 continue;
             }
 
-            foreach ($field->normalizedOptions() as $option) {
+            // 僅有設定容量上限的選項才需要使用量：view 只以 used 判斷是否額滿，
+            // 無上限的選項永遠不會額滿。跳過可免去每次頁面載入對 30 萬列答案表的大量 COUNT。
+            $capacityOptions = array_filter(
+                $field->normalizedOptions(),
+                fn (array $option): bool => $option['capacity'] !== null,
+            );
+
+            foreach ($capacityOptions as $option) {
                 $usage[$field->field_key][$option['value']] = SurveyAnswer::query()
                     ->where('survey_field_id', $field->id)
                     ->where(function ($query) use ($option): void {

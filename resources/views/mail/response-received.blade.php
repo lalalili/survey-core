@@ -6,6 +6,7 @@
 | 欄位 | 內容 |
 |------|------|
 | 回應 ID | #{{ $responseId }} |
+| 填答編號 | {{ $responseNumber ?? '—' }} |
 | 提交時間 | {{ $submittedAt ?? '—' }} |
 | 收件人姓名 | {{ $recipientName ?? '匿名' }} |
 | 收件人 Email | {{ $recipientEmail ?? '—' }} |

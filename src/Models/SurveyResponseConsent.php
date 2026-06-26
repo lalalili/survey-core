@@ -28,7 +28,7 @@ class SurveyResponseConsent extends Model
     protected function casts(): array
     {
         return [
-            'accepted_at'   => 'datetime',
+            'accepted_at' => 'datetime',
             'metadata_json' => 'array',
         ];
     }

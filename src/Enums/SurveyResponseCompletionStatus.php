@@ -11,7 +11,7 @@ enum SurveyResponseCompletionStatus: string
     {
         return match ($this) {
             self::Complete => '完整',
-            self::Partial  => '部分',
+            self::Partial => '部分',
         };
     }
 }

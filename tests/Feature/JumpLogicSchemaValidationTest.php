@@ -11,13 +11,13 @@ function twoPageSchema(array $page1Elements = [], array $page2Elements = []): ar
         'title' => 'Jump Test',
         'pages' => [
             [
-                'id'       => 'page_1',
-                'title'    => 'Page 1',
+                'id' => 'page_1',
+                'title' => 'Page 1',
                 'elements' => $page1Elements,
             ],
             [
-                'id'       => 'page_2',
-                'title'    => 'Page 2',
+                'id' => 'page_2',
+                'title' => 'Page 2',
                 'elements' => $page2Elements,
             ],
         ],
@@ -27,15 +27,15 @@ function twoPageSchema(array $page1Elements = [], array $page2Elements = []): ar
 function singleChoiceElement(array $options, string $fieldKey = 'q1'): array
 {
     return [
-        'id'          => 'el_1',
-        'type'        => 'single_choice',
-        'field_key'   => $fieldKey,
-        'label'       => 'Choose',
+        'id' => 'el_1',
+        'type' => 'single_choice',
+        'field_key' => $fieldKey,
+        'label' => 'Choose',
         'description' => '',
-        'required'    => true,
+        'required' => true,
         'placeholder' => null,
-        'options'     => $options,
-        'settings'    => [],
+        'options' => $options,
+        'settings' => [],
     ];
 }
 
@@ -76,9 +76,9 @@ it('accepts go_to_page pointing to a later page', function () {
     $schema = twoPageSchema([
         singleChoiceElement([
             [
-                'id'     => 'o1',
-                'label'  => 'Skip',
-                'value'  => 'skip',
+                'id' => 'o1',
+                'label' => 'Skip',
+                'value' => 'skip',
                 'action' => ['type' => 'go_to_page', 'target_page_id' => 'page_2'],
             ],
         ]),
@@ -104,14 +104,14 @@ it('rejects an unknown action type', function () {
 it('rejects a jump action on a multiple_choice field', function () {
     $schema = twoPageSchema([
         [
-            'id'          => 'el_mc',
-            'type'        => 'multiple_choice',
-            'field_key'   => 'tags',
-            'label'       => 'Tags',
+            'id' => 'el_mc',
+            'type' => 'multiple_choice',
+            'field_key' => 'tags',
+            'label' => 'Tags',
             'description' => '',
-            'required'    => false,
+            'required' => false,
             'placeholder' => null,
-            'options'     => [
+            'options' => [
                 ['id' => 'o1', 'label' => 'A', 'value' => 'a', 'action' => ['type' => 'end_survey']],
             ],
             'settings' => [],
@@ -127,9 +127,9 @@ it('rejects go_to_page with a non-existent target_page_id', function () {
     $schema = twoPageSchema([
         singleChoiceElement([
             [
-                'id'     => 'o1',
-                'label'  => 'Go',
-                'value'  => 'go',
+                'id' => 'o1',
+                'label' => 'Go',
+                'value' => 'go',
                 'action' => ['type' => 'go_to_page', 'target_page_id' => 'page_xyz'],
             ],
         ]),
@@ -144,31 +144,31 @@ it('rejects a backward jump (target page index ≤ current page index)', functio
         'title' => 'Backward',
         'pages' => [
             [
-                'id'       => 'page_1',
-                'title'    => 'Page 1',
+                'id' => 'page_1',
+                'title' => 'Page 1',
                 'elements' => [
                     [
-                        'id'          => 'el_p1',
-                        'type'        => 'short_text',
-                        'field_key'   => 'name',
-                        'label'       => 'Name',
+                        'id' => 'el_p1',
+                        'type' => 'short_text',
+                        'field_key' => 'name',
+                        'label' => 'Name',
                         'description' => '',
-                        'required'    => true,
+                        'required' => true,
                         'placeholder' => null,
-                        'options'     => [],
-                        'settings'    => [],
+                        'options' => [],
+                        'settings' => [],
                     ],
                 ],
             ],
             [
-                'id'       => 'page_2',
-                'title'    => 'Page 2',
+                'id' => 'page_2',
+                'title' => 'Page 2',
                 'elements' => [
                     singleChoiceElement([
                         [
-                            'id'     => 'o1',
-                            'label'  => 'Go back',
-                            'value'  => 'back',
+                            'id' => 'o1',
+                            'label' => 'Go back',
+                            'value' => 'back',
                             'action' => ['type' => 'go_to_page', 'target_page_id' => 'page_1'],
                         ],
                     ], 'q2'),
@@ -184,9 +184,9 @@ it('rejects a self-referential jump (same page)', function () {
     $schema = twoPageSchema([
         singleChoiceElement([
             [
-                'id'     => 'o1',
-                'label'  => 'Loop',
-                'value'  => 'loop',
+                'id' => 'o1',
+                'label' => 'Loop',
+                'value' => 'loop',
                 'action' => ['type' => 'go_to_page', 'target_page_id' => 'page_1'],
             ],
         ]),
@@ -200,18 +200,18 @@ it('rejects a self-referential jump (same page)', function () {
 it('accepts go_to_page action on a select field', function () {
     $schema = twoPageSchema([
         [
-            'id'          => 'el_sel',
-            'type'        => 'select',
-            'field_key'   => 'region',
-            'label'       => 'Region',
+            'id' => 'el_sel',
+            'type' => 'select',
+            'field_key' => 'region',
+            'label' => 'Region',
             'description' => '',
-            'required'    => true,
+            'required' => true,
             'placeholder' => null,
-            'options'     => [
+            'options' => [
                 [
-                    'id'     => 'o1',
-                    'label'  => 'North',
-                    'value'  => 'north',
+                    'id' => 'o1',
+                    'label' => 'North',
+                    'value' => 'north',
                     'action' => ['type' => 'go_to_page', 'target_page_id' => 'page_2'],
                 ],
                 ['id' => 'o2', 'label' => 'South', 'value' => 'south'],

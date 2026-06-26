@@ -14,7 +14,9 @@ use Lalalili\SurveyCore\Models\SurveyAnswer;
 use Lalalili\SurveyCore\Models\SurveyCollector;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyResponse;
+use Lalalili\SurveyCore\Models\SurveyToken;
 use Lalalili\SurveyCore\Support\JumpLogicResolver;
+use Lalalili\SurveyCore\Support\SurveyFileUploadToken;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class SubmitSurveyResponseAction
@@ -24,6 +26,7 @@ class SubmitSurveyResponseAction
         private readonly ValidateSurveySubmissionAction $validateSubmission,
         private readonly CalculateSurveyResponseAction $calculateResponse,
         private readonly EvaluateResponseQualityAction $evaluateQuality,
+        private readonly SurveyFileUploadToken $uploadToken,
     ) {}
 
     /**
@@ -41,17 +44,24 @@ class SubmitSurveyResponseAction
         $this->validateSubmission->execute($survey, $payload->visibleAnswers, $payload->tokenContext);
 
         return DB::transaction(function () use ($survey, $payload, $ip, $userAgent, $qualityContext, $collector) {
-            $lockedSurvey = Survey::query()->lockForUpdate()->findOrFail($survey->id);
+            // 僅在有額度上限時序列化提交：用 advisory lock 取代 surveys 列鎖，
+            // 既避免超賣，又不阻塞後台對該問卷的編輯。無上限的問卷完全免鎖。
+            if ($survey->max_responses !== null) {
+                if (DB::connection()->getDriverName() === 'pgsql') {
+                    DB::statement('SELECT pg_advisory_xact_lock(hashtext(?))', ['survey_quota_'.$survey->id]);
+                }
 
-            if (! $lockedSurvey->hasQuotaAvailable()) {
-                throw new SurveyNotAvailableException($lockedSurvey->quota_message ?: '問卷已額滿。');
+                if (! $survey->refresh()->hasQuotaAvailable()) {
+                    throw new SurveyNotAvailableException($survey->quota_message ?: '問卷已額滿。');
+                }
             }
 
             $tokenContext = $payload->tokenContext;
+            $lockedToken = $this->lockValidToken($survey, $tokenContext?->token);
             $recipient = $tokenContext?->recipient;
 
-            if ($this->isMarketingActivityDuplicateSubmission($lockedSurvey, $tokenContext?->token?->id, $tokenContext?->token?->token, $recipient?->id)) {
-                throw new SurveyNotAvailableException($lockedSurvey->uniqueness_message ?: '您已填寫過此問卷。');
+            if ($this->isMarketingActivityDuplicateSubmission($survey, $lockedToken?->id, $lockedToken?->token, $recipient?->id)) {
+                throw new SurveyNotAvailableException($survey->uniqueness_message ?: '您已填寫過此問卷。');
             }
 
             // Hydrate server-side personalized hidden values
@@ -96,8 +106,9 @@ class SubmitSurveyResponseAction
 
             $response = SurveyResponse::create([
                 'survey_id' => $survey->id,
+                'response_number' => $this->generateResponseNumber($survey),
                 'survey_recipient_id' => $recipient?->id,
-                'survey_token_id' => $tokenContext?->token->id,
+                'survey_token_id' => $lockedToken?->id,
                 'survey_collector_id' => $collector?->id,
                 'submitted_at' => now(),
                 'ip' => $ip,
@@ -108,6 +119,9 @@ class SubmitSurveyResponseAction
             ]);
 
             $fieldsByKey = $survey->fields->keyBy('field_key');
+            $now = now();
+            $answerRows = [];
+            $fileUploads = [];
 
             foreach ($finalAnswers as $fieldKey => $value) {
                 $field = $fieldsByKey->get($fieldKey);
@@ -116,19 +130,30 @@ class SubmitSurveyResponseAction
                     continue;
                 }
 
-                $answerData = [
+                $isArray = is_array($value);
+
+                $answerRows[] = [
                     'survey_response_id' => $response->id,
                     'survey_field_id' => $field->id,
+                    'answer_text' => $isArray ? null : ($value !== null ? (string) $value : null),
+                    // insert() 繞過 cast，需手動編碼（與 Eloquent 'array' cast 預設一致）。
+                    'answer_json' => $isArray ? json_encode($value) : null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
                 ];
 
-                if (is_array($value)) {
-                    $answerData['answer_json'] = $value;
-                } else {
-                    $answerData['answer_text'] = $value !== null ? (string) $value : null;
+                if ($field->type->value === 'file_upload') {
+                    $fileUploads[] = [$field, $value];
                 }
+            }
 
-                SurveyAnswer::create($answerData);
-                $this->attachUploadedFileToResponse($field, $value, $response);
+            // 單次批次寫入取代逐題 INSERT（30 題 = 1 query 而非 30 query）。
+            if ($answerRows !== []) {
+                SurveyAnswer::insert($answerRows);
+            }
+
+            foreach ($fileUploads as [$uploadField, $uploadValue]) {
+                $this->attachUploadedFileToResponse($survey, $uploadField, $uploadValue, $response);
             }
 
             $minSeconds = $survey->settings()->anomalyMinSeconds;
@@ -140,12 +165,65 @@ class SubmitSurveyResponseAction
             ]));
 
             // Record token usage
-            $tokenContext?->token->recordUsage();
+            $lockedToken?->recordUsage();
 
             SurveySubmitted::dispatch($response, $survey, $recipient);
 
             return $response->load('answers');
         });
+    }
+
+    private function lockValidToken(Survey $survey, ?SurveyToken $token): ?SurveyToken
+    {
+        if (! $token instanceof SurveyToken) {
+            return null;
+        }
+
+        $lockedToken = SurveyToken::query()
+            ->whereKey($token->id)
+            ->lockForUpdate()
+            ->first();
+
+        if (
+            ! $lockedToken instanceof SurveyToken
+            || (int) $lockedToken->survey_id !== (int) $survey->id
+            || ! $lockedToken->isActive()
+            || $lockedToken->isExpired()
+            || $lockedToken->isExhausted()
+        ) {
+            throw new SurveyNotAvailableException('連結無效或已過期。');
+        }
+
+        return $lockedToken;
+    }
+
+    private function generateResponseNumber(Survey $survey): ?string
+    {
+        if (empty($survey->settings_json['response_number'])) {
+            return null;
+        }
+
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $candidate = $this->makeResponseNumber();
+
+            if (! SurveyResponse::query()->where('response_number', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        throw new SurveyNotAvailableException('無法產生填答編號，請稍後再試。');
+    }
+
+    private function makeResponseNumber(): string
+    {
+        $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        $random = '';
+
+        for ($i = 0; $i < 6; $i++) {
+            $random .= $chars[random_int(0, strlen($chars) - 1)];
+        }
+
+        return 'SR-'.now()->format('Ymd').'-'.$random;
     }
 
     private function isMarketingActivityDuplicateSubmission(Survey $survey, ?int $tokenId, ?string $rawToken, ?int $recipientId): bool
@@ -197,21 +275,29 @@ class SubmitSurveyResponseAction
                 continue;
             }
 
-            SurveyField::query()->whereKey($field->id)->lockForUpdate()->first();
-
             $selectedValues = is_array($value)
                 ? array_map('strval', $value)
                 : [(string) $value];
 
-            foreach ($field->normalizedOptions() as $option) {
-                if ($option['capacity'] === null || $option['capacity'] < 1) {
-                    continue;
-                }
+            // 只挑出「有容量上限且被選中」的選項；沒有就完全跳過鎖與 COUNT。
+            $capacityOptions = array_filter(
+                $field->normalizedOptions(),
+                fn (array $option): bool => $option['capacity'] !== null
+                    && $option['capacity'] >= 1
+                    && in_array($option['value'], $selectedValues, true),
+            );
 
-                if (! in_array($option['value'], $selectedValues, true)) {
-                    continue;
-                }
+            if ($capacityOptions === []) {
+                continue;
+            }
 
+            // 序列化同一欄位的容量檢查，但不鎖 survey_fields 列（避免與後台編輯互卡）。
+            // advisory lock 為 PostgreSQL 專屬；其他驅動（如測試用 sqlite）退回無鎖檢查。
+            if (DB::connection()->getDriverName() === 'pgsql') {
+                DB::statement('SELECT pg_advisory_xact_lock(hashtext(?))', ['field_capacity_'.$field->id]);
+            }
+
+            foreach ($capacityOptions as $option) {
                 $usedCount = SurveyAnswer::query()
                     ->where('survey_field_id', $field->id)
                     ->where(function ($query) use ($option): void {
@@ -231,16 +317,13 @@ class SubmitSurveyResponseAction
         }
     }
 
-    private function attachUploadedFileToResponse(SurveyField $field, mixed $value, SurveyResponse $response): void
+    private function attachUploadedFileToResponse(Survey $survey, SurveyField $field, mixed $value, SurveyResponse $response): void
     {
         if ($field->type->value !== 'file_upload' || ! is_array($value) || empty($value['media_id'])) {
             return;
         }
 
-        $media = Media::query()
-            ->whereKey((int) $value['media_id'])
-            ->where('collection_name', 'survey_files')
-            ->first();
+        $media = $this->uploadToken->resolve($value, $survey, $field);
 
         if (! $media instanceof Media) {
             return;

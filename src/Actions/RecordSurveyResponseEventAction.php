@@ -25,13 +25,13 @@ class RecordSurveyResponseEventAction
         array $metadata = [],
     ): SurveyResponseEvent {
         $recorded = SurveyResponseEvent::create([
-            'survey_id'           => $survey->id,
+            'survey_id' => $survey->id,
             'survey_collector_id' => $collector?->id,
-            'survey_response_id'  => $response?->id,
-            'event'               => $event,
-            'page_key'            => $pageKey,
-            'occurred_at'         => now(),
-            'metadata_json'       => Arr::where($metadata, fn (mixed $value): bool => $value !== null),
+            'survey_response_id' => $response?->id,
+            'event' => $event,
+            'page_key' => $pageKey,
+            'occurred_at' => now(),
+            'metadata_json' => Arr::where($metadata, fn (mixed $value): bool => $value !== null),
         ]);
 
         if ($event === 'started') {

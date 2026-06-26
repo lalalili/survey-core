@@ -13,9 +13,9 @@ it('creates and retrieves a survey page', function () {
     $survey = Survey::create(['title' => 'Test', 'status' => SurveyStatus::Draft]);
 
     $page = SurveyPage::create([
-        'survey_id'  => $survey->id,
-        'page_key'   => 'page_intro',
-        'title'      => 'Introduction',
+        'survey_id' => $survey->id,
+        'page_key' => 'page_intro',
+        'title' => 'Introduction',
         'sort_order' => 1,
     ]);
 
@@ -48,9 +48,9 @@ it('belongs to a survey', function () {
     $survey = Survey::create(['title' => 'Test', 'status' => SurveyStatus::Draft]);
 
     $page = SurveyPage::create([
-        'survey_id'  => $survey->id,
-        'page_key'   => 'page_a',
-        'title'      => 'A',
+        'survey_id' => $survey->id,
+        'page_key' => 'page_a',
+        'title' => 'A',
         'sort_order' => 1,
     ]);
 
@@ -83,11 +83,21 @@ it('page fields() relationship returns fields sorted by sort_order', function ()
 
 // ── Cascade delete ────────────────────────────────────────────────────────────
 
-it('deleting a survey cascades to its pages', function () {
+it('soft-deleting a survey keeps its pages (no cascade)', function () {
     $survey = Survey::create(['title' => 'Test', 'status' => SurveyStatus::Draft]);
     SurveyPage::create(['survey_id' => $survey->id, 'page_key' => 'page_a', 'title' => 'A', 'sort_order' => 1]);
 
     $survey->delete();
+
+    expect($survey->trashed())->toBeTrue()
+        ->and(SurveyPage::count())->toBe(1);
+});
+
+it('force-deleting a survey cascades to its pages', function () {
+    $survey = Survey::create(['title' => 'Test', 'status' => SurveyStatus::Draft]);
+    SurveyPage::create(['survey_id' => $survey->id, 'page_key' => 'page_a', 'title' => 'A', 'sort_order' => 1]);
+
+    $survey->forceDelete();
 
     expect(SurveyPage::count())->toBe(0);
 });
@@ -97,13 +107,13 @@ it('deleting a page sets survey_page_id to null on its fields', function () {
     $page = SurveyPage::create(['survey_id' => $survey->id, 'page_key' => 'page_a', 'title' => 'A', 'sort_order' => 1]);
 
     $field = SurveyField::create([
-        'survey_id'      => $survey->id,
+        'survey_id' => $survey->id,
         'survey_page_id' => $page->id,
-        'type'           => SurveyFieldType::ShortText,
-        'label'          => 'Name',
-        'field_key'      => 'name',
-        'is_required'    => false,
-        'sort_order'     => 1,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Name',
+        'field_key' => 'name',
+        'is_required' => false,
+        'sort_order' => 1,
     ]);
 
     $page->delete();

@@ -10,44 +10,43 @@ class CreateBlankSurveyBuilderSurveyAction
 {
     public function __construct(
         private readonly SaveSurveyDraftSchemaAction $saveDraftSchema,
-    ) {
-    }
+    ) {}
 
     public function execute(string $title = '未命名問卷'): Survey
     {
         return DB::transaction(function () use ($title): Survey {
             $survey = Survey::create([
-                'title'  => $title,
+                'title' => $title,
                 'status' => SurveyStatus::Draft,
             ]);
 
             return $this->saveDraftSchema->execute($survey, [
-                'id'       => $survey->id,
-                'title'    => $title,
-                'status'   => SurveyStatus::Draft->value,
-                'version'  => $survey->version,
+                'id' => $survey->id,
+                'title' => $title,
+                'status' => SurveyStatus::Draft->value,
+                'version' => $survey->version,
                 'settings' => [
                     'progress' => [
-                        'mode'                => 'bar',
+                        'mode' => 'bar',
                         'show_estimated_time' => true,
                     ],
                     'show_question_numbers' => true,
-                    'allow_back'            => true,
-                    'language'              => 'zh-TW',
-                    'uniqueness_mode'       => 'none',
-                    'anomaly'               => [
-                        'min_seconds'      => null,
+                    'allow_back' => true,
+                    'language' => 'zh-TW',
+                    'uniqueness_mode' => 'none',
+                    'anomaly' => [
+                        'min_seconds' => null,
                         'detect_duplicate' => 'cookie',
-                        'turnstile'        => false,
+                        'turnstile' => false,
                     ],
                 ],
                 'pages' => [
                     [
-                        'id'         => 'page_1',
-                        'kind'       => 'question',
-                        'title'      => '第 1 頁',
+                        'id' => 'page_1',
+                        'kind' => 'question',
+                        'title' => '第 1 頁',
                         'jump_rules' => [],
-                        'elements'   => [],
+                        'elements' => [],
                     ],
                 ],
             ]);

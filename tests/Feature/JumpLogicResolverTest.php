@@ -12,7 +12,7 @@ use Lalalili\SurveyCore\Support\JumpLogicResolver;
 function makeJumpSurvey(): Survey
 {
     $survey = Survey::create([
-        'title'  => 'Jump Survey',
+        'title' => 'Jump Survey',
         'status' => SurveyStatus::Published,
     ]);
 
@@ -22,14 +22,14 @@ function makeJumpSurvey(): Survey
 
     // Page A: single_choice with jump actions
     SurveyField::create([
-        'survey_id'      => $survey->id,
+        'survey_id' => $survey->id,
         'survey_page_id' => $pageA->id,
-        'type'           => SurveyFieldType::SingleChoice,
-        'label'          => 'Route',
-        'field_key'      => 'route',
-        'is_required'    => true,
-        'sort_order'     => 1,
-        'options_json'   => [
+        'type' => SurveyFieldType::SingleChoice,
+        'label' => 'Route',
+        'field_key' => 'route',
+        'is_required' => true,
+        'sort_order' => 1,
+        'options_json' => [
             ['id' => 'o1', 'label' => 'A→C', 'value' => 'skip',  'action' => ['type' => 'go_to_page', 'target_page_id' => 'page_c']],
             ['id' => 'o2', 'label' => 'A→B', 'value' => 'next',  'action' => ['type' => 'next_page']],
             ['id' => 'o3', 'label' => 'End',  'value' => 'stop',  'action' => ['type' => 'end_survey']],
@@ -38,24 +38,24 @@ function makeJumpSurvey(): Survey
 
     // Page B: plain short_text
     SurveyField::create([
-        'survey_id'      => $survey->id,
+        'survey_id' => $survey->id,
         'survey_page_id' => $pageB->id,
-        'type'           => SurveyFieldType::ShortText,
-        'label'          => 'Page B answer',
-        'field_key'      => 'page_b_ans',
-        'is_required'    => false,
-        'sort_order'     => 2,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Page B answer',
+        'field_key' => 'page_b_ans',
+        'is_required' => false,
+        'sort_order' => 2,
     ]);
 
     // Page C: plain short_text
     SurveyField::create([
-        'survey_id'      => $survey->id,
+        'survey_id' => $survey->id,
         'survey_page_id' => $pageC->id,
-        'type'           => SurveyFieldType::ShortText,
-        'label'          => 'Page C answer',
-        'field_key'      => 'page_c_ans',
-        'is_required'    => false,
-        'sort_order'     => 3,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Page C answer',
+        'field_key' => 'page_c_ans',
+        'is_required' => false,
+        'sort_order' => 3,
     ]);
 
     return $survey->load('pages', 'fields');
@@ -66,12 +66,12 @@ function makeJumpSurvey(): Survey
 it('returns null when the survey has no pages', function () {
     $survey = Survey::create(['title' => 'No Pages', 'status' => SurveyStatus::Published]);
     SurveyField::create([
-        'survey_id'   => $survey->id,
-        'type'        => SurveyFieldType::ShortText,
-        'label'       => 'Name',
-        'field_key'   => 'name',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Name',
+        'field_key' => 'name',
         'is_required' => true,
-        'sort_order'  => 1,
+        'sort_order' => 1,
     ]);
 
     expect(JumpLogicResolver::resolveVisitedPages($survey->load('pages', 'fields'), []))->toBeNull();
@@ -84,14 +84,14 @@ it('returns null when no field has a non-trivial jump action', function () {
     $page2 = SurveyPage::create(['survey_id' => $survey->id, 'page_key' => 'p2', 'title' => 'P2', 'sort_order' => 2]);
 
     SurveyField::create([
-        'survey_id'      => $survey->id,
+        'survey_id' => $survey->id,
         'survey_page_id' => $page1->id,
-        'type'           => SurveyFieldType::SingleChoice,
-        'label'          => 'Q',
-        'field_key'      => 'q',
-        'is_required'    => true,
-        'sort_order'     => 1,
-        'options_json'   => [
+        'type' => SurveyFieldType::SingleChoice,
+        'label' => 'Q',
+        'field_key' => 'q',
+        'is_required' => true,
+        'sort_order' => 1,
+        'options_json' => [
             ['id' => 'o1', 'label' => 'Yes', 'value' => 'yes', 'action' => ['type' => 'next_page']],
             ['id' => 'o2', 'label' => 'No',  'value' => 'no',  'action' => ['type' => 'next_page']],
         ],
@@ -155,37 +155,37 @@ it('follows go_to_page jump action on a select field', function () {
     $page3 = SurveyPage::create(['survey_id' => $survey->id, 'page_key' => 'sp3', 'title' => 'P3', 'sort_order' => 3]);
 
     SurveyField::create([
-        'survey_id'      => $survey->id,
+        'survey_id' => $survey->id,
         'survey_page_id' => $page1->id,
-        'type'           => SurveyFieldType::Select,
-        'label'          => 'Region',
-        'field_key'      => 'region',
-        'is_required'    => true,
-        'sort_order'     => 1,
-        'options_json'   => [
+        'type' => SurveyFieldType::Select,
+        'label' => 'Region',
+        'field_key' => 'region',
+        'is_required' => true,
+        'sort_order' => 1,
+        'options_json' => [
             ['id' => 'o1', 'label' => 'North', 'value' => 'north', 'action' => ['type' => 'go_to_page', 'target_page_id' => 'sp3']],
             ['id' => 'o2', 'label' => 'South', 'value' => 'south', 'action' => ['type' => 'next_page']],
         ],
     ]);
 
     SurveyField::create([
-        'survey_id'      => $survey->id,
+        'survey_id' => $survey->id,
         'survey_page_id' => $page2->id,
-        'type'           => SurveyFieldType::ShortText,
-        'label'          => 'P2 Q',
-        'field_key'      => 'p2_q',
-        'is_required'    => false,
-        'sort_order'     => 2,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'P2 Q',
+        'field_key' => 'p2_q',
+        'is_required' => false,
+        'sort_order' => 2,
     ]);
 
     SurveyField::create([
-        'survey_id'      => $survey->id,
+        'survey_id' => $survey->id,
         'survey_page_id' => $page3->id,
-        'type'           => SurveyFieldType::ShortText,
-        'label'          => 'P3 Q',
-        'field_key'      => 'p3_q',
-        'is_required'    => false,
-        'sort_order'     => 3,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'P3 Q',
+        'field_key' => 'p3_q',
+        'is_required' => false,
+        'sort_order' => 3,
     ]);
 
     $visited = JumpLogicResolver::resolveVisitedPages($survey->load('pages', 'fields'), ['region' => 'north']);

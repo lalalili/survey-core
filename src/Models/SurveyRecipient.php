@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Lalalili\SurveyCore\Enums\SurveyRecipientStatus;
 
 /**
@@ -17,6 +18,7 @@ use Lalalili\SurveyCore\Enums\SurveyRecipientStatus;
  * @property string|null $external_id
  * @property array<string, mixed>|null $payload_json
  * @property bool $is_test
+ * @property Carbon|null $invitation_opened_at
  * @property SurveyRecipientStatus $status
  * @property-read Survey $survey
  * @property-read AudienceListRow|null $audienceListRow
@@ -42,6 +44,7 @@ class SurveyRecipient extends Model
             'status' => SurveyRecipientStatus::class,
             'payload_json' => 'array',
             'is_test' => 'boolean',
+            'invitation_opened_at' => 'datetime',
         ];
     }
 

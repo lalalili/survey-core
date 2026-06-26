@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Lalalili\SurveyCore\Enums\SurveyResponseCompletionStatus;
 use Lalalili\SurveyCore\Enums\SurveyResponseQualityStatus;
@@ -15,6 +16,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
  * @property int $id
+ * @property string|null $response_number
  * @property int $survey_id
  * @property int|null $survey_recipient_id
  * @property int|null $survey_token_id
@@ -41,9 +43,11 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 class SurveyResponse extends Model implements HasMedia
 {
     use InteractsWithMedia;
+    use SoftDeletes;
 
     protected $fillable = [
         'survey_id',
+        'response_number',
         'survey_recipient_id',
         'survey_token_id',
         'survey_collector_id',

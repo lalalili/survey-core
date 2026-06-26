@@ -11,12 +11,16 @@ use Illuminate\Support\Facades\Storage;
 use Lalalili\AudienceCore\Models\AudienceList;
 use Lalalili\SurveyCore\Actions\BuildSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Actions\PublishSurveyAction;
+use Lalalili\SurveyCore\Actions\RecordSurveyBuilderActivityAction;
+use Lalalili\SurveyCore\Actions\RestoreSurveyPublishedSchemaAction;
 use Lalalili\SurveyCore\Actions\SaveSurveyDraftSchemaAction;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
 use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyTheme;
+use Lalalili\SurveyCore\Support\ImageUploadSanitizer;
+use Spatie\Activitylog\Models\Activity;
 
 class SurveyBuilderController extends Controller
 {
@@ -26,10 +30,10 @@ class SurveyBuilderController extends Controller
 
         return response()->json([
             'survey' => [
-                'id'           => $survey->id,
-                'title'        => $survey->title,
-                'status'       => $survey->status->value,
-                'version'      => $survey->version,
+                'id' => $survey->id,
+                'title' => $survey->title,
+                'status' => $survey->status->value,
+                'version' => $survey->version,
                 'published_at' => $survey->published_at?->toIso8601String(),
             ],
             'schema' => $buildSchema->execute($survey),
@@ -38,8 +42,8 @@ class SurveyBuilderController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'tokens_json'])
                 ->map(fn (SurveyTheme $theme): array => [
-                    'id'     => $theme->id,
-                    'name'   => $theme->name,
+                    'id' => $theme->id,
+                    'name' => $theme->name,
                     'tokens' => $theme->tokens_json ?? [],
                 ])
                 ->all(),
@@ -47,14 +51,14 @@ class SurveyBuilderController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name', 'columns_json'])
                 ->map(fn (AudienceList $audienceList): array => [
-                    'id'      => $audienceList->id,
-                    'name'    => $audienceList->name,
+                    'id' => $audienceList->id,
+                    'name' => $audienceList->name,
                     'columns' => $audienceList->columns_json ?? [],
                 ])
                 ->all(),
             'capabilities' => [
                 'can_manage_advanced_fields' => $this->canManageAdvancedFields($request),
-                'question_types'             => collect(SurveyFieldType::cases())
+                'question_types' => collect(SurveyFieldType::cases())
                     ->reject(fn (SurveyFieldType $type): bool => in_array($type, [
                         SurveyFieldType::Hidden,
                         SurveyFieldType::Email,
@@ -94,7 +98,7 @@ class SurveyBuilderController extends Controller
         );
     }
 
-    public function update(Request $request, Survey $survey, SaveSurveyDraftSchemaAction $saveSchema): JsonResponse
+    public function update(Request $request, Survey $survey, SaveSurveyDraftSchemaAction $saveSchema, RecordSurveyBuilderActivityAction $recordActivity): JsonResponse
     {
         Gate::authorize('update', $survey);
 
@@ -107,34 +111,41 @@ class SurveyBuilderController extends Controller
         } catch (SurveyValidationException $exception) {
             return response()->json([
                 'message' => 'Validation failed.',
-                'errors'  => $exception->getErrors(),
+                'errors' => $exception->getErrors(),
             ], 422);
         }
 
+        $recordActivity->recordAutosave($survey, $request->user());
+
         return response()->json([
             'saved_at' => now()->toIso8601String(),
-            'survey'   => [
-                'id'      => $survey->id,
-                'title'   => $survey->title,
-                'status'  => $survey->status->value,
+            'survey' => [
+                'id' => $survey->id,
+                'title' => $survey->title,
+                'status' => $survey->status->value,
                 'version' => $survey->version,
             ],
             'schema' => $survey->draft_schema,
         ]);
     }
 
-    public function uploadImage(Request $request, Survey $survey): JsonResponse
+    public function uploadImage(Request $request, Survey $survey, ImageUploadSanitizer $imageUploadSanitizer): JsonResponse
     {
         Gate::authorize('update', $survey);
 
+        $acceptedMimes = array_values((array) config('survey-core.builder_images.accepted_mimes', ['jpg', 'jpeg', 'png', 'webp', 'gif']));
+        $maxSize = (int) config('survey-core.builder_images.max_size', 5120);
+
         $request->validate([
-            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+            'file' => ['required', 'image', 'mimes:'.implode(',', $acceptedMimes), 'max:'.$maxSize],
         ]);
 
-        $disk = (string) config('filament.default_filesystem_disk', 'public');
-        $path = $request->file('file')->store(
+        $disk = (string) config('survey-core.builder_images.disk', 'public');
+        $path = $imageUploadSanitizer->store(
+            $request->file('file'),
             'survey-builder/'.$survey->getKey().'/'.now()->format('Y/m'),
             $disk,
+            'public',
         );
 
         if ($path === false || $path === '') {
@@ -142,13 +153,16 @@ class SurveyBuilderController extends Controller
         }
 
         return response()->json([
-            'url' => Storage::disk($disk)->url($path),
+            'url' => url(Storage::disk($disk)->url($path)),
         ]);
     }
 
-    public function publish(Survey $survey, PublishSurveyAction $publishSurvey): JsonResponse
+    public function publish(Request $request, Survey $survey, PublishSurveyAction $publishSurvey, RecordSurveyBuilderActivityAction $recordActivity): JsonResponse
     {
         Gate::authorize('update', $survey);
+
+        $previousVersion = $survey->version;
+        $previousPublishedAt = $survey->published_at?->toIso8601String();
 
         try {
             $survey = $publishSurvey->execute($survey);
@@ -159,19 +173,106 @@ class SurveyBuilderController extends Controller
         } catch (SurveyValidationException $exception) {
             return response()->json([
                 'message' => 'Validation failed.',
-                'errors'  => $exception->getErrors(),
+                'errors' => $exception->getErrors(),
             ], 422);
+        }
+
+        if ($survey->version !== $previousVersion || $survey->published_at?->toIso8601String() !== $previousPublishedAt) {
+            $recordActivity->recordPublished($survey, $request->user());
         }
 
         return response()->json([
             'published_at' => $survey->published_at?->toIso8601String(),
-            'survey'       => [
-                'id'      => $survey->id,
-                'title'   => $survey->title,
-                'status'  => $survey->status->value,
+            'survey' => [
+                'id' => $survey->id,
+                'title' => $survey->title,
+                'status' => $survey->status->value,
                 'version' => $survey->version,
             ],
             'schema' => $survey->published_schema,
         ]);
+    }
+
+    public function activities(Request $request, Survey $survey): JsonResponse
+    {
+        Gate::authorize('update', $survey);
+
+        $activities = Activity::query()
+            ->with('causer')
+            ->forSubject($survey)
+            ->where(function ($query): void {
+                $query
+                    ->where('log_name', 'survey_builder')
+                    ->orWhere('event', 'created');
+            })
+            ->latest('created_at')
+            ->limit(50)
+            ->get()
+            ->map(fn (Activity $activity): array => $this->formatActivity($activity))
+            ->all();
+
+        return response()->json([
+            'items' => $activities,
+            'can_restore_published' => is_array($survey->published_schema),
+            'published_at' => $survey->published_at?->toIso8601String(),
+            'current_version' => $survey->version,
+        ]);
+    }
+
+    public function restorePublished(Request $request, Survey $survey, RestoreSurveyPublishedSchemaAction $restoreSurvey, RecordSurveyBuilderActivityAction $recordActivity): JsonResponse
+    {
+        Gate::authorize('update', $survey);
+
+        try {
+            $survey = $restoreSurvey->execute($survey);
+        } catch (SurveyNotAvailableException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], $exception->getStatusCode());
+        } catch (SurveyValidationException $exception) {
+            return response()->json([
+                'message' => 'Validation failed.',
+                'errors' => $exception->getErrors(),
+            ], 422);
+        }
+
+        $recordActivity->recordRestoredPublished($survey, $request->user());
+
+        return response()->json([
+            'restored_at' => now()->toIso8601String(),
+            'survey' => [
+                'id' => $survey->id,
+                'title' => $survey->title,
+                'status' => $survey->status->value,
+                'version' => $survey->version,
+                'published_at' => $survey->published_at?->toIso8601String(),
+            ],
+            'schema' => $survey->draft_schema,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatActivity(Activity $activity): array
+    {
+        $properties = $activity->properties?->toArray() ?? [];
+
+        return [
+            'id' => $activity->id,
+            'event' => $activity->event,
+            'label' => match ($activity->event) {
+                'created' => '建立問卷',
+                'autosaved' => '自動儲存',
+                'published' => '發布問卷',
+                'restored_published' => '回復版本',
+                default => $activity->description,
+            },
+            'description' => $activity->description,
+            'causer_name' => $activity->causer?->getAttribute('name'),
+            'created_at' => $activity->created_at?->toIso8601String(),
+            'version' => $properties['version'] ?? null,
+            'autosave_count' => $properties['autosave_count'] ?? null,
+        ];
     }
 }

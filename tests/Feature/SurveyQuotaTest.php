@@ -13,17 +13,17 @@ require __DIR__.'/Phase3TestSupport.php';
 function phase3QuotaSurvey(array $attributes = []): Survey
 {
     $survey = Survey::create(array_merge([
-        'title'  => 'Quota Survey',
+        'title' => 'Quota Survey',
         'status' => SurveyStatus::Published,
     ], $attributes));
 
     SurveyField::create([
-        'survey_id'   => $survey->id,
-        'type'        => SurveyFieldType::ShortText,
-        'label'       => 'Name',
-        'field_key'   => 'name',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Name',
+        'field_key' => 'name',
         'is_required' => false,
-        'sort_order'  => 1,
+        'sort_order' => 1,
     ]);
 
     return $survey->load('fields');
@@ -34,8 +34,8 @@ it('blocks the fourth submission when max responses is three', function () {
 
     foreach (range(1, 3) as $index) {
         SurveyResponse::create([
-            'survey_id'         => $survey->id,
-            'submitted_at'      => now(),
+            'survey_id' => $survey->id,
+            'submitted_at' => now(),
             'completion_status' => 'complete',
         ]);
     }
@@ -49,8 +49,8 @@ it('does not limit submissions when max responses is null', function () {
     $survey = phase3QuotaSurvey(['max_responses' => null]);
 
     SurveyResponse::create([
-        'survey_id'         => $survey->id,
-        'submitted_at'      => now(),
+        'survey_id' => $survey->id,
+        'submitted_at' => now(),
         'completion_status' => 'complete',
     ]);
 
@@ -85,13 +85,13 @@ it('shows not started when survey starts in the future', function () {
 
 it('publishes and closes surveys from the schedule command', function () {
     $draft = phase3QuotaSurvey([
-        'title'     => 'Draft Scheduled',
-        'status'    => SurveyStatus::Draft,
+        'title' => 'Draft Scheduled',
+        'status' => SurveyStatus::Draft,
         'starts_at' => now()->subMinute(),
     ]);
     $published = phase3QuotaSurvey([
-        'title'   => 'Published Scheduled',
-        'status'  => SurveyStatus::Published,
+        'title' => 'Published Scheduled',
+        'status' => SurveyStatus::Published,
         'ends_at' => now()->subMinute(),
     ]);
 

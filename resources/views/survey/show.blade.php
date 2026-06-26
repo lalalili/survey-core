@@ -43,6 +43,18 @@
             border-color: var(--survey-primary) !important;
         }
 
+        /* 輔助色：用於次要動作（如「上一頁」、感謝頁「繼續」），與主色的主要動作區隔。 */
+        .survey-themed-accent {
+            background: var(--survey-accent) !important;
+            border-color: var(--survey-accent) !important;
+            color: #fff !important;
+        }
+
+        .survey-themed-accent-outline {
+            border-color: var(--survey-accent) !important;
+            color: var(--survey-accent) !important;
+        }
+
         .sr-only {
             position: absolute;
             width: 1px;
@@ -53,6 +65,47 @@
             clip: rect(0, 0, 0, 0);
             white-space: nowrap;
             border-width: 0;
+        }
+
+        /* 觸控目標：放大 radio/checkbox 至 ≥20px，並讓矩陣格子整格可點，
+           以接近 WCAG 2.5.8（最小 24×24）。.sr-only 視覺隱藏的選項不受影響。 */
+        .survey-field input[type="radio"]:not(.sr-only),
+        .survey-field input[type="checkbox"]:not(.sr-only) {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--survey-primary);
+        }
+        .survey-matrix td,
+        .survey-field table[aria-label] td {
+            min-width: 44px;
+            min-height: 44px;
+        }
+
+        /* Skip link：鍵盤使用者可跳過頁首直達題目，平時隱藏於畫面上方，聚焦時滑入。 */
+        .survey-skip-link {
+            position: absolute;
+            left: 8px;
+            top: -48px;
+            background: var(--survey-primary);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 6px;
+            z-index: 1000;
+            transition: top 150ms ease;
+        }
+        .survey-skip-link:focus {
+            top: 8px;
+        }
+
+        /* 鍵盤焦點可見性：NPS/評分以 sr-only radio 實作，原生 focus ring 被隱藏，
+           改在可見的 pip/label 上顯示焦點外框，確保 keyboard-only 使用者可辨識位置。 */
+        .survey-nps-label:has(.survey-nps-radio:focus-visible) .survey-nps-pip,
+        .survey-rating-star-label:has(.survey-rating-radio:focus-visible),
+        .survey-field input[type="radio"]:not(.sr-only):focus-visible,
+        .survey-field input[type="checkbox"]:not(.sr-only):focus-visible {
+            outline: 2px solid var(--survey-primary);
+            outline-offset: 2px;
+            border-radius: 4px;
         }
 
         .survey-rating-stars {
@@ -162,7 +215,7 @@
             display: flex;
             justify-content: space-between;
             font-size: 0.75rem;
-            color: #9ca3af;
+            color: #4b5563;
         }
 
         .survey-linear-scale {
@@ -326,6 +379,8 @@
 </head>
 <body>
 
+<a href="#main-content" class="survey-skip-link">跳至主要內容</a>
+
 @php
     // ── Page / field data ────────────────────────────────────────────────────
     $usePageModel = $survey->pages->isNotEmpty();
@@ -378,6 +433,17 @@
     $hasWelcomePage   = $welcomePage !== null && ($welcomeSettings['enabled'] ?? true) !== false;
     $hasThankYouPage  = $thankYouPage !== null && ($thankYouSettings['enabled'] ?? true) !== false;
 
+    // ── Thank-you redirect (survey-level; falls back to legacy thank-you-page setting) ──
+    $surveySettings = $survey->settings();
+    $redirectConfig = $surveySettings->redirectUrl !== null ? [
+        'url' => $surveySettings->redirectUrl,
+        'mode' => $surveySettings->redirectMode,
+        'delay' => $surveySettings->redirectDelaySeconds,
+    ] : null;
+    if ($redirectConfig === null && $hasThankYouPage && ! empty($thankYouSettings['redirect_url'])) {
+        $redirectConfig = ['url' => (string) $thankYouSettings['redirect_url'], 'mode' => 'link', 'delay' => 5];
+    }
+
     // ── Access controls ──────────────────────────────────────────────────────
     $hasPassword      = !empty($survey->settings_json['password'] ?? null) && empty($passwordUnlocked);
     $surveyQuery      = array_filter([
@@ -386,7 +452,6 @@
     ], fn ($value) => $value !== null && $value !== '');
     $termsText        = $survey->settings_json['terms_text'] ?? null;
     $hasTerms         = !empty($termsText);
-    $enableResponseNo = !empty($survey->settings_json['response_number']);
 
     // ── Turnstile ────────────────────────────────────────────────────────────
     $turnstileEnabled = !empty($survey->settings_json['anomaly']['turnstile']);
@@ -444,7 +509,7 @@
 
 {{-- ======================================================= TAILWIND CDN LAYOUT ===== --}}
 <div class="bg-gray-50 min-h-screen py-10" style="background: var(--survey-background); color: var(--survey-text);">
-<div class="max-w-2xl mx-auto px-4">
+<div id="main-content" tabindex="-1" class="max-w-2xl mx-auto px-4">
 
     {{-- Header --}}
     <div class="mb-8">
@@ -461,13 +526,14 @@
         <p class="text-sm text-gray-500 mb-5" style="color: var(--survey-text-muted);">請輸入密碼以繼續填寫</p>
         <div class="flex gap-3">
             <input id="password-input" type="password" placeholder="輸入密碼"
+                aria-label="問卷密碼" aria-describedby="password-error"
                 class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 style="border-color: var(--survey-border);">
             <button type="button" id="btn-unlock" class="survey-themed-primary inline-flex items-center rounded-md bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:opacity-90">
                 解鎖
             </button>
         </div>
-        <p id="password-error" class="hidden mt-2 text-sm text-red-600">密碼不正確，請重試。</p>
+        <p id="password-error" role="alert" aria-live="assertive" class="hidden mt-2 text-sm text-red-600">密碼不正確，請重試。</p>
     </div>
     <div id="after-gate" class="hidden">
     @endif
@@ -499,24 +565,22 @@
                 {{ $survey->submit_success_message ?? '感謝您的填寫！' }}
             @endif
         </div>
-        @if($hasThankYouPage && !empty($thankYouSettings['redirect_url']))
-            <a class="mt-4 inline-flex rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-800" href="{{ $thankYouSettings['redirect_url'] }}">繼續</a>
-        @endif
+        {{-- 轉址連結／自動跳轉由提交成功後的 JS 統一插入（REDIRECT_CONFIG），確保跨 render layout 一致。 --}}
     </div>
 
     {{-- Error banner --}}
-    <div id="error-banner" class="hidden rounded-lg bg-red-50 border border-red-200 p-4 mb-6">
+    <div id="error-banner" role="alert" aria-live="assertive" class="hidden rounded-lg bg-red-50 border border-red-200 p-4 mb-6">
         <p class="text-sm text-red-700" id="error-text"></p>
     </div>
 
     @if($progressMode !== 'none' && $pageCount > 0)
-    <div id="page-indicator" class="text-sm text-gray-500 text-center mb-4 @if($hasWelcomePage) hidden @endif">
+    <div id="page-indicator" role="status" aria-live="polite" class="text-sm text-gray-500 text-center mb-4 @if($hasWelcomePage) hidden @endif">
         @if($progressMode === 'bar')
-            <progress id="progress-bar" max="{{ $pageCount }}" value="1" class="h-2 w-full"></progress>
+            <progress id="progress-bar" max="{{ $pageCount }}" value="1" aria-label="填答進度" class="h-2 w-full"></progress>
         @elseif($progressMode === 'steps')
-            <div id="progress-steps" class="flex justify-center gap-2">
+            <div id="progress-steps" class="flex justify-center gap-2" role="img" aria-label="第 1 頁，共 {{ $pageCount }} 頁">
                 @foreach(range(1, $pageCount) as $step)
-                    <span class="progress-step inline-block h-2.5 w-2.5 rounded-full {{ $step === 1 ? 'bg-indigo-600' : 'bg-gray-300' }}"></span>
+                    <span class="progress-step inline-block h-2.5 w-2.5 rounded-full {{ $step === 1 ? 'bg-indigo-600' : 'bg-gray-300' }}" aria-hidden="true"></span>
                 @endforeach
             </div>
         @else
@@ -558,11 +622,14 @@
             @else
             @php $questionNo++; @endphp
             <div class="survey-field bg-white rounded-lg border border-gray-200 p-5 shadow-sm"
+                 role="group"
+                 aria-labelledby="q-label-{{ $fk }}"
                  data-field-key="{{ $fk }}"
                  data-field-type="{{ $type }}"
                  data-field-label="{{ $field->label }}"
                  @if($field->is_required)
                  data-field-required="true"
+                 aria-required="true"
                  @endif
                  @if($type === 'constant_sum' && isset($field->settings_json['total']))
                  data-constant-sum-total="{{ $field->settings_json['total'] }}"
@@ -572,7 +639,7 @@
                  data-show-if-value="{{ $field->show_if_value }}"
                  @endif>
 
-                <label class="block text-sm font-medium text-gray-900 mb-1">
+                <label id="q-label-{{ $fk }}" class="block text-sm font-medium text-gray-900 mb-1">
                     @if($showQuestionNumbers)<span class="text-gray-400 mr-1">{{ $questionNo }}.</span>@endif{{ $field->label }}
                     @if($field->is_required)<span class="text-red-500 ml-0.5">*</span>@endif
                 </label>
@@ -590,6 +657,7 @@
                     <input
                         type="{{ $isEmailInput ? 'email' : ($isMobileInput ? 'tel' : 'text') }}"
                         name="answers[{{ $fk }}]"
+                        aria-labelledby="q-label-{{ $fk }}"
                         placeholder="{{ $field->placeholder ?? '' }}"
                         value="{{ $field->default_value ?? '' }}"
                         @if($isMobileInput) inputmode="numeric" minlength="10" maxlength="10" pattern="09[0-9]{8}" @endif
@@ -600,6 +668,7 @@
                 @elseif($type === 'long_text')
                     <textarea
                         name="answers[{{ $fk }}]"
+                        aria-labelledby="q-label-{{ $fk }}"
                         rows="4"
                         placeholder="{{ $field->placeholder ?? '' }}"
                         @if($field->is_required) required @endif
@@ -642,7 +711,7 @@
                     </div>
 
                 @elseif($type === 'select')
-                    <select name="answers[{{ $fk }}]"
+                    <select name="answers[{{ $fk }}]" aria-labelledby="q-label-{{ $fk }}"
                         @if($field->is_required) required @endif
                         data-jump-field="{{ $fk }}"
                         class="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
@@ -672,6 +741,7 @@
                         @foreach(range(1, $ratingCount) as $star)
                             <label class="survey-rating-star-label" title="{{ $star }} 分">
                                 <input type="radio" name="answers[{{ $fk }}]" value="{{ $star }}"
+                                    aria-label="{{ $star }} 分"
                                     @if($field->is_required) required @endif
                                     class="sr-only survey-rating-radio">
                                 @if($ratingShowNumbers)
@@ -683,18 +753,18 @@
                     </div>
 
                 @elseif($type === 'date')
-                    <input type="date" name="answers[{{ $fk }}]"
+                    <input type="date" name="answers[{{ $fk }}]" aria-labelledby="q-label-{{ $fk }}"
                         value="{{ $field->default_value ?? '' }}"
                         @if($field->is_required) required @endif
                         class="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
                 @elseif($type === 'time')
-                    <input type="time" name="answers[{{ $fk }}]"
+                    <input type="time" name="answers[{{ $fk }}]" aria-labelledby="q-label-{{ $fk }}"
                         value="{{ $field->default_value ?? '' }}"
                         @if($field->is_required) required @endif
                         class="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
                 @elseif($type === 'number')
                     <div class="flex items-center gap-2">
-                        <input type="number" name="answers[{{ $fk }}]"
+                        <input type="number" name="answers[{{ $fk }}]" aria-labelledby="q-label-{{ $fk }}"
                             value="{{ $field->default_value ?? '' }}"
                             min="{{ $field->settings_json['min'] ?? '' }}"
                             max="{{ $field->settings_json['max'] ?? '' }}"
@@ -714,7 +784,7 @@
                     @endphp
                     <div class="survey-linear-scale">
                         <span class="survey-linear-scale-value" data-linear-scale-value>{{ $scaleDefault }}</span>
-                        <input type="range" name="answers[{{ $fk }}]"
+                        <input type="range" name="answers[{{ $fk }}]" aria-labelledby="q-label-{{ $fk }}"
                             value="{{ $scaleDefault }}"
                             min="{{ $scaleMin }}"
                             max="{{ $scaleMax }}"
@@ -785,7 +855,7 @@
                                     }
                                 @endphp
                                 <label class="survey-nps-label">
-                                    <input type="radio" name="answers[{{ $fk }}]" value="{{ $score }}" class="sr-only survey-nps-radio" @if($field->is_required) required @endif>
+                                    <input type="radio" name="answers[{{ $fk }}]" value="{{ $score }}" aria-label="{{ $score }} 分" class="sr-only survey-nps-radio" @if($field->is_required) required @endif>
                                     <span class="survey-nps-pip {{ $npsClass }}">{{ $score }}</span>
                                 </label>
                             @endforeach
@@ -797,25 +867,26 @@
                     </div>
                 @elseif($type === 'matrix_single' || $type === 'matrix_multi')
                     <div class="overflow-x-auto">
-                        <table class="w-full min-w-md text-sm">
+                        <table class="w-full min-w-md text-sm" aria-label="{{ $field->label }}">
                             <thead>
                                 <tr>
-                                    <th></th>
+                                    <th scope="col"><span class="sr-only">{{ $field->label }}</span></th>
                                     @foreach(($field->settings_json['matrix_cols'] ?? []) as $col)
-                                        <th class="px-2 py-2 text-center font-medium text-gray-600">{{ $col['label'] ?? '' }}</th>
+                                        <th scope="col" class="px-2 py-2 text-center font-medium text-gray-600">{{ $col['label'] ?? '' }}</th>
                                     @endforeach
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach(($field->settings_json['matrix_rows'] ?? []) as $row)
                                     <tr>
-                                        <th class="px-2 py-2 text-left font-medium text-gray-700">{{ $row['label'] ?? '' }}</th>
+                                        <th scope="row" class="px-2 py-2 text-left font-medium text-gray-700">{{ $row['label'] ?? '' }}</th>
                                         @foreach(($field->settings_json['matrix_cols'] ?? []) as $col)
                                             <td class="px-2 py-2 text-center">
                                                 <input
                                                     type="{{ $type === 'matrix_multi' ? 'checkbox' : 'radio' }}"
                                                     name="answers[{{ $fk }}][{{ $row['id'] ?? '' }}]{{ $type === 'matrix_multi' ? '[]' : '' }}"
                                                     value="{{ $col['id'] ?? '' }}"
+                                                    aria-label="{{ ($row['label'] ?? '') . '：' . ($col['label'] ?? '') }}"
                                                     @if($field->is_required && $type === 'matrix_single') required @endif
                                                     class="text-indigo-600 focus:ring-indigo-500">
                                             </td>
@@ -826,14 +897,15 @@
                         </table>
                     </div>
                 @elseif($type === 'ranking')
-                    <div class="survey-ranking-list space-y-2" data-ranking-list="{{ $fk }}">
+                    <p class="sr-only" id="ranking-help-{{ $fk }}">使用每個項目的「上移」「下移」按鈕調整排序。</p>
+                    <div class="survey-ranking-list space-y-2" data-ranking-list="{{ $fk }}" role="group" aria-describedby="ranking-help-{{ $fk }}">
                         @foreach($field->optionsForDisplay() as $optVal => $optLabel)
                             <div class="survey-ranking-item flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2" draggable="true" data-ranking-item data-ranking-option="{{ $optVal }}">
                                 <span class="survey-ranking-position" data-ranking-position></span>
                                 <span class="survey-ranking-handle" aria-hidden="true">☰</span>
                                 <span class="survey-ranking-label text-sm text-gray-700">{{ $optLabel }}</span>
-                                <button type="button" class="survey-ranking-move" data-ranking-move="up" aria-label="上移">↑</button>
-                                <button type="button" class="survey-ranking-move" data-ranking-move="down" aria-label="下移">↓</button>
+                                <button type="button" class="survey-ranking-move" data-ranking-move="up" aria-label="將「{{ $optLabel }}」上移">↑</button>
+                                <button type="button" class="survey-ranking-move" data-ranking-move="down" aria-label="將「{{ $optLabel }}」下移">↓</button>
                             </div>
                         @endforeach
                         <input type="hidden" name="answers[{{ $fk }}]" data-ranking-value="{{ $fk }}">
@@ -841,6 +913,7 @@
                 @elseif($type === 'file_upload')
                     <input type="file" data-file-upload-field="{{ $fk }}" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     <input type="hidden" name="answers[{{ $fk }}][media_id]" data-file-media-id="{{ $fk }}">
+                    <input type="hidden" name="answers[{{ $fk }}][upload_token]" data-file-upload-token="{{ $fk }}">
                     <input type="hidden" name="answers[{{ $fk }}][filename]" data-file-filename="{{ $fk }}">
                     <input type="hidden" name="answers[{{ $fk }}][size]" data-file-size="{{ $fk }}">
                 @elseif($type === 'signature')
@@ -861,7 +934,7 @@
                     </div>
                 @endif
 
-                <p class="text-xs text-red-500 mt-1 hidden field-error" data-field="{{ $fk }}"></p>
+                <p class="text-xs text-red-500 mt-1 hidden field-error" data-field="{{ $fk }}" role="alert" aria-live="assertive"></p>
             </div>
             @endif
             @endforeach
@@ -886,7 +959,7 @@
         {{-- Navigation --}}
         <div class="flex justify-between pt-2">
             <button type="button" id="btn-prev"
-                class="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 hidden">
+                class="survey-themed-accent-outline inline-flex items-center gap-2 rounded-md border bg-white px-6 py-2.5 text-sm font-semibold shadow-sm hover:bg-gray-50 hidden">
                 上一頁
             </button>
             <div id="nav-right" class="flex gap-2 ml-auto">
@@ -915,7 +988,7 @@
 @else
 
 {{-- ======================================================= PUBLISHED CSS LAYOUT ===== --}}
-<div class="survey-container">
+<div id="main-content" tabindex="-1" class="survey-container">
 
     <div class="survey-header">
         <h1 class="survey-title">{{ $survey->title }}</h1>
@@ -930,10 +1003,10 @@
         <p class="survey-field-label" style="font-size:1rem;margin-bottom:4px;">此問卷設有密碼保護</p>
         <p class="survey-field-description" style="margin-bottom:12px;">請輸入密碼以繼續填寫</p>
         <div style="display:flex;gap:8px;align-items:center;">
-            <input id="password-input" type="password" placeholder="輸入密碼" class="survey-input" style="max-width:220px;">
+            <input id="password-input" type="password" placeholder="輸入密碼" aria-label="問卷密碼" aria-describedby="password-error" class="survey-input" style="max-width:220px;">
             <button type="button" id="btn-unlock" class="survey-btn survey-btn--primary" style="padding:0.5rem 1.25rem;">解鎖</button>
         </div>
-        <p id="password-error" class="survey-field-error" style="display:none;margin-top:8px;">密碼不正確，請重試。</p>
+        <p id="password-error" role="alert" aria-live="assertive" class="survey-field-error" style="display:none;margin-top:8px;">密碼不正確，請重試。</p>
     </div>
     <div id="after-gate" class="survey-hidden">
     @endif
@@ -945,12 +1018,12 @@
         <p id="success-text">{{ $survey->submit_success_message ?? '感謝您的填寫！' }}</p>
     </div>
 
-    <div id="error-banner" class="survey-banner survey-banner--error survey-hidden">
+    <div id="error-banner" role="alert" aria-live="assertive" class="survey-banner survey-banner--error survey-hidden">
         <p id="error-text"></p>
     </div>
 
     @if($isMultiPage)
-    <p id="page-indicator" class="survey-page-indicator">
+    <p id="page-indicator" role="status" aria-live="polite" class="survey-page-indicator">
         第 <span id="current-page-label">1</span> 頁，共 {{ $pageCount }} 頁
     </p>
     @endif
@@ -985,11 +1058,14 @@
             @else
             @php $questionNo++; @endphp
             <div class="survey-field survey-field-card"
+                 role="group"
+                 aria-labelledby="q-label-{{ $fk }}"
                  data-field-key="{{ $fk }}"
                  data-field-type="{{ $type }}"
                  data-field-label="{{ $field->label }}"
                  @if($field->is_required)
                  data-field-required="true"
+                 aria-required="true"
                  @endif
                  @if($type === 'constant_sum' && isset($field->settings_json['total']))
                  data-constant-sum-total="{{ $field->settings_json['total'] }}"
@@ -999,7 +1075,7 @@
                  data-show-if-value="{{ $field->show_if_value }}"
                  @endif>
 
-                <label class="survey-field-label">
+                <label id="q-label-{{ $fk }}" class="survey-field-label">
                     @if($showQuestionNumbers)<span class="survey-question-no">{{ $questionNo }}.</span> @endif{{ $field->label }}
                     @if($field->is_required)<span class="survey-field-required">*</span>@endif
                 </label>
@@ -1017,6 +1093,7 @@
                     <input
                         type="{{ $isEmailInput ? 'email' : ($isMobileInput ? 'tel' : 'text') }}"
                         name="answers[{{ $fk }}]"
+                        aria-labelledby="q-label-{{ $fk }}"
                         placeholder="{{ $field->placeholder ?? '' }}"
                         value="{{ $field->default_value ?? '' }}"
                         @if($isMobileInput) inputmode="numeric" minlength="10" maxlength="10" pattern="09[0-9]{8}" @endif
@@ -1025,7 +1102,7 @@
                     >
 
                 @elseif($type === 'long_text')
-                    <textarea name="answers[{{ $fk }}]" rows="4"
+                    <textarea name="answers[{{ $fk }}]" aria-labelledby="q-label-{{ $fk }}" rows="4"
                         placeholder="{{ $field->placeholder ?? '' }}"
                         @if($field->is_required) required @endif
                         class="survey-textarea">{{ $field->default_value ?? '' }}</textarea>
@@ -1063,7 +1140,7 @@
                     </div>
 
                 @elseif($type === 'select')
-                    <select name="answers[{{ $fk }}]"
+                    <select name="answers[{{ $fk }}]" aria-labelledby="q-label-{{ $fk }}"
                         @if($field->is_required) required @endif
                         data-jump-field="{{ $fk }}"
                         class="survey-select">
@@ -1093,6 +1170,7 @@
                         @foreach(range(1, $ratingCount) as $star)
                             <label class="survey-rating-star-label" title="{{ $star }} 分">
                                 <input type="radio" name="answers[{{ $fk }}]" value="{{ $star }}"
+                                    aria-label="{{ $star }} 分"
                                     @if($field->is_required) required @endif
                                     class="sr-only survey-rating-radio">
                                 @if($ratingShowNumbers)
@@ -1104,17 +1182,17 @@
                     </div>
 
                 @elseif($type === 'date')
-                    <input type="date" name="answers[{{ $fk }}]"
+                    <input type="date" name="answers[{{ $fk }}]" aria-labelledby="q-label-{{ $fk }}"
                         value="{{ $field->default_value ?? '' }}"
                         @if($field->is_required) required @endif
                         class="survey-input">
                 @elseif($type === 'time')
-                    <input type="time" name="answers[{{ $fk }}]"
+                    <input type="time" name="answers[{{ $fk }}]" aria-labelledby="q-label-{{ $fk }}"
                         value="{{ $field->default_value ?? '' }}"
                         @if($field->is_required) required @endif
                         class="survey-input">
                 @elseif($type === 'number')
-                    <input type="number" name="answers[{{ $fk }}]"
+                    <input type="number" name="answers[{{ $fk }}]" aria-labelledby="q-label-{{ $fk }}"
                         value="{{ $field->default_value ?? '' }}"
                         min="{{ $field->settings_json['min'] ?? '' }}"
                         max="{{ $field->settings_json['max'] ?? '' }}"
@@ -1130,7 +1208,7 @@
                     @endphp
                     <div class="survey-choices survey-linear-scale">
                         <span class="survey-linear-scale-value" data-linear-scale-value>{{ $scaleDefault }}</span>
-                        <input type="range" name="answers[{{ $fk }}]"
+                        <input type="range" name="answers[{{ $fk }}]" aria-labelledby="q-label-{{ $fk }}"
                             value="{{ $scaleDefault }}"
                             min="{{ $scaleMin }}"
                             max="{{ $scaleMax }}"
@@ -1197,7 +1275,7 @@
                                     }
                                 @endphp
                                 <label class="survey-nps-label">
-                                    <input type="radio" name="answers[{{ $fk }}]" value="{{ $score }}" class="sr-only survey-nps-radio" @if($field->is_required) required @endif>
+                                    <input type="radio" name="answers[{{ $fk }}]" value="{{ $score }}" aria-label="{{ $score }} 分" class="sr-only survey-nps-radio" @if($field->is_required) required @endif>
                                     <span class="survey-nps-pip {{ $npsClass }}">{{ $score }}</span>
                                 </label>
                             @endforeach
@@ -1209,25 +1287,26 @@
                     </div>
                 @elseif($type === 'matrix_single' || $type === 'matrix_multi')
                     <div style="overflow-x:auto">
-                        <table class="survey-matrix">
+                        <table class="survey-matrix" aria-label="{{ $field->label }}">
                             <thead>
                                 <tr>
-                                    <th></th>
+                                    <th scope="col"><span class="sr-only">{{ $field->label }}</span></th>
                                     @foreach(($field->settings_json['matrix_cols'] ?? []) as $col)
-                                        <th>{{ $col['label'] ?? '' }}</th>
+                                        <th scope="col">{{ $col['label'] ?? '' }}</th>
                                     @endforeach
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach(($field->settings_json['matrix_rows'] ?? []) as $row)
                                     <tr>
-                                        <th>{{ $row['label'] ?? '' }}</th>
+                                        <th scope="row">{{ $row['label'] ?? '' }}</th>
                                         @foreach(($field->settings_json['matrix_cols'] ?? []) as $col)
                                             <td>
                                                 <input
                                                     type="{{ $type === 'matrix_multi' ? 'checkbox' : 'radio' }}"
                                                     name="answers[{{ $fk }}][{{ $row['id'] ?? '' }}]{{ $type === 'matrix_multi' ? '[]' : '' }}"
                                                     value="{{ $col['id'] ?? '' }}"
+                                                    aria-label="{{ ($row['label'] ?? '') . '：' . ($col['label'] ?? '') }}"
                                                     @if($field->is_required && $type === 'matrix_single') required @endif>
                                             </td>
                                         @endforeach
@@ -1237,14 +1316,15 @@
                         </table>
                     </div>
                 @elseif($type === 'ranking')
-                    <div class="survey-ranking-list" data-ranking-list="{{ $fk }}">
+                    <p class="sr-only" id="ranking-help-{{ $fk }}">使用每個項目的「上移」「下移」按鈕調整排序。</p>
+                    <div class="survey-ranking-list" data-ranking-list="{{ $fk }}" role="group" aria-describedby="ranking-help-{{ $fk }}">
                         @foreach($field->optionsForDisplay() as $optVal => $optLabel)
                             <div class="survey-ranking-item" draggable="true" data-ranking-item data-ranking-option="{{ $optVal }}">
                                 <span class="survey-ranking-position" data-ranking-position></span>
                                 <span class="survey-ranking-handle" aria-hidden="true">☰</span>
                                 <span class="survey-ranking-label">{{ $optLabel }}</span>
-                                <button type="button" class="survey-ranking-move" data-ranking-move="up" aria-label="上移">↑</button>
-                                <button type="button" class="survey-ranking-move" data-ranking-move="down" aria-label="下移">↓</button>
+                                <button type="button" class="survey-ranking-move" data-ranking-move="up" aria-label="將「{{ $optLabel }}」上移">↑</button>
+                                <button type="button" class="survey-ranking-move" data-ranking-move="down" aria-label="將「{{ $optLabel }}」下移">↓</button>
                             </div>
                         @endforeach
                         <input type="hidden" name="answers[{{ $fk }}]" data-ranking-value="{{ $fk }}">
@@ -1252,6 +1332,7 @@
                 @elseif($type === 'file_upload')
                     <input type="file" data-file-upload-field="{{ $fk }}" class="survey-input">
                     <input type="hidden" name="answers[{{ $fk }}][media_id]" data-file-media-id="{{ $fk }}">
+                    <input type="hidden" name="answers[{{ $fk }}][upload_token]" data-file-upload-token="{{ $fk }}">
                     <input type="hidden" name="answers[{{ $fk }}][filename]" data-file-filename="{{ $fk }}">
                     <input type="hidden" name="answers[{{ $fk }}][size]" data-file-size="{{ $fk }}">
                 @elseif($type === 'signature')
@@ -1272,7 +1353,7 @@
                     </div>
                 @endif
 
-                <p class="survey-field-error field-error" data-field="{{ $fk }}"></p>
+                <p class="survey-field-error field-error" data-field="{{ $fk }}" role="alert" aria-live="assertive"></p>
             </div>
             @endif
             @endforeach
@@ -1331,6 +1412,44 @@
     var JUMP_MAP      = @json($jumpMap);     // {field_key: {value: {type, target_page_id?}}}
     var PAGE_JUMP_MAP = @json($pageJumpMap);
     var THANK_YOU_MESSAGE = @json($hasThankYouPage ? ($thankYouSettings['message'] ?? null) : null);
+    var REDIRECT_CONFIG = @json($redirectConfig);   // {url, mode:'link'|'auto', delay} or null
+
+    // 提交成功後依 REDIRECT_CONFIG 統一處理轉址（連結／自動跳轉），對所有 success-message
+    // layout 一致插入，避免不同 render 模式行為不同。
+    function applyThankYouRedirect() {
+        if (!REDIRECT_CONFIG || !REDIRECT_CONFIG.url) { return; }
+        var url = String(REDIRECT_CONFIG.url);
+        if (!/^https?:\/\//i.test(url)) { return; }   // 前台再次過濾，僅允許 http(s)
+        var auto = REDIRECT_CONFIG.mode === 'auto';
+        var notes = [];
+        document.querySelectorAll('#success-message').forEach(function (box) {
+            if (auto) {
+                var note = document.createElement('p');
+                note.className = 'mt-4 text-sm';
+                box.appendChild(note);
+                notes.push(note);
+            }
+            var link = document.createElement('a');
+            link.href = url;
+            link.rel = 'noopener';
+            link.className = 'survey-themed-accent mt-2 inline-flex rounded-md border px-4 py-2 text-sm font-medium hover:opacity-90';
+            link.textContent = auto ? '立即前往' : '繼續';
+            box.appendChild(link);
+        });
+        if (!auto) { return; }
+        var remain = Math.max(0, Math.min(30, parseInt(REDIRECT_CONFIG.delay, 10) || 0));
+        var render = function () {
+            var txt = remain > 0 ? (remain + ' 秒後自動前往…') : '正在前往…';
+            notes.forEach(function (n) { n.textContent = txt; });
+        };
+        render();
+        if (remain <= 0) { window.location.href = url; return; }
+        var timer = setInterval(function () {
+            remain -= 1;
+            render();
+            if (remain <= 0) { clearInterval(timer); window.location.href = url; }
+        }, 1000);
+    }
     var STARTED_AT = Date.now();
     var SURVEY_QUERY = @json($surveyQuery);
     var DRAFT_STORAGE_KEY = [
@@ -1347,7 +1466,6 @@
     // ─── Access controls ──────────────────────────────────────────────────────
     var HAS_PASSWORD_GATE = {{ $hasPassword ? 'true' : 'false' }};
     var HAS_TERMS = {{ $hasTerms ? 'true' : 'false' }};
-    var ENABLE_RESPONSE_NO = {{ $enableResponseNo ? 'true' : 'false' }};
     var HAS_TURNSTILE = {{ ($turnstileEnabled && $turnstiteSiteKey) ? 'true' : 'false' }};
     var ALLOW_BACK = {{ $allowBack ? 'true' : 'false' }};
     var turnstileToken = null;
@@ -1452,20 +1570,6 @@
             submitBtnRef.disabled = !termsCheckbox.checked;
         });
     }
-
-    // Generate response number (SR-YYYYMMDD-XXXXXX)
-    function generateResponseNumber() {
-        if (!ENABLE_RESPONSE_NO) return null;
-        var now = new Date();
-        var y = now.getFullYear();
-        var m = String(now.getMonth() + 1).padStart(2, '0');
-        var d = String(now.getDate()).padStart(2, '0');
-        var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        var rand = '';
-        for (var i = 0; i < 6; i++) rand += chars[Math.floor(Math.random() * chars.length)];
-        return 'SR-' + y + m + d + '-' + rand;
-    }
-    var RESPONSE_NUMBER = generateResponseNumber();
 
     // ─── History stack ────────────────────────────────────────────────────────
     var pageStack      = [];  // visited page keys (not including current)
@@ -1719,10 +1823,14 @@
     function conditionGroupPasses(group) {
         var conditions = Array.isArray(group.conditions) ? group.conditions : [];
         if (conditions.length === 0) { return true; }
+        // Each entry is a leaf condition or a nested group (recurse on the latter).
+        var evaluate = function (node) {
+            return (node && Array.isArray(node.conditions)) ? conditionGroupPasses(node) : conditionPasses(node);
+        };
         if ((group.logic || 'and') === 'or') {
-            return conditions.some(conditionPasses);
+            return conditions.some(evaluate);
         }
-        return conditions.every(conditionPasses);
+        return conditions.every(evaluate);
     }
 
     function disableInputs(container, disabled) {
@@ -2080,6 +2188,7 @@
         var file = input.files && input.files[0] ? input.files[0] : null;
         if (!fieldKey || !file) { return; }
         var mediaId = document.querySelector('[data-file-media-id="' + fieldKey + '"]');
+        var uploadToken = document.querySelector('[data-file-upload-token="' + fieldKey + '"]');
         var filename = document.querySelector('[data-file-filename="' + fieldKey + '"]');
         var size = document.querySelector('[data-file-size="' + fieldKey + '"]');
         var token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -2096,6 +2205,7 @@
 
         if (!res.ok) {
             if (mediaId) { mediaId.value = ''; }
+            if (uploadToken) { uploadToken.value = ''; }
             if (filename) { filename.value = ''; }
             if (size) { size.value = ''; }
             showFieldErrors({ [fieldKey]: [data.message || '檔案上傳失敗。'] });
@@ -2103,6 +2213,7 @@
         }
 
         if (mediaId) { mediaId.value = String(data.media_id); }
+        if (uploadToken) { uploadToken.value = data.upload_token || ''; }
         if (filename) { filename.value = data.filename || file.name; }
         if (size) { size.value = String(data.size || file.size); }
     }
@@ -2284,7 +2395,6 @@
                     answers: collectAnswers(),
                     _elapsed_ms: Date.now() - STARTED_AT,
                     _hp: (document.querySelector('[name="_hp"]') || {}).value || '',
-                    _response_number: RESPONSE_NUMBER,
                     _turnstile_token: turnstileToken,
                     _terms_accepted: termsCheckbox ? termsCheckbox.checked : false,
                     collector: SURVEY_QUERY.collector || null,
@@ -2300,9 +2410,10 @@
                 var successText = document.getElementById('success-text');
                 if (successText) {
                     var msg = data.message || THANK_YOU_MESSAGE || successText.innerHTML;
-                    if (RESPONSE_NUMBER) { msg = msg.replace(/\{\{response_number\}\}/g, RESPONSE_NUMBER); }
+                    if (data.response_number) { msg = msg.replace(/\{\{response_number\}\}/g, data.response_number); }
                     successText.innerHTML = msg;
                 }
+                applyThankYouRedirect();
             } else if (res.status === 422 && data.errors) {
                 showFieldErrorsOnFirstErrorPage(data.errors);
                 if (submitBtn) { submitBtn.disabled = false; }

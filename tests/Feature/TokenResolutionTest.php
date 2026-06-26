@@ -10,27 +10,27 @@ use Lalalili\SurveyCore\Models\SurveyRecipient;
 use Lalalili\SurveyCore\Models\SurveyToken;
 
 beforeEach(function () {
-    $this->action = new ResolveSurveyTokenAction();
+    $this->action = new ResolveSurveyTokenAction;
 
     $this->survey = Survey::create([
-        'title'  => 'Test Survey',
+        'title' => 'Test Survey',
         'status' => SurveyStatus::Published,
     ]);
 
     $this->recipient = SurveyRecipient::create([
-        'survey_id'    => $this->survey->id,
-        'name'         => 'Alice',
-        'email'        => 'alice@example.com',
+        'survey_id' => $this->survey->id,
+        'name' => 'Alice',
+        'email' => 'alice@example.com',
         'payload_json' => ['customer_name' => 'Alice', 'member_level' => 'gold'],
-        'status'       => SurveyRecipientStatus::Active,
+        'status' => SurveyRecipientStatus::Active,
     ]);
 });
 
 it('resolves a valid token and returns recipient payload', function () {
     $token = SurveyToken::create([
-        'survey_id'           => $this->survey->id,
+        'survey_id' => $this->survey->id,
         'survey_recipient_id' => $this->recipient->id,
-        'status'              => SurveyTokenStatus::Active,
+        'status' => SurveyTokenStatus::Active,
     ]);
 
     $result = $this->action->execute($this->survey, $token->token);
@@ -47,9 +47,9 @@ it('throws for a non-existent token', function () {
 it('throws when token belongs to a different survey', function () {
     $otherSurvey = Survey::create(['title' => 'Other', 'status' => SurveyStatus::Published]);
     $token = SurveyToken::create([
-        'survey_id'           => $otherSurvey->id,
+        'survey_id' => $otherSurvey->id,
         'survey_recipient_id' => $this->recipient->id,
-        'status'              => SurveyTokenStatus::Active,
+        'status' => SurveyTokenStatus::Active,
     ]);
 
     $this->action->execute($this->survey, $token->token);
@@ -57,9 +57,9 @@ it('throws when token belongs to a different survey', function () {
 
 it('throws for an inactive token', function () {
     $token = SurveyToken::create([
-        'survey_id'           => $this->survey->id,
+        'survey_id' => $this->survey->id,
         'survey_recipient_id' => $this->recipient->id,
-        'status'              => SurveyTokenStatus::Inactive,
+        'status' => SurveyTokenStatus::Inactive,
     ]);
 
     $this->action->execute($this->survey, $token->token);
@@ -67,10 +67,10 @@ it('throws for an inactive token', function () {
 
 it('throws for an expired token', function () {
     $token = SurveyToken::create([
-        'survey_id'           => $this->survey->id,
+        'survey_id' => $this->survey->id,
         'survey_recipient_id' => $this->recipient->id,
-        'status'              => SurveyTokenStatus::Active,
-        'expires_at'          => now()->subMinute(),
+        'status' => SurveyTokenStatus::Active,
+        'expires_at' => now()->subMinute(),
     ]);
 
     $this->action->execute($this->survey, $token->token);
@@ -78,11 +78,11 @@ it('throws for an expired token', function () {
 
 it('throws when token has reached its max submissions', function () {
     $token = SurveyToken::create([
-        'survey_id'           => $this->survey->id,
+        'survey_id' => $this->survey->id,
         'survey_recipient_id' => $this->recipient->id,
-        'status'              => SurveyTokenStatus::Active,
-        'max_submissions'     => 1,
-        'used_count'          => 1,
+        'status' => SurveyTokenStatus::Active,
+        'max_submissions' => 1,
+        'used_count' => 1,
     ]);
 
     $this->action->execute($this->survey, $token->token);

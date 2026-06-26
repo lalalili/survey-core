@@ -110,8 +110,8 @@ class SurveyBuilderSurveySettings
     /**
      * @param  array<string, mixed>  $schema
      * @param  array<string, mixed>|null  $existingSettingsJson  Current DB value; merged as base so
-     *                                                            Builder-unknown keys (e.g. written by
-     *                                                            Filament form) are never silently dropped.
+     *                                                           Builder-unknown keys (e.g. written by
+     *                                                           Filament form) are never silently dropped.
      * @return array<string, mixed>|null
      */
     public function settingsJsonFromSchema(array $schema, ?array $existingSettingsJson = null): ?array

@@ -16,20 +16,20 @@ require __DIR__.'/Phase3TestSupport.php';
 function phase3UniqueSurvey(SurveyUniquenessMode $mode): Survey
 {
     $survey = Survey::create([
-        'title'              => 'Unique',
-        'status'             => SurveyStatus::Published,
-        'allow_anonymous'    => true,
-        'uniqueness_mode'    => $mode,
+        'title' => 'Unique',
+        'status' => SurveyStatus::Published,
+        'allow_anonymous' => true,
+        'uniqueness_mode' => $mode,
         'uniqueness_message' => '請勿重複填寫',
     ]);
 
     SurveyField::create([
-        'survey_id'   => $survey->id,
-        'type'        => SurveyFieldType::ShortText,
-        'label'       => 'Name',
-        'field_key'   => 'name',
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::ShortText,
+        'label' => 'Name',
+        'field_key' => 'name',
         'is_required' => false,
-        'sort_order'  => 1,
+        'sort_order' => 1,
     ]);
 
     return $survey;
@@ -47,19 +47,19 @@ it('does not apply marketing recipient duplicate rules to non-marketing tokens',
     $survey = phase3UniqueSurvey(SurveyUniquenessMode::None);
     $recipient = SurveyRecipient::create([
         'survey_id' => $survey->id,
-        'name'      => 'Alice',
-        'email'     => 'alice@example.com',
-        'status'    => SurveyRecipientStatus::Active,
+        'name' => 'Alice',
+        'email' => 'alice@example.com',
+        'status' => SurveyRecipientStatus::Active,
     ]);
     $firstToken = SurveyToken::create([
-        'survey_id'           => $survey->id,
+        'survey_id' => $survey->id,
         'survey_recipient_id' => $recipient->id,
-        'status'              => SurveyTokenStatus::Active,
+        'status' => SurveyTokenStatus::Active,
     ]);
     $secondToken = SurveyToken::create([
-        'survey_id'           => $survey->id,
+        'survey_id' => $survey->id,
         'survey_recipient_id' => $recipient->id,
-        'status'              => SurveyTokenStatus::Active,
+        'status' => SurveyTokenStatus::Active,
     ]);
 
     $this->postJson("/survey/{$survey->public_key}/submit?t={$firstToken->token}", ['answers' => ['name' => 'A']])
@@ -82,20 +82,20 @@ it('blocks duplicate recipient email submissions', function () {
     $survey = phase3UniqueSurvey(SurveyUniquenessMode::Email);
     $recipient = SurveyRecipient::create([
         'survey_id' => $survey->id,
-        'name'      => 'Alice',
-        'email'     => 'alice@example.com',
-        'status'    => SurveyRecipientStatus::Active,
+        'name' => 'Alice',
+        'email' => 'alice@example.com',
+        'status' => SurveyRecipientStatus::Active,
     ]);
     $token = SurveyToken::create([
-        'survey_id'           => $survey->id,
+        'survey_id' => $survey->id,
         'survey_recipient_id' => $recipient->id,
-        'status'              => SurveyTokenStatus::Active,
+        'status' => SurveyTokenStatus::Active,
     ]);
     SurveyResponse::create([
-        'survey_id'           => $survey->id,
+        'survey_id' => $survey->id,
         'survey_recipient_id' => $recipient->id,
-        'submitted_at'        => now(),
-        'completion_status'   => 'complete',
+        'submitted_at' => now(),
+        'completion_status' => 'complete',
     ]);
 
     $this->postJson("/survey/{$survey->public_key}/submit?t={$token->token}", ['answers' => ['name' => 'A']])

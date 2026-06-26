@@ -16,11 +16,11 @@ function phase3CapacitySurvey(?int $capacity = 3): array
 {
     $survey = Survey::create(['title' => 'Capacity', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     $field = SurveyField::create([
-        'survey_id'    => $survey->id,
-        'type'         => SurveyFieldType::SingleChoice,
-        'label'        => 'Session',
-        'field_key'    => 'session',
-        'is_required'  => true,
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::SingleChoice,
+        'label' => 'Session',
+        'field_key' => 'session',
+        'is_required' => true,
         'options_json' => [
             ['id' => 'morning', 'label' => '早場', 'value' => 'morning', 'capacity' => $capacity],
             ['id' => 'night', 'label' => '晚場', 'value' => 'night'],
@@ -78,13 +78,13 @@ it('keeps non-full options enabled', function () {
 it('counts array answers for multiple choice capacity', function () {
     $survey = Survey::create(['title' => 'Multi Capacity', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     $field = SurveyField::create([
-        'survey_id'    => $survey->id,
-        'type'         => SurveyFieldType::MultipleChoice,
-        'label'        => 'Choices',
-        'field_key'    => 'choices',
-        'is_required'  => false,
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::MultipleChoice,
+        'label' => 'Choices',
+        'field_key' => 'choices',
+        'is_required' => false,
         'options_json' => [['label' => 'A', 'value' => 'a', 'capacity' => 1]],
-        'sort_order'   => 1,
+        'sort_order' => 1,
     ]);
     $response = SurveyResponse::create(['survey_id' => $survey->id, 'submitted_at' => now(), 'completion_status' => 'complete']);
     SurveyAnswer::create(['survey_response_id' => $response->id, 'survey_field_id' => $field->id, 'answer_json' => ['a']]);

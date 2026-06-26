@@ -24,11 +24,31 @@ class DispatchHttpTriggerAction
         $retryTimes = (int) ($action['retry']['times'] ?? 3);
         $retrySleep = (int) ($action['retry']['sleep_ms'] ?? 200);
 
+        if (! (bool) config('external-communications.enabled', true)) {
+            $dispatch->update([
+                'status' => TriggerDispatchStatus::Skipped,
+                'payload_json' => $resolvedPayload,
+                'response_json' => [
+                    'status' => 'skipped',
+                    'endpoint' => $endpoint,
+                ],
+                'error' => 'HTTP trigger disabled by external communications setting.',
+                'dispatched_at' => now(),
+            ]);
+
+            Log::info('survey-trigger skipped by external communications setting', [
+                'dispatch_id' => $dispatch->id,
+                'endpoint' => $endpoint,
+            ]);
+
+            return;
+        }
+
         if ($this->isHostBlocked($endpoint)) {
             $host = parse_url($endpoint, PHP_URL_HOST) ?? $endpoint;
             $dispatch->update([
-                'status'        => TriggerDispatchStatus::Failed,
-                'error'         => "Endpoint host '{$host}' is not in the allowed hosts list.",
+                'status' => TriggerDispatchStatus::Failed,
+                'error' => "Endpoint host '{$host}' is not in the allowed hosts list.",
                 'dispatched_at' => now(),
             ]);
             Log::warning('survey-trigger blocked host', ['dispatch_id' => $dispatch->id, 'host' => $host]);
@@ -58,8 +78,8 @@ class DispatchHttpTriggerAction
 
                 Log::warning('survey-trigger http non-2xx', [
                     'dispatch_id' => $dispatch->id,
-                    'endpoint'    => $endpoint,
-                    'status'      => $response->status(),
+                    'endpoint' => $endpoint,
+                    'status' => $response->status(),
                 ]);
             }
         } catch (ConnectionException|RequestException $e) {
@@ -68,8 +88,8 @@ class DispatchHttpTriggerAction
 
             Log::error('survey-trigger http error', [
                 'dispatch_id' => $dispatch->id,
-                'endpoint'    => $endpoint,
-                'error'       => $e->getMessage(),
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
             ]);
 
             throw $e;
@@ -102,7 +122,22 @@ class DispatchHttpTriggerAction
     private function resolveHeaders(array $headers): array
     {
         return array_map(function (string $value): string {
-            return preg_replace_callback('/\{\{env\.([^}]+)\}\}/', fn ($m) => (string) ($_ENV[trim($m[1])] ?? $_SERVER[trim($m[1])] ?? getenv(trim($m[1])) ?: ''), $value) ?? $value;
+            return preg_replace_callback('/\{\{env\.([^}]+)\}\}/', function (array $matches): string {
+                $key = trim((string) $matches[1]);
+
+                if (! $this->isAllowedHeaderEnvKey($key)) {
+                    return '';
+                }
+
+                return (string) ($_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: '');
+            }, $value) ?? $value;
         }, $headers);
+    }
+
+    private function isAllowedHeaderEnvKey(string $key): bool
+    {
+        $allowedKeys = config('survey-core.triggers.header_env_keys', []);
+
+        return is_array($allowedKeys) && in_array($key, $allowedKeys, true);
     }
 }

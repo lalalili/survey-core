@@ -14,8 +14,7 @@ class BuildSurveyBuilderSchemaAction
 {
     public function __construct(
         private readonly SurveyBuilderSurveySettings $surveySettings,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -41,16 +40,16 @@ class BuildSurveyBuilderSchemaAction
         $pages = $this->buildPages($survey);
 
         return $this->surveySettings->mergeSurveyAttributesIntoSchema($survey, [
-            'id'                 => $survey->id,
-            'title'              => $survey->title,
-            'status'             => $survey->status->value,
-            'version'            => $survey->version,
-            'settings'           => $survey->settings_json ?? ['progress' => ['mode' => 'bar', 'show_estimated_time' => true]],
-            'theme_id'           => $survey->theme_id,
-            'theme_overrides'    => $survey->theme_overrides_json ?? [],
-            'calculations'       => $this->buildCalculations($survey),
+            'id' => $survey->id,
+            'title' => $survey->title,
+            'status' => $survey->status->value,
+            'version' => $survey->version,
+            'settings' => $survey->settings_json ?? ['progress' => ['mode' => 'bar', 'show_estimated_time' => true]],
+            'theme_id' => $survey->theme_id,
+            'theme_overrides' => $survey->theme_overrides_json ?? [],
+            'calculations' => $this->buildCalculations($survey),
             'thank_you_branches' => $survey->settings_json['thank_you_branches'] ?? [],
-            'pages'              => $pages,
+            'pages' => $pages,
         ]);
     }
 
@@ -85,7 +84,7 @@ class BuildSurveyBuilderSchemaAction
                 if ($type === SurveyFieldType::Email->value) {
                     $schema['pages'][$pageIndex]['elements'][$elementIndex]['settings'] = array_replace($settings, [
                         'input_format' => 'email',
-                        'input_mode'   => 'email',
+                        'input_mode' => 'email',
                     ]);
 
                     continue;
@@ -93,10 +92,10 @@ class BuildSurveyBuilderSchemaAction
 
                 $schema['pages'][$pageIndex]['elements'][$elementIndex]['settings'] = array_replace($settings, [
                     'input_format' => 'mobile_tw',
-                    'input_mode'   => 'numeric',
-                    'minlength'    => 10,
-                    'maxlength'    => 10,
-                    'pattern'      => '09[0-9]{8}',
+                    'input_mode' => 'numeric',
+                    'minlength' => 10,
+                    'maxlength' => 10,
+                    'pattern' => '09[0-9]{8}',
                 ]);
             }
         }
@@ -140,7 +139,7 @@ class BuildSurveyBuilderSchemaAction
                 $schema['pages'][$pageIndex]['elements'][$elementIndex] = array_replace(
                     $schema['pages'][$pageIndex]['elements'][$elementIndex],
                     [
-                        'is_hidden'        => true,
+                        'is_hidden' => true,
                         'personalized_key' => $field->personalized_key,
                     ],
                 );
@@ -249,13 +248,13 @@ class BuildSurveyBuilderSchemaAction
 
             return array_values($sortedPages
                 ->map(fn (SurveyPage $page): array => [
-                    'id'                 => $page->page_key,
-                    'kind'               => $page->kind->value,
-                    'title'              => $page->title,
-                    'welcome_settings'   => $page->settings_json['welcome'] ?? null,
+                    'id' => $page->page_key,
+                    'kind' => $page->kind->value,
+                    'title' => $page->title,
+                    'welcome_settings' => $page->settings_json['welcome'] ?? null,
                     'thank_you_settings' => $page->settings_json['thank_you'] ?? null,
-                    'jump_rules'         => $page->settings_json['jump_rules'] ?? [],
-                    'elements'           => ($fieldsByPageId->get($page->id) ?? collect())
+                    'jump_rules' => $page->settings_json['jump_rules'] ?? [],
+                    'elements' => ($fieldsByPageId->get($page->id) ?? collect())
                         ->sortBy('sort_order')
                         ->values()
                         ->map(fn (SurveyField $field): array => $this->fieldToElement($field))
@@ -275,9 +274,9 @@ class BuildSurveyBuilderSchemaAction
 
         return [
             [
-                'id'       => 'page_1',
-                'kind'     => 'question',
-                'title'    => 'Page 1',
+                'id' => 'page_1',
+                'kind' => 'question',
+                'title' => 'Page 1',
                 'elements' => $elements,
             ],
         ];
@@ -307,28 +306,28 @@ class BuildSurveyBuilderSchemaAction
         }
 
         return [
-            'id'          => 'field_'.$field->id,
-            'type'        => $type,
-            'field_key'   => $field->field_key,
-            'label'       => $field->label,
+            'id' => 'field_'.$field->id,
+            'type' => $type,
+            'field_key' => $field->field_key,
+            'label' => $field->label,
             'description' => $field->description ?? '',
-            'required'    => (bool) $field->is_required,
+            'required' => (bool) $field->is_required,
             'placeholder' => $field->placeholder,
-            'options'     => $this->optionsToBuilderOptions($field),
-            'settings'    => array_merge($settings, [
-                'default_value'    => $field->default_value,
+            'options' => $this->optionsToBuilderOptions($field),
+            'settings' => array_merge($settings, [
+                'default_value' => $field->default_value,
                 'validation_rules' => $field->validation_rules ?? [],
             ]),
-            'matrix_rows'       => $field->settings_json['matrix_rows'] ?? [],
-            'matrix_cols'       => $field->settings_json['matrix_cols'] ?? [],
-            'cascade_levels'    => $field->settings_json['cascade_levels'] ?? [],
-            'cascade_data'      => $field->settings_json['cascade_data'] ?? [],
-            'validation_rules'  => $field->validation_rules ?? ($field->settings_json['validation_rules'] ?? []),
-            'show_if'           => $this->showIfToBuilder($field),
+            'matrix_rows' => $field->settings_json['matrix_rows'] ?? [],
+            'matrix_cols' => $field->settings_json['matrix_cols'] ?? [],
+            'cascade_levels' => $field->settings_json['cascade_levels'] ?? [],
+            'cascade_data' => $field->settings_json['cascade_data'] ?? [],
+            'validation_rules' => $field->validation_rules ?? ($field->settings_json['validation_rules'] ?? []),
+            'show_if' => $this->showIfToBuilder($field),
             'show_if_field_key' => $field->show_if_field_key,
-            'show_if_value'     => $field->show_if_value,
-            'is_hidden'         => (bool) $field->is_hidden,
-            'personalized_key'  => $field->personalized_key,
+            'show_if_value' => $field->show_if_value,
+            'is_hidden' => (bool) $field->is_hidden,
+            'personalized_key' => $field->personalized_key,
         ];
     }
 
@@ -348,11 +347,11 @@ class BuildSurveyBuilderSchemaAction
         }
 
         return [
-            'logic'      => 'and',
+            'logic' => 'and',
             'conditions' => [[
                 'field_key' => $field->show_if_field_key,
-                'op'        => 'equals',
-                'value'     => $field->show_if_value,
+                'op' => 'equals',
+                'value' => $field->show_if_value,
             ]],
         ];
     }
@@ -372,10 +371,10 @@ class BuildSurveyBuilderSchemaAction
             return collect($options)
                 ->map(function (mixed $option, int $index): array {
                     $entry = [
-                        'id'        => (string) data_get($option, 'id', 'opt_'.($index + 1)),
-                        'label'     => (string) data_get($option, 'label', data_get($option, 'value', 'Option '.($index + 1))),
-                        'value'     => (string) data_get($option, 'value', data_get($option, 'label', $index)),
-                        'capacity'  => data_get($option, 'capacity'),
+                        'id' => (string) data_get($option, 'id', 'opt_'.($index + 1)),
+                        'label' => (string) data_get($option, 'label', data_get($option, 'value', 'Option '.($index + 1))),
+                        'value' => (string) data_get($option, 'value', data_get($option, 'label', $index)),
+                        'capacity' => data_get($option, 'capacity'),
                         'is_hidden' => (bool) data_get($option, 'is_hidden', false),
                     ];
 
@@ -397,7 +396,7 @@ class BuildSurveyBuilderSchemaAction
 
         return collect($options)
             ->map(fn (mixed $label, mixed $value): array => [
-                'id'    => 'opt_'.Str::slug((string) $value, '_'),
+                'id' => 'opt_'.Str::slug((string) $value, '_'),
                 'label' => (string) $label,
                 'value' => (string) $value,
             ])
@@ -412,11 +411,11 @@ class BuildSurveyBuilderSchemaAction
     {
         return array_values($survey->calculations
             ->map(fn (SurveyCalculation $calculation): array => [
-                'id'             => 'calc_'.$calculation->id,
-                'key'            => $calculation->key,
-                'label'          => $calculation->label,
-                'initial_value'  => $calculation->initial_value,
-                'output_format'  => $calculation->output_format,
+                'id' => 'calc_'.$calculation->id,
+                'key' => $calculation->key,
+                'label' => $calculation->label,
+                'initial_value' => $calculation->initial_value,
+                'output_format' => $calculation->output_format,
                 'grade_map_json' => $calculation->grade_map_json ?? [],
             ])
             ->values()

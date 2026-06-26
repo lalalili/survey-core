@@ -36,10 +36,10 @@ class SurveyTriggerDispatch extends Model
     protected function casts(): array
     {
         return [
-            'status'        => TriggerDispatchStatus::class,
-            'payload_json'  => 'array',
+            'status' => TriggerDispatchStatus::class,
+            'payload_json' => 'array',
             'response_json' => 'array',
-            'attempts'      => 'integer',
+            'attempts' => 'integer',
             'dispatched_at' => 'datetime',
         ];
     }
