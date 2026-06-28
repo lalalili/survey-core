@@ -185,6 +185,70 @@ class SurveyField extends Model
     }
 
     /**
+     * Options for public rendering, optionally shuffled when the
+     * `randomize_options` setting is enabled. Display-only — never use this for
+     * validation, analytics, or submission handling (those rely on the stable
+     * order from normalizedOptions()).
+     *
+     * @return list<array{id: string|null, label: string, value: string, capacity: int|null, is_hidden: bool}>
+     */
+    public function displayOptions(?int $seed = null): array
+    {
+        $options = $this->normalizedOptions();
+
+        if (! (bool) ($this->settings_json['randomize_options'] ?? false)) {
+            return $options;
+        }
+
+        return $this->seededShuffle($options, $seed);
+    }
+
+    /**
+     * Matrix rows for public rendering, optionally shuffled when the
+     * `randomize_rows` setting is enabled. Display-only.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function displayMatrixRows(?int $seed = null): array
+    {
+        $rows = array_values($this->settings_json['matrix_rows'] ?? []);
+
+        if (! (bool) ($this->settings_json['randomize_rows'] ?? false)) {
+            return $rows;
+        }
+
+        return $this->seededShuffle($rows, $seed);
+    }
+
+    /**
+     * Deterministic Fisher–Yates shuffle: the same seed and field always
+     * produce the same order, so a respondent sees a stable layout across page
+     * navigation and re-renders while different respondents see different orders.
+     *
+     * @template T
+     *
+     * @param  list<T>  $items
+     * @return list<T>
+     */
+    private function seededShuffle(array $items, ?int $seed): array
+    {
+        if (count($items) <= 1) {
+            return $items;
+        }
+
+        mt_srand(($seed ?? 0) ^ crc32((string) ($this->field_key ?? $this->id)));
+
+        for ($i = count($items) - 1; $i > 0; $i--) {
+            $j = mt_rand(0, $i);
+            [$items[$i], $items[$j]] = [$items[$j], $items[$i]];
+        }
+
+        mt_srand();
+
+        return array_values($items);
+    }
+
+    /**
      * Return the configured jump action for a specific submitted option value.
      * Only meaningful for list-format options_json (builder-managed fields).
      *

@@ -182,8 +182,13 @@ class PublicSurveyController extends Controller
         $theme = $survey->resolvedThemeTokens();
         $optionUsage = $this->optionUsage($survey);
         $passwordUnlocked = ! $this->requiresPassword($survey) || $this->hasUnlockedPassword($survey, $request);
+        // Per-respondent seed so randomized option/row order stays stable across
+        // page navigation and submit re-renders for the same visitor. Falls back
+        // to the client IP when no session is available (e.g. stateless requests).
+        $seedSource = $request->hasSession() ? $request->session()->getId() : (string) $request->ip();
+        $shuffleSeed = (int) crc32($seedSource.'|'.$survey->id);
 
-        return response()->view('survey-core::survey.show', compact('survey', 'resolved', 'theme', 'optionUsage', 'collector', 'passwordUnlocked'));
+        return response()->view('survey-core::survey.show', compact('survey', 'resolved', 'theme', 'optionUsage', 'collector', 'passwordUnlocked', 'shuffleSeed'));
     }
 
     public function submit(

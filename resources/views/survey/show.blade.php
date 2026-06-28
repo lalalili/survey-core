@@ -677,7 +677,7 @@
 
                 @elseif($type === 'single_choice')
                     <div class="space-y-2 mt-1" data-jump-field="{{ $fk }}">
-                        @foreach($field->normalizedOptions() as $option)
+                        @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
                             @continue($option['is_hidden'])
                             @php
                                 $used = $optionUsage[$fk][$option['value']] ?? 0;
@@ -695,7 +695,7 @@
 
                 @elseif($type === 'multiple_choice')
                     <div class="space-y-2 mt-1">
-                        @foreach($field->normalizedOptions() as $option)
+                        @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
                             @continue($option['is_hidden'])
                             @php
                                 $used = $optionUsage[$fk][$option['value']] ?? 0;
@@ -716,7 +716,7 @@
                         data-jump-field="{{ $fk }}"
                         class="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
                         <option value="">請選擇</option>
-                        @foreach($field->normalizedOptions() as $option)
+                        @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
                             @continue($option['is_hidden'])
                             @php
                                 $used = $optionUsage[$fk][$option['value']] ?? 0;
@@ -799,7 +799,7 @@
                     </div>
                 @elseif($type === 'constant_sum')
                     <div class="space-y-2">
-                        @foreach($field->normalizedOptions() as $option)
+                        @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
                             @continue($option['is_hidden'])
                             <label class="flex items-center gap-3">
                                 <span class="min-w-0 flex-1 text-sm text-gray-700">{{ $option['label'] }}</span>
@@ -877,7 +877,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach(($field->settings_json['matrix_rows'] ?? []) as $row)
+                                @foreach($field->displayMatrixRows($shuffleSeed ?? null) as $row)
                                     <tr>
                                         <th scope="row" class="px-2 py-2 text-left font-medium text-gray-700">{{ $row['label'] ?? '' }}</th>
                                         @foreach(($field->settings_json['matrix_cols'] ?? []) as $col)
@@ -1109,7 +1109,7 @@
 
                 @elseif($type === 'single_choice')
                     <div class="survey-choices" data-jump-field="{{ $fk }}">
-                        @foreach($field->normalizedOptions() as $option)
+                        @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
                             @continue($option['is_hidden'])
                             @php
                                 $used = $optionUsage[$fk][$option['value']] ?? 0;
@@ -1126,7 +1126,7 @@
 
                 @elseif($type === 'multiple_choice')
                     <div class="survey-choices">
-                        @foreach($field->normalizedOptions() as $option)
+                        @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
                             @continue($option['is_hidden'])
                             @php
                                 $used = $optionUsage[$fk][$option['value']] ?? 0;
@@ -1145,7 +1145,7 @@
                         data-jump-field="{{ $fk }}"
                         class="survey-select">
                         <option value="">請選擇</option>
-                        @foreach($field->normalizedOptions() as $option)
+                        @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
                             @continue($option['is_hidden'])
                             @php
                                 $used = $optionUsage[$fk][$option['value']] ?? 0;
@@ -1223,7 +1223,7 @@
                     </div>
                 @elseif($type === 'constant_sum')
                     <div class="survey-choices">
-                        @foreach($field->normalizedOptions() as $option)
+                        @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
                             @continue($option['is_hidden'])
                             <label class="survey-choice-label">
                                 <span>{{ $option['label'] }}</span>
@@ -1297,7 +1297,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach(($field->settings_json['matrix_rows'] ?? []) as $row)
+                                @foreach($field->displayMatrixRows($shuffleSeed ?? null) as $row)
                                     <tr>
                                         <th scope="row">{{ $row['label'] ?? '' }}</th>
                                         @foreach(($field->settings_json['matrix_cols'] ?? []) as $col)
