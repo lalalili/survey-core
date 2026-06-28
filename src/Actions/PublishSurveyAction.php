@@ -3,10 +3,12 @@
 namespace Lalalili\SurveyCore\Actions;
 
 use Illuminate\Support\Facades\DB;
+use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Support\SurveyBuilderSurveySettings;
+use Symfony\Component\HttpFoundation\Response;
 
 class PublishSurveyAction
 {
@@ -31,6 +33,14 @@ class PublishSurveyAction
                 $schema = $this->validateSchema->execute($survey->draft_schema ?? $this->buildSchema->execute($survey));
                 $schema = $this->sanitizeSchema->execute($schema);
                 $schema = $this->surveySettings->normalizeSchema($schema);
+
+                // 含檔案上傳題的問卷必須先綁定 Google Drive 才能發佈。
+                if ($survey->google_drive_account_id === null && $this->schemaHasFileUpload($schema)) {
+                    throw new SurveyNotAvailableException(
+                        '此問卷包含檔案上傳題，請先於問卷列表「連結 Google Drive」後再發佈。',
+                        Response::HTTP_UNPROCESSABLE_ENTITY,
+                    );
+                }
                 $publishedSchema = is_array($survey->published_schema)
                     ? $this->surveySettings->normalizeSchema($this->sanitizeSchema->execute($this->validateSchema->execute($survey->published_schema)))
                     : null;
@@ -58,5 +68,21 @@ class PublishSurveyAction
         } finally {
             $survey->enableLogging();
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $schema
+     */
+    private function schemaHasFileUpload(array $schema): bool
+    {
+        foreach (($schema['pages'] ?? []) as $page) {
+            foreach (($page['elements'] ?? []) as $element) {
+                if (($element['type'] ?? null) === SurveyFieldType::FileUpload->value) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
