@@ -265,6 +265,54 @@ class SurveyField extends Model
     }
 
     /**
+     * Reorder a page's fields for display, shuffling the members of each
+     * question group (題組) that opts into randomization. A field joins a group
+     * via settings_json['group']; a group is randomized when any of its members
+     * sets settings_json['randomize_in_group']. Members are shuffled across the
+     * positions they already occupy, so ungrouped questions stay in place.
+     * Display-only — never reorder the stored sort_order from this.
+     *
+     * @param  list<self>  $fields
+     * @return list<self>
+     */
+    public static function arrangeForDisplay(array $fields, ?int $seed = null): array
+    {
+        $positionsByGroup = [];
+        $randomizedGroups = [];
+
+        foreach ($fields as $index => $field) {
+            $group = $field->settings_json['group'] ?? null;
+
+            if (! is_string($group) || $group === '') {
+                continue;
+            }
+
+            $positionsByGroup[$group][] = $index;
+
+            if ((bool) ($field->settings_json['randomize_in_group'] ?? false)) {
+                $randomizedGroups[$group] = true;
+            }
+        }
+
+        $result = $fields;
+
+        foreach ($positionsByGroup as $group => $positions) {
+            if (count($positions) <= 1 || ! isset($randomizedGroups[$group])) {
+                continue;
+            }
+
+            $members = array_map(fn (int $position): self => $fields[$position], $positions);
+            $shuffled = self::shuffleWithSeed($members, ($seed ?? 0) ^ crc32((string) $group));
+
+            foreach ($positions as $k => $position) {
+                $result[$position] = $shuffled[$k];
+            }
+        }
+
+        return array_values($result);
+    }
+
+    /**
      * Deterministic Fisher–Yates shuffle: the same seed and field always
      * produce the same order, so a respondent sees a stable layout across page
      * navigation and re-renders while different respondents see different orders.
@@ -276,11 +324,24 @@ class SurveyField extends Model
      */
     private function seededShuffle(array $items, ?int $seed): array
     {
+        return self::shuffleWithSeed($items, ($seed ?? 0) ^ crc32((string) ($this->field_key ?? $this->id)));
+    }
+
+    /**
+     * Deterministic Fisher–Yates shuffle keyed purely by an integer seed.
+     *
+     * @template T
+     *
+     * @param  list<T>  $items
+     * @return list<T>
+     */
+    private static function shuffleWithSeed(array $items, int $seed): array
+    {
         if (count($items) <= 1) {
             return $items;
         }
 
-        mt_srand(($seed ?? 0) ^ crc32((string) ($this->field_key ?? $this->id)));
+        mt_srand($seed);
 
         for ($i = count($items) - 1; $i > 0; $i--) {
             $j = mt_rand(0, $i);

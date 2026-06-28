@@ -400,7 +400,10 @@
         $renderPages = $questionPages->map(fn ($p) => [
             'key'    => $p->page_key,
             'title'  => $p->title,
-            'fields' => ($fieldsByPageId[$p->id] ?? collect())->sortBy('sort_order')->values(),
+            'fields' => collect(\Lalalili\SurveyCore\Models\SurveyField::arrangeForDisplay(
+                ($fieldsByPageId[$p->id] ?? collect())->sortBy('sort_order')->values()->all(),
+                $shuffleSeed ?? null,
+            )),
         ])->filter(fn ($page) => $page['fields']->isNotEmpty())->values();
 
         $pagesData = $renderPages->map(fn ($page) => ['id' => $page['key'], 'title' => $page['title']])->values()->all();
@@ -413,7 +416,10 @@
         $renderPages = $grouped->map(fn ($fields, $num) => [
             'key'    => 'page_' . $num,
             'title'  => '第 ' . $num . ' 頁',
-            'fields' => $fields->values(),
+            'fields' => collect(\Lalalili\SurveyCore\Models\SurveyField::arrangeForDisplay(
+                $fields->values()->all(),
+                $shuffleSeed ?? null,
+            )),
         ])->values();
 
         $pagesData = $renderPages->map(fn ($rp) => ['id' => $rp['key'], 'title' => $rp['title']])->values()->all();
