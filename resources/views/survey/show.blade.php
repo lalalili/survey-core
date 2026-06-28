@@ -2747,6 +2747,22 @@
         });
 
         selectionContainers.forEach(rebuildSelection);
+
+        // 還原草稿時，來源題已於 restoreDraft() 先還原，故此時選項已依來源重建；
+        // 這裡再把本題先前已勾選的選項補回（restoreDraft 當下選項尚未存在）。
+        try {
+            var draftRaw = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+            if (draftRaw) {
+                var draftAnswers = (JSON.parse(draftRaw) || {}).answers || {};
+                selectionContainers.forEach(function (container) {
+                    var saved = draftAnswers[container.getAttribute('data-selection-field')];
+                    if (!Array.isArray(saved)) { return; }
+                    container.querySelectorAll('input[type="checkbox"]').forEach(function (checkbox) {
+                        if (saved.indexOf(checkbox.value) !== -1) { checkbox.checked = true; }
+                    });
+                });
+            }
+        } catch (e) { /* 忽略損壞的草稿資料 */ }
     }());
 
     // ─── Init ─────────────────────────────────────────────────────────────────
