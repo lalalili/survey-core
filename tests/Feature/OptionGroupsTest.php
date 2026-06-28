@@ -51,6 +51,26 @@ it('exposes each option group label through normalized options', function () {
         ->and(groupedField()->normalizedOptions()[4]['group'])->toBeNull();
 });
 
+it('renders grouped select options inside optgroup elements on the public page', function () {
+    $survey = Survey::create(['title' => 'Grouped Select', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
+    SurveyField::create([
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::Select,
+        'label' => '選一個',
+        'field_key' => 'pick',
+        'options_json' => [
+            ['label' => '蘋果', 'value' => 'apple', 'group' => '水果'],
+            ['label' => '紅蘿蔔', 'value' => 'carrot', 'group' => '蔬菜'],
+        ],
+        'sort_order' => 1,
+    ]);
+
+    $this->get("/survey/{$survey->public_key}")
+        ->assertSuccessful()
+        ->assertSee('<optgroup label="水果">', false)
+        ->assertSee('<optgroup label="蔬菜">', false);
+});
+
 it('persists option group labels through the builder sync', function () {
     $survey = Survey::create(['title' => 'Grouped', 'status' => SurveyStatus::Draft]);
 

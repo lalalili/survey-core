@@ -734,15 +734,20 @@
                         data-jump-field="{{ $fk }}"
                         class="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
                         <option value="">請選擇</option>
-                        @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
-                            @continue($option['is_hidden'])
-                            @php
-                                $used = $optionUsage[$fk][$option['value']] ?? 0;
-                                $isFull = $option['capacity'] !== null && $used >= $option['capacity'];
-                            @endphp
-                            <option value="{{ $option['value'] }}" @if($field->default_value === $option['value']) selected @endif @if($isFull) disabled @endif>
-                                {{ $option['label'] }}@if($isFull)（已額滿）@endif
-                            </option>
+                        @foreach($field->displayOptionGroups($shuffleSeed ?? null) as $optGroup)
+                            @php $groupedOptions = collect($optGroup['options'])->reject(fn ($o) => $o['is_hidden']); @endphp
+                            @continue($groupedOptions->isEmpty())
+                            @if($optGroup['label'])<optgroup label="{{ $optGroup['label'] }}">@endif
+                            @foreach($groupedOptions as $option)
+                                @php
+                                    $used = $optionUsage[$fk][$option['value']] ?? 0;
+                                    $isFull = $option['capacity'] !== null && $used >= $option['capacity'];
+                                @endphp
+                                <option value="{{ $option['value'] }}" @if($field->default_value === $option['value']) selected @endif @if($isFull) disabled @endif>
+                                    {{ $option['label'] }}@if($isFull)（已額滿）@endif
+                                </option>
+                            @endforeach
+                            @if($optGroup['label'])</optgroup>@endif
                         @endforeach
                     </select>
 
@@ -1180,15 +1185,20 @@
                         data-jump-field="{{ $fk }}"
                         class="survey-select">
                         <option value="">請選擇</option>
-                        @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
-                            @continue($option['is_hidden'])
-                            @php
-                                $used = $optionUsage[$fk][$option['value']] ?? 0;
-                                $isFull = $option['capacity'] !== null && $used >= $option['capacity'];
-                            @endphp
-                            <option value="{{ $option['value'] }}" @if($field->default_value === $option['value']) selected @endif @if($isFull) disabled @endif>
-                                {{ $option['label'] }}@if($isFull)（已額滿）@endif
-                            </option>
+                        @foreach($field->displayOptionGroups($shuffleSeed ?? null) as $optGroup)
+                            @php $groupedOptions = collect($optGroup['options'])->reject(fn ($o) => $o['is_hidden']); @endphp
+                            @continue($groupedOptions->isEmpty())
+                            @if($optGroup['label'])<optgroup label="{{ $optGroup['label'] }}">@endif
+                            @foreach($groupedOptions as $option)
+                                @php
+                                    $used = $optionUsage[$fk][$option['value']] ?? 0;
+                                    $isFull = $option['capacity'] !== null && $used >= $option['capacity'];
+                                @endphp
+                                <option value="{{ $option['value'] }}" @if($field->default_value === $option['value']) selected @endif @if($isFull) disabled @endif>
+                                    {{ $option['label'] }}@if($isFull)（已額滿）@endif
+                                </option>
+                            @endforeach
+                            @if($optGroup['label'])</optgroup>@endif
                         @endforeach
                     </select>
 
