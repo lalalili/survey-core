@@ -126,16 +126,17 @@ class ComputeSurveyAnalyticsAction
     {
         return array_values($fields
             ->reject(fn (SurveyField $field): bool => $field->is_hidden || $field->type->isContentBlock())
-            ->map(fn (SurveyField $field): array => $this->fieldStats($field, $responses))
+            ->map(fn (SurveyField $field): array => $this->fieldStats($field, $responses, $fields))
             ->values()
             ->all());
     }
 
     /**
      * @param  Collection<int, SurveyResponse>  $responses
+     * @param  Collection<int, SurveyField>  $fields
      * @return array<string, mixed>
      */
-    private function fieldStats(SurveyField $field, Collection $responses): array
+    private function fieldStats(SurveyField $field, Collection $responses, Collection $fields): array
     {
         $answers = $responses
             ->flatMap->answers
@@ -171,6 +172,12 @@ class ComputeSurveyAnalyticsAction
             SurveyFieldType::MatrixMulti => array_merge($base, [
                 'matrix' => $this->matrixDistribution($field, $answers),
             ]),
+            SurveyFieldType::SelectionBased => array_merge($base, [
+                'source_field_key' => is_string($field->settings_json['source_field_key'] ?? null)
+                    ? $field->settings_json['source_field_key']
+                    : null,
+                'distribution' => $this->selectionBasedDistribution($field, $answers, $fields),
+            ]),
             SurveyFieldType::Ranking => array_merge($base, [
                 'ranking' => $this->rankingStats($field, $answers),
             ]),
@@ -200,6 +207,39 @@ class ComputeSurveyAnalyticsAction
         }
 
         return array_values(collect($field->normalizedOptions())
+            ->map(fn (array $option): array => [
+                'value' => (string) $option['value'],
+                'label' => (string) $option['label'],
+                'count' => $counts[(string) $option['value']] ?? 0,
+            ])
+            ->values()
+            ->all());
+    }
+
+    /**
+     * Distribution for a selection_based (重複核選題) field: the answer values
+     * are option values carried over from its source question, so labels are
+     * resolved against the source field's options.
+     *
+     * @param  Collection<int, SurveyAnswer>  $answers
+     * @param  Collection<int, SurveyField>  $fields
+     * @return list<array{value: string, label: string, count: int}>
+     */
+    private function selectionBasedDistribution(SurveyField $field, Collection $answers, Collection $fields): array
+    {
+        $sourceKey = $field->settings_json['source_field_key'] ?? null;
+        $source = is_string($sourceKey) ? $fields->firstWhere('field_key', $sourceKey) : null;
+        $options = $source instanceof SurveyField ? $source->normalizedOptions() : [];
+
+        $counts = [];
+
+        foreach ($answers as $answer) {
+            foreach ($this->answerValues($answer) as $value) {
+                $counts[$value] = ($counts[$value] ?? 0) + 1;
+            }
+        }
+
+        return array_values(collect($options)
             ->map(fn (array $option): array => [
                 'value' => (string) $option['value'],
                 'label' => (string) $option['label'],
