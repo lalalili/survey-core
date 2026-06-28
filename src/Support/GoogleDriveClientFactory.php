@@ -128,6 +128,35 @@ class GoogleDriveClientFactory
     }
 
     /**
+     * Upload a file into the account's Drive (optionally inside a folder) and
+     * return its id + shareable view link. Does not make the file public.
+     *
+     * @param  resource|string  $contents
+     * @return array{id: string, link: ?string}
+     */
+    public function uploadFile(GoogleDriveAccount $account, ?string $folderId, string $name, mixed $contents, string $mimeType): array
+    {
+        $drive = $this->driveService($account);
+
+        $file = new DriveFile(array_filter([
+            'name' => $name,
+            'parents' => ($folderId !== null && $folderId !== '') ? [$folderId] : null,
+        ]));
+
+        $created = $drive->files->create($file, [
+            'data' => is_resource($contents) ? stream_get_contents($contents) : $contents,
+            'mimeType' => $mimeType,
+            'uploadType' => 'multipart',
+            'fields' => 'id, webViewLink',
+        ]);
+
+        return [
+            'id' => (string) $created->getId(),
+            'link' => $created->getWebViewLink(),
+        ];
+    }
+
+    /**
      * Ensure a folder exists in the account's Drive and return its id.
      */
     public function ensureFolder(GoogleDriveAccount $account, string $name, ?string $existingFolderId = null): string

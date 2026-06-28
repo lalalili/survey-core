@@ -5,6 +5,7 @@ namespace Lalalili\SurveyCore\Actions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Lalalili\SurveyCore\Data\SubmissionPayload;
+use Lalalili\SurveyCore\Jobs\UploadResponseFilesToGoogleDriveJob;
 use Lalalili\SurveyCore\Enums\SurveyResponseCompletionStatus;
 use Lalalili\SurveyCore\Events\SurveySubmitted;
 use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
@@ -154,6 +155,11 @@ class SubmitSurveyResponseAction
 
             foreach ($fileUploads as [$uploadField, $uploadValue]) {
                 $this->attachUploadedFileToResponse($survey, $uploadField, $uploadValue, $response);
+            }
+
+            // 有檔案上傳且問卷已綁定 Google Drive → 非同步推送到雲端硬碟。
+            if ($fileUploads !== [] && $survey->google_drive_account_id !== null) {
+                UploadResponseFilesToGoogleDriveJob::dispatch($response->id)->afterCommit();
             }
 
             $minSeconds = $survey->settings()->anomalyMinSeconds;
