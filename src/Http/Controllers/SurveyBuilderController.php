@@ -35,6 +35,12 @@ class SurveyBuilderController extends Controller
                 'status' => $survey->status->value,
                 'version' => $survey->version,
                 'published_at' => $survey->published_at?->toIso8601String(),
+                'google_drive' => [
+                    'connected' => $survey->google_drive_account_id !== null,
+                    'email' => $survey->googleDriveAccount?->email,
+                    'configured' => (bool) config('survey-core.google_drive.enabled')
+                        && (string) config('survey-core.google_drive.client_id') !== '',
+                ],
             ],
             'schema' => $buildSchema->execute($survey),
             'themes' => SurveyTheme::query()
