@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Lalalili\SurveyCore\Data\SurveySettings;
+use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Enums\SurveyUniquenessMode;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -20,6 +21,8 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
  * @property string|null $description
  * @property SurveyStatus $status
  * @property string|null $category
+ * @property int|null $google_drive_account_id
+ * @property string|null $google_drive_folder_id
  * @property string $public_key
  * @property bool $allow_anonymous
  * @property bool $allow_multiple_submissions
@@ -58,6 +61,8 @@ class Survey extends Model
         'description',
         'status',
         'category',
+        'google_drive_account_id',
+        'google_drive_folder_id',
         'public_key',
         'allow_anonymous',
         'allow_multiple_submissions',
@@ -110,6 +115,30 @@ class Survey extends Model
     public function fields(): HasMany
     {
         return $this->hasMany(SurveyField::class)->orderBy('sort_order');
+    }
+
+    /**
+     * @return BelongsTo<GoogleDriveAccount, $this>
+     */
+    public function googleDriveAccount(): BelongsTo
+    {
+        return $this->belongsTo(GoogleDriveAccount::class);
+    }
+
+    /**
+     * 此問卷是否含「檔案上傳題」。含此題型的問卷必須綁定 Google Drive。
+     */
+    public function hasFileUploadField(): bool
+    {
+        return $this->fields()->where('type', SurveyFieldType::FileUpload->value)->exists();
+    }
+
+    /**
+     * 問卷是否需要雲端硬碟綁定卻尚未綁定（用於發佈守門與引導 UI）。
+     */
+    public function requiresCloudBindingButUnbound(): bool
+    {
+        return $this->hasFileUploadField() && $this->google_drive_account_id === null;
     }
 
     /**

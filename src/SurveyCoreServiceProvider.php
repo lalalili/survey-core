@@ -82,6 +82,8 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 '2026_06_15_000001_add_soft_deletes_to_surveys',
                 '2026_06_15_000002_add_soft_deletes_to_survey_responses',
                 '2026_06_18_175033_add_response_number_to_survey_responses_table',
+                '2026_06_28_000001_create_google_drive_accounts_table',
+                '2026_06_28_000002_add_google_drive_to_surveys_table',
             ])
             ->runsMigrations()
             ->hasRoutes(['web']);

@@ -142,6 +142,25 @@ return [
         'token_ttl_minutes' => 30,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Google Drive 綁定
+    |--------------------------------------------------------------------------
+    | 含檔案上傳題的問卷需綁定一個 Google Drive 帳號，填答上傳的檔案會非同步
+    | 推送到該問卷的 Drive 資料夾。client_id/secret 需於 Google Cloud 建立
+    | OAuth client 並啟用 Drive API，redirect URI 需與 Google Console 註冊一致。
+    */
+    'google_drive' => [
+        'enabled' => (bool) env('GOOGLE_DRIVE_ENABLED', true),
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect_uri' => env('GOOGLE_DRIVE_REDIRECT_URI'),
+        // drive.file：只能存取本 App 建立的檔案/資料夾（最小權限）。
+        'scopes' => ['https://www.googleapis.com/auth/drive.file', 'openid', 'email', 'profile'],
+        'delete_local_after_upload' => (bool) env('GOOGLE_DRIVE_DELETE_LOCAL', false),
+        'queue' => env('GOOGLE_DRIVE_QUEUE'),
+    ],
+
     'builder_images' => [
         'disk' => env('SURVEY_BUILDER_IMAGES_DISK', 'public'),
         'max_size' => (int) env('SURVEY_BUILDER_IMAGES_MAX_SIZE', 5120),
