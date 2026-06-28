@@ -150,7 +150,7 @@ class SurveyField extends Model
     }
 
     /**
-     * @return list<array{id: string|null, label: string, value: string, capacity: int|null, is_hidden: bool}>
+     * @return list<array{id: string|null, label: string, value: string, capacity: int|null, is_hidden: bool, group: string|null}>
      */
     public function normalizedOptions(): array
     {
@@ -166,6 +166,9 @@ class SurveyField extends Model
                     'value' => (string) data_get($option, 'value', ''),
                     'capacity' => data_get($option, 'capacity') !== null ? (int) data_get($option, 'capacity') : null,
                     'is_hidden' => (bool) data_get($option, 'is_hidden', false),
+                    'group' => data_get($option, 'group') !== null && (string) data_get($option, 'group') !== ''
+                        ? (string) data_get($option, 'group')
+                        : null,
                 ])
                 ->filter(fn (array $option): bool => $option['value'] !== '')
                 ->values()
@@ -179,28 +182,69 @@ class SurveyField extends Model
                 'value' => (string) $value,
                 'capacity' => null,
                 'is_hidden' => false,
+                'group' => null,
             ])
             ->values()
             ->all());
     }
 
     /**
-     * Options for public rendering, optionally shuffled when the
-     * `randomize_options` setting is enabled. Display-only — never use this for
-     * validation, analytics, or submission handling (those rely on the stable
-     * order from normalizedOptions()).
+     * Options grouped for public rendering, honouring optional per-option
+     * `group` labels. Within-group order is shuffled when `randomize_options`
+     * is on; the order of the groups themselves is shuffled when
+     * `randomize_option_groups` is on. Ungrouped options share a leading group
+     * with an empty label. Display-only.
      *
-     * @return list<array{id: string|null, label: string, value: string, capacity: int|null, is_hidden: bool}>
+     * @return list<array{label: string, options: list<array{id: string|null, label: string, value: string, capacity: int|null, is_hidden: bool, group: string|null}>}>
+     */
+    public function displayOptionGroups(?int $seed = null): array
+    {
+        $groups = [];
+
+        foreach ($this->normalizedOptions() as $option) {
+            $label = $option['group'] ?? '';
+            $groups[$label] ??= [];
+            $groups[$label][] = $option;
+        }
+
+        $randomizeWithin = (bool) ($this->settings_json['randomize_options'] ?? false);
+
+        $result = [];
+        foreach ($groups as $label => $options) {
+            $result[] = [
+                'label' => (string) $label,
+                'options' => $randomizeWithin ? $this->seededShuffle($options, $seed) : $options,
+            ];
+        }
+
+        if ((bool) ($this->settings_json['randomize_option_groups'] ?? false)) {
+            $result = $this->seededShuffle($result, $seed !== null ? $seed ^ 0x5f3759df : null);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Flat options for public rendering — a group-aware flatten of
+     * displayOptionGroups(), so options stay contiguous within their group and
+     * honour both within-group and group-order randomization. Each option keeps
+     * its `group` label so the view can emit group headings. Display-only —
+     * never use this for validation, analytics, or submission handling (those
+     * rely on the stable order from normalizedOptions()).
+     *
+     * @return list<array{id: string|null, label: string, value: string, capacity: int|null, is_hidden: bool, group: string|null}>
      */
     public function displayOptions(?int $seed = null): array
     {
-        $options = $this->normalizedOptions();
+        $flat = [];
 
-        if (! (bool) ($this->settings_json['randomize_options'] ?? false)) {
-            return $options;
+        foreach ($this->displayOptionGroups($seed) as $group) {
+            foreach ($group['options'] as $option) {
+                $flat[] = $option;
+            }
         }
 
-        return $this->seededShuffle($options, $seed);
+        return $flat;
     }
 
     /**

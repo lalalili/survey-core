@@ -677,8 +677,14 @@
 
                 @elseif($type === 'single_choice')
                     <div class="space-y-2 mt-1" data-jump-field="{{ $fk }}">
+                        @php $lastGroup = null; @endphp
                         @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
                             @continue($option['is_hidden'])
+                            @php $optGroup = $option['group'] ?? null; @endphp
+                            @if($optGroup !== $lastGroup)
+                                @php $lastGroup = $optGroup; @endphp
+                                @if($optGroup)<p class="w-full text-xs font-semibold text-gray-500 mt-2">{{ $optGroup }}</p>@endif
+                            @endif
                             @php
                                 $used = $optionUsage[$fk][$option['value']] ?? 0;
                                 $isFull = $option['capacity'] !== null && $used >= $option['capacity'];
@@ -695,8 +701,14 @@
 
                 @elseif($type === 'multiple_choice')
                     <div class="space-y-2 mt-1">
+                        @php $lastGroup = null; @endphp
                         @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
                             @continue($option['is_hidden'])
+                            @php $optGroup = $option['group'] ?? null; @endphp
+                            @if($optGroup !== $lastGroup)
+                                @php $lastGroup = $optGroup; @endphp
+                                @if($optGroup)<p class="w-full text-xs font-semibold text-gray-500 mt-2">{{ $optGroup }}</p>@endif
+                            @endif
                             @php
                                 $used = $optionUsage[$fk][$option['value']] ?? 0;
                                 $isFull = $option['capacity'] !== null && $used >= $option['capacity'];
@@ -1114,8 +1126,14 @@
 
                 @elseif($type === 'single_choice')
                     <div class="survey-choices" data-jump-field="{{ $fk }}">
+                        @php $lastGroup = null; @endphp
                         @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
                             @continue($option['is_hidden'])
+                            @php $optGroup = $option['group'] ?? null; @endphp
+                            @if($optGroup !== $lastGroup)
+                                @php $lastGroup = $optGroup; @endphp
+                                @if($optGroup)<p style="margin-top:.5rem;font-size:.75rem;font-weight:600;color:var(--survey-text-muted);">{{ $optGroup }}</p>@endif
+                            @endif
                             @php
                                 $used = $optionUsage[$fk][$option['value']] ?? 0;
                                 $isFull = $option['capacity'] !== null && $used >= $option['capacity'];
@@ -1131,8 +1149,14 @@
 
                 @elseif($type === 'multiple_choice')
                     <div class="survey-choices">
+                        @php $lastGroup = null; @endphp
                         @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
                             @continue($option['is_hidden'])
+                            @php $optGroup = $option['group'] ?? null; @endphp
+                            @if($optGroup !== $lastGroup)
+                                @php $lastGroup = $optGroup; @endphp
+                                @if($optGroup)<p style="margin-top:.5rem;font-size:.75rem;font-weight:600;color:var(--survey-text-muted);">{{ $optGroup }}</p>@endif
+                            @endif
                             @php
                                 $used = $optionUsage[$fk][$option['value']] ?? 0;
                                 $isFull = $option['capacity'] !== null && $used >= $option['capacity'];

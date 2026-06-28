@@ -188,6 +188,11 @@ class SyncSurveyBuilderSchemaToFieldsAction
                 $entry['is_hidden'] = true;
             }
 
+            $group = trim((string) ($option['group'] ?? ''));
+            if ($group !== '') {
+                $entry['group'] = $group;
+            }
+
             $action = $option['action'] ?? null;
             if (is_array($action) && isset($action['type']) && $action['type'] !== 'next_page') {
                 $normalized = ['type' => $action['type']];
