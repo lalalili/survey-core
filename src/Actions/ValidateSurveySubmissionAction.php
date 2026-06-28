@@ -164,6 +164,7 @@ class ValidateSurveySubmissionAction
             SurveyFieldType::MultipleChoice, SurveyFieldType::MatrixSingle,
             SurveyFieldType::MatrixMulti, SurveyFieldType::Ranking,
             SurveyFieldType::ConstantSum,
+            SurveyFieldType::SelectionBased,
             SurveyFieldType::CascadeSelect,
             SurveyFieldType::FileUpload, SurveyFieldType::Signature,
             SurveyFieldType::Address => ['array'],

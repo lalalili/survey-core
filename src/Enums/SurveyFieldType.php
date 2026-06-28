@@ -14,6 +14,7 @@ enum SurveyFieldType: string
     case Nps = 'nps';
     case MatrixSingle = 'matrix_single';
     case MatrixMulti = 'matrix_multi';
+    case SelectionBased = 'selection_based';
     case Ranking = 'ranking';
     case FileUpload = 'file_upload';
     case Signature = 'signature';
@@ -44,6 +45,7 @@ enum SurveyFieldType: string
             self::Nps => 'NPS',
             self::MatrixSingle => '矩陣單選',
             self::MatrixMulti => '矩陣複選',
+            self::SelectionBased => '重複核選題',
             self::Ranking => '排序',
             self::FileUpload => '檔案上傳',
             self::Signature => '簽名',
@@ -75,7 +77,7 @@ enum SurveyFieldType: string
 
     public function supportsMultipleValues(): bool
     {
-        return in_array($this, [self::MultipleChoice, self::MatrixMulti, self::Ranking, self::ConstantSum], true);
+        return in_array($this, [self::MultipleChoice, self::MatrixMulti, self::SelectionBased, self::Ranking, self::ConstantSum], true);
     }
 
     public function isContentBlock(): bool

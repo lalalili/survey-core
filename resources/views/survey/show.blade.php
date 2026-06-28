@@ -910,6 +910,11 @@
                         @endforeach
                         <input type="hidden" name="answers[{{ $fk }}]" data-ranking-value="{{ $fk }}">
                     </div>
+                @elseif($type === 'selection_based')
+                    @php $sourceKey = $field->settings_json['source_field_key'] ?? ''; @endphp
+                    <div class="space-y-2 mt-1" data-selection-field="{{ $fk }}" data-selection-source="{{ $sourceKey }}" @if($field->is_required) data-selection-required="1" @endif>
+                        <p class="text-sm text-gray-400" data-selection-empty>請先回答來源題目，這裡會顯示可複選的選項。</p>
+                    </div>
                 @elseif($type === 'file_upload')
                     <input type="file" data-file-upload-field="{{ $fk }}" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
                     <input type="hidden" name="answers[{{ $fk }}][media_id]" data-file-media-id="{{ $fk }}">
@@ -1328,6 +1333,11 @@
                             </div>
                         @endforeach
                         <input type="hidden" name="answers[{{ $fk }}]" data-ranking-value="{{ $fk }}">
+                    </div>
+                @elseif($type === 'selection_based')
+                    @php $sourceKey = $field->settings_json['source_field_key'] ?? ''; @endphp
+                    <div class="survey-choices" data-selection-field="{{ $fk }}" data-selection-source="{{ $sourceKey }}" @if($field->is_required) data-selection-required="1" @endif>
+                        <p class="survey-help" data-selection-empty>請先回答來源題目，這裡會顯示可複選的選項。</p>
                     </div>
                 @elseif($type === 'file_upload')
                     <input type="file" data-file-upload-field="{{ $fk }}" class="survey-input">
@@ -2613,6 +2623,90 @@
                 clearFieldError(fieldKey);
             }
         });
+    }());
+
+    // ─── 重複核選題（selection_based）動態選項 ──────────────────────────────────
+    // 選項來自填答者在「來源題目」中所勾選的答案，於前端即時重建可複選清單。
+    (function () {
+        var selectionContainers = Array.prototype.slice.call(document.querySelectorAll('[data-selection-field]'));
+        if (selectionContainers.length === 0) { return; }
+
+        function sourceOptionLabel(input) {
+            var label = input.closest('label');
+            if (label) {
+                var span = label.querySelector('span');
+                if (span) { return span.textContent.trim(); }
+            }
+            return input.value;
+        }
+
+        function collectSourceSelections(sourceKey) {
+            var selected = [];
+            var select = document.querySelector('select[name="answers[' + sourceKey + ']"]');
+            if (select) {
+                if (select.value) {
+                    selected.push({ value: select.value, label: (select.options[select.selectedIndex] || {}).textContent || select.value });
+                }
+                return selected;
+            }
+            var inputs = document.querySelectorAll('input[name="answers[' + sourceKey + ']"], input[name="answers[' + sourceKey + '][]"]');
+            inputs.forEach(function (input) {
+                if (input.checked) { selected.push({ value: input.value, label: sourceOptionLabel(input) }); }
+            });
+            return selected;
+        }
+
+        function rebuildSelection(container) {
+            var fieldKey = container.getAttribute('data-selection-field');
+            var sourceKey = container.getAttribute('data-selection-source');
+            var isSurveyTheme = container.classList.contains('survey-choices');
+            if (!sourceKey) { return; }
+
+            var previouslyChecked = {};
+            container.querySelectorAll('input[type="checkbox"]:checked').forEach(function (cb) { previouslyChecked[cb.value] = true; });
+
+            var options = collectSourceSelections(sourceKey);
+            container.innerHTML = '';
+
+            if (options.length === 0) {
+                var empty = document.createElement('p');
+                empty.setAttribute('data-selection-empty', '');
+                empty.className = isSurveyTheme ? 'survey-help' : 'text-sm text-gray-400';
+                empty.textContent = '請先回答來源題目，這裡會顯示可複選的選項。';
+                container.appendChild(empty);
+                return;
+            }
+
+            options.forEach(function (option) {
+                var label = document.createElement('label');
+                label.className = isSurveyTheme ? 'survey-choice' : 'flex items-center gap-2 cursor-pointer';
+                var input = document.createElement('input');
+                input.type = 'checkbox';
+                input.name = 'answers[' + fieldKey + '][]';
+                input.value = option.value;
+                input.className = isSurveyTheme ? 'survey-choice-input' : 'survey-choice-input h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500';
+                if (previouslyChecked[option.value]) { input.checked = true; }
+                var span = document.createElement('span');
+                span.className = isSurveyTheme ? '' : 'text-sm text-gray-700';
+                span.textContent = option.label;
+                label.appendChild(input);
+                label.appendChild(span);
+                container.appendChild(label);
+            });
+        }
+
+        document.addEventListener('change', function (event) {
+            var target = event.target;
+            if (!target || !target.name) { return; }
+            var match = target.name.match(/^answers\[([^\]]+)\]/);
+            if (!match) { return; }
+            var changedKey = match[1];
+            selectionContainers.forEach(function (container) {
+                if (container.getAttribute('data-selection-source') === changedKey) { rebuildSelection(container); }
+            });
+        });
+
+        selectionContainers.forEach(rebuildSelection);
     }());
 
     // ─── Init ─────────────────────────────────────────────────────────────────

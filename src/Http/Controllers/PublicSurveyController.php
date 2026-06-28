@@ -186,6 +186,8 @@ class PublicSurveyController extends Controller
         // page navigation and submit re-renders for the same visitor. Falls back
         // to the client IP when no session is available (e.g. stateless requests).
         $seedSource = $request->hasSession() ? $request->session()->getId() : (string) $request->ip();
+        // (selection_based 重複核選題：選項在前端依來源題的勾選即時產生，
+        // 故公開頁僅輸出容器與來源 field_key，由 show.blade 的 JS 動態填入。)
         $shuffleSeed = (int) crc32($seedSource.'|'.$survey->id);
 
         return response()->view('survey-core::survey.show', compact('survey', 'resolved', 'theme', 'optionUsage', 'collector', 'passwordUnlocked', 'shuffleSeed'));
