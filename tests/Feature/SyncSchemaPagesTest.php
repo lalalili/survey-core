@@ -191,3 +191,72 @@ it('strips next_page action from options_json during sync', function () {
     $field = SurveyField::where(['survey_id' => $survey->id, 'field_key' => 'q'])->first();
     expect(array_key_exists('action', $field->options_json[0]))->toBeFalse();
 });
+
+// ── Personalization guarding ─────────────────────────────────────────────────
+
+it('keeps personalization on free-text fields', function () {
+    $survey = Survey::create(['title' => 'Test', 'status' => SurveyStatus::Draft]);
+
+    $schema = [
+        'title' => 'Test',
+        'pages' => [[
+            'id' => 'page_a',
+            'title' => 'P',
+            'elements' => [[
+                'id' => 'el_1',
+                'type' => 'short_text',
+                'field_key' => 'first_name',
+                'label' => 'Name',
+                'description' => '',
+                'required' => false,
+                'placeholder' => null,
+                'is_hidden' => true,
+                'personalized_key' => 'first_name',
+                'options' => [],
+                'settings' => [],
+            ]],
+        ]],
+    ];
+
+    app(SyncSurveyBuilderSchemaToFieldsAction::class)->execute($survey, $schema);
+
+    $field = SurveyField::where(['survey_id' => $survey->id, 'field_key' => 'first_name'])->first();
+    expect($field->is_hidden)->toBeTrue()
+        ->and($field->is_personalized)->toBeTrue()
+        ->and($field->personalized_key)->toBe('first_name');
+});
+
+it('strips personalization from choice fields that cannot map a raw value to options', function () {
+    $survey = Survey::create(['title' => 'Test', 'status' => SurveyStatus::Draft]);
+
+    $schema = [
+        'title' => 'Test',
+        'pages' => [[
+            'id' => 'page_a',
+            'title' => 'P',
+            'elements' => [[
+                'id' => 'el_1',
+                'type' => 'single_choice',
+                'field_key' => 'plan',
+                'label' => 'Plan',
+                'description' => '',
+                'required' => false,
+                'placeholder' => null,
+                'is_hidden' => true,
+                'personalized_key' => 'plan',
+                'options' => [
+                    ['id' => 'o1', 'label' => 'A', 'value' => 'a'],
+                    ['id' => 'o2', 'label' => 'B', 'value' => 'b'],
+                ],
+                'settings' => [],
+            ]],
+        ]],
+    ];
+
+    app(SyncSurveyBuilderSchemaToFieldsAction::class)->execute($survey, $schema);
+
+    $field = SurveyField::where(['survey_id' => $survey->id, 'field_key' => 'plan'])->first();
+    expect($field->is_hidden)->toBeFalse()
+        ->and($field->is_personalized)->toBeFalse()
+        ->and($field->personalized_key)->toBeNull();
+});

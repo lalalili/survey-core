@@ -90,6 +90,13 @@ class SyncSurveyBuilderSchemaToFieldsAction
                 $isHidden = (bool) ($element['is_hidden'] ?? false);
                 $personalizedKey = $element['personalized_key'] ?? null;
 
+                // Structured types (choice, matrix, rating, ...) cannot be personalized:
+                // the injected raw list value would not map to any option. Strip it.
+                if (! $type->supportsPersonalization()) {
+                    $isHidden = false;
+                    $personalizedKey = null;
+                }
+
                 $legacyShowIf = $this->legacyShowIf($element);
                 $isRequired = (bool) $element['required'] && $legacyShowIf['field_key'] === null;
                 $fieldKey = $this->fieldKey($element);

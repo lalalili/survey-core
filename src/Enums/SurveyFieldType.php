@@ -84,4 +84,27 @@ enum SurveyFieldType: string
     {
         return in_array($this, [self::SectionTitle, self::DescriptionBlock, self::Divider, self::QuoteBlock], true);
     }
+
+    /**
+     * Free-text / scalar field types whose answer is stored as a raw value.
+     *
+     * Personalization injects the recipient's raw list value directly into the
+     * answer without matching it against options, so it only makes sense for
+     * these types. Choice, matrix, rating and other structured types would
+     * receive a value unrelated to their options and must not enable it.
+     */
+    public function supportsPersonalization(): bool
+    {
+        return in_array($this, [
+            self::ShortText,
+            self::LongText,
+            self::Number,
+            self::Email,
+            self::Phone,
+            self::Address,
+            self::Date,
+            self::Time,
+            self::Hidden,
+        ], true);
+    }
 }
