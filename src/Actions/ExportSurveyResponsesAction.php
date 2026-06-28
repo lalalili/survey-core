@@ -4,6 +4,7 @@ namespace Lalalili\SurveyCore\Actions;
 
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Storage;
+use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyCalculation;
 use Lalalili\SurveyCore\Models\SurveyField;
@@ -138,6 +139,12 @@ class ExportSurveyResponsesAction
         ];
 
         foreach ($fields as $field) {
+            if ($field->type === SurveyFieldType::FileUpload) {
+                $row[] = $this->fileCell($response, $field);
+
+                continue;
+            }
+
             $answer = $answersByFieldId->get($field->id);
             $value = $answer?->getValue();
             $row[] = is_array($value) ? implode(', ', $value) : $value;
@@ -150,5 +157,22 @@ class ExportSurveyResponsesAction
         }
 
         return $row;
+    }
+
+    /**
+     * 檔案上傳欄位輸出：優先 Google Drive 連結，否則回退原始檔名。
+     */
+    private function fileCell(SurveyResponse $response, SurveyField $field): ?string
+    {
+        $media = $response->getMedia('survey_files')
+            ->first(fn ($item): bool => $item->getCustomProperty('survey_field_key') === $field->field_key);
+
+        if ($media === null) {
+            return null;
+        }
+
+        $driveLink = $media->getCustomProperty('google_drive_link');
+
+        return is_string($driveLink) && $driveLink !== '' ? $driveLink : $media->file_name;
     }
 }
