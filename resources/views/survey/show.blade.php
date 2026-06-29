@@ -2375,6 +2375,29 @@
         status.classList.toggle('hidden', !isVisible);
     }
 
+    function clearFileUploadSelection(fieldKey, elements) {
+        if (elements.mediaId) { elements.mediaId.value = ''; }
+        if (elements.uploadToken) { elements.uploadToken.value = ''; }
+        if (elements.filename) { elements.filename.value = ''; }
+        if (elements.size) { elements.size.value = ''; }
+        if (elements.zone) { elements.zone.classList.remove('is-uploaded'); }
+        setFileUploadStatus(fieldKey, '', false);
+    }
+
+    async function readJsonResponse(response) {
+        var contentType = response.headers.get('content-type') || '';
+
+        if (contentType.indexOf('application/json') === -1) {
+            return {};
+        }
+
+        try {
+            return await response.json();
+        } catch (error) {
+            return {};
+        }
+    }
+
     function formatFileSize(bytes) {
         if (!bytes) { return ''; }
         if (bytes < 1024 * 1024) { return Math.max(1, Math.round(bytes / 1024)) + ' KB'; }
@@ -2394,20 +2417,21 @@
         if (elements.zone) { elements.zone.classList.remove('is-uploaded'); }
         setFileUploadStatus(fieldKey, '上傳中：' + file.name, true);
 
-        var res = await fetch(appendSurveyQuery(UPLOAD_URL), {
-            method: 'POST',
-            headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
-            body: body,
-        });
-        var data = await res.json();
+        try {
+            var res = await fetch(appendSurveyQuery(UPLOAD_URL), {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
+                body: body,
+            });
+            var data = await readJsonResponse(res);
+        } catch (error) {
+            clearFileUploadSelection(fieldKey, elements);
+            showFieldErrors({ [fieldKey]: ['檔案上傳失敗，請確認網路連線後再試一次。'] });
+            return;
+        }
 
         if (!res.ok) {
-            if (elements.mediaId) { elements.mediaId.value = ''; }
-            if (elements.uploadToken) { elements.uploadToken.value = ''; }
-            if (elements.filename) { elements.filename.value = ''; }
-            if (elements.size) { elements.size.value = ''; }
-            if (elements.zone) { elements.zone.classList.remove('is-uploaded'); }
-            setFileUploadStatus(fieldKey, '', false);
+            clearFileUploadSelection(fieldKey, elements);
             showFieldErrors({ [fieldKey]: [data.message || '檔案上傳失敗。'] });
             return;
         }

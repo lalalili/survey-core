@@ -34,6 +34,7 @@ use Lalalili\SurveyCore\Models\SurveyToken;
 use Lalalili\SurveyCore\Services\TurnstileVerifier;
 use Lalalili\SurveyCore\Support\ConditionGroupEvaluator;
 use Lalalili\SurveyCore\Support\SurveyFileUploadToken;
+use Throwable;
 
 class PublicSurveyController extends Controller
 {
@@ -332,22 +333,28 @@ class PublicSurveyController extends Controller
             'file' => $fileRules,
         ]);
 
-        $draftResponse = SurveyResponse::create([
-            'survey_id' => $survey->id,
-            'completion_status' => SurveyResponseCompletionStatus::Partial,
-        ]);
+        try {
+            $draftResponse = SurveyResponse::create([
+                'survey_id' => $survey->id,
+                'completion_status' => SurveyResponseCompletionStatus::Partial,
+            ]);
 
-        $media = $draftResponse
-            ->addMedia($validated['file'])
-            ->withCustomProperties(['survey_field_key' => $field->field_key])
-            ->toMediaCollection('survey_files');
+            $media = $draftResponse
+                ->addMedia($validated['file'])
+                ->withCustomProperties(['survey_field_key' => $field->field_key])
+                ->toMediaCollection('survey_files');
 
-        return response()->json([
-            'media_id' => $media->id,
-            'upload_token' => $uploadToken->issue($media, $draftResponse, $field),
-            'filename' => $media->file_name,
-            'size' => $media->size,
-        ], 201);
+            return response()->json([
+                'media_id' => $media->id,
+                'upload_token' => $uploadToken->issue($media, $draftResponse, $field),
+                'filename' => $media->file_name,
+                'size' => $media->size,
+            ], 201);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return response()->json(['message' => '檔案上傳失敗，請稍後再試。'], 500);
+        }
     }
 
     /**
