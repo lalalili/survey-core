@@ -40,7 +40,7 @@ it('blocks publishing a file-upload survey without a google drive binding', func
     $survey = fileUploadSurvey();
 
     expect(fn () => app(PublishSurveyAction::class)->execute($survey))
-        ->toThrow(SurveyNotAvailableException::class);
+        ->toThrow(SurveyNotAvailableException::class, '此問卷包含檔案上傳題，請先於問卷列表「連結 Google Drive」後再發佈。');
 
     expect($survey->refresh()->status)->toBe(SurveyStatus::Draft);
 });

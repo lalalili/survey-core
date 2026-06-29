@@ -18,6 +18,7 @@ class CreateBlankSurveyBuilderSurveyAction
             $survey = Survey::create([
                 'title' => $title,
                 'status' => SurveyStatus::Draft,
+                'allow_anonymous' => true,
             ]);
 
             return $this->saveDraftSchema->execute($survey, [

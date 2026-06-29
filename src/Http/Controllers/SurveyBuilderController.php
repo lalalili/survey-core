@@ -200,6 +200,9 @@ class SurveyBuilderController extends Controller
         } catch (SurveyNotAvailableException $exception) {
             return response()->json([
                 'message' => $exception->getMessage(),
+                'errors' => [
+                    'publish' => [$exception->getMessage()],
+                ],
             ], $exception->getStatusCode());
         } catch (SurveyValidationException $exception) {
             return response()->json([

@@ -609,6 +609,43 @@ it('autosaves draft schema without changing the published snapshot', function ()
         ->and($saved->published_schema['title'])->toBe('Published');
 });
 
+it('syncs builder-managed survey settings to survey columns', function () {
+    $survey = Survey::create([
+        'title' => 'Original',
+        'status' => SurveyStatus::Draft,
+        'allow_anonymous' => false,
+    ]);
+
+    $saved = app(SaveSurveyDraftSchemaAction::class)->execute($survey, builderSchema([
+        'title' => 'Builder title',
+        'settings' => [
+            'category' => 'CSI',
+            'submit_success_message' => '感謝您的填寫。',
+        ],
+    ]));
+
+    expect($saved->title)->toBe('Builder title')
+        ->and($saved->category)->toBe('CSI')
+        ->and($saved->submit_success_message)->toBe('感謝您的填寫。')
+        ->and($saved->allow_anonymous)->toBeTrue()
+        ->and(data_get($saved->settings_json, 'category'))->toBeNull()
+        ->and(data_get($saved->settings_json, 'submit_success_message'))->toBeNull();
+});
+
+it('exports builder-managed survey columns into the builder schema settings', function () {
+    $survey = Survey::create([
+        'title' => 'Column backed settings',
+        'status' => SurveyStatus::Draft,
+        'category' => 'SSI',
+        'submit_success_message' => '完成送出。',
+    ]);
+
+    $schema = app(BuildSurveyBuilderSchemaAction::class)->execute($survey);
+
+    expect($schema['settings']['category'])->toBe('SSI')
+        ->and($schema['settings']['submit_success_message'])->toBe('完成送出。');
+});
+
 it('exports a survey builder schema as json', function () {
     $survey = Survey::create([
         'title' => 'Exportable',

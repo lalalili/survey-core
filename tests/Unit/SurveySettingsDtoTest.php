@@ -73,6 +73,19 @@ it('round-trips toArray → fromArray without losing data', function (): void {
     expect($restored->extra)->toHaveKey('custom_extra', 'preserved');
 });
 
+it('requires personalization when an audience list is configured', function (): void {
+    $settings = SurveySettings::fromArray([
+        'personalization' => [
+            'audience_list_id' => 7,
+            'required' => false,
+        ],
+    ]);
+
+    expect($settings->audienceListId)->toBe(7)
+        ->and($settings->personalizationRequired)->toBeTrue()
+        ->and(data_get($settings->toArray(), 'personalization.required'))->toBeTrue();
+});
+
 it('settingsJsonFromSchema merges with existing settings to preserve unknown keys', function (): void {
     $support = new SurveyBuilderSurveySettings;
 

@@ -80,6 +80,9 @@ final class SurveySettings
 
         $extra = array_diff_key($raw, array_flip($known));
 
+        $rawAudienceListId = data_get($raw, 'personalization.audience_list_id');
+        $audienceListId = filled($rawAudienceListId) ? (int) $rawAudienceListId : null;
+
         return new self(
             language: isset($raw['language']) ? (string) $raw['language'] : null,
             showQuestionNumbers: (bool) ($raw['show_question_numbers'] ?? true),
@@ -93,10 +96,8 @@ final class SurveySettings
                 ? (int) data_get($raw, 'anomaly.min_seconds')
                 : null,
             anomalyDetectDuplicate: (string) (data_get($raw, 'anomaly.detect_duplicate') ?? 'none'),
-            audienceListId: data_get($raw, 'personalization.audience_list_id') !== null
-                ? (int) data_get($raw, 'personalization.audience_list_id')
-                : null,
-            personalizationRequired: (bool) data_get($raw, 'personalization.required', false),
+            audienceListId: $audienceListId,
+            personalizationRequired: $audienceListId !== null || (bool) data_get($raw, 'personalization.required', false),
             nameColumn: data_get($raw, 'personalization.name_column'),
             emailColumn: data_get($raw, 'personalization.email_column'),
             externalIdColumn: data_get($raw, 'personalization.external_id_column'),

@@ -505,13 +505,12 @@ class PublicSurveyController extends Controller
     {
         $personalization = $survey->settings_json['personalization'] ?? [];
 
-        return ! empty($personalization['audience_list_id'])
-            && (bool) ($personalization['required'] ?? true);
+        return filled($personalization['audience_list_id'] ?? null);
     }
 
     private function requiresToken(Survey $survey): bool
     {
-        return ! $survey->allow_anonymous || $this->requiresPersonalizedToken($survey);
+        return $this->requiresPersonalizedToken($survey);
     }
 
     private function requiresPassword(Survey $survey): bool

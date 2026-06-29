@@ -65,9 +65,26 @@ it('keeps password-protected survey secrets out of the public HTML and unlocks s
     ])->assertCreated();
 });
 
-it('rejects anonymous public submissions when the survey requires a token', function (): void {
+it('allows public access when personalization is not configured', function (): void {
     $survey = commercialSurveyCoreSurvey([
         'allow_anonymous' => false,
+    ]);
+
+    $this->get(route('survey.show', $survey->public_key))
+        ->assertSuccessful();
+
+    $this->postJson(route('survey.submit', $survey->public_key), [
+        'answers' => ['name' => 'Alice'],
+        '_elapsed_ms' => 1000,
+    ])->assertCreated();
+});
+
+it('rejects anonymous public submissions when an audience list is configured', function (): void {
+    $survey = commercialSurveyCoreSurvey(settings: [
+        'personalization' => [
+            'audience_list_id' => 123,
+            'required' => false,
+        ],
     ]);
 
     $this->postJson(route('survey.submit', $survey->public_key), [

@@ -43,9 +43,11 @@ class SurveyBuilderSurveySettings
         );
 
         $settings['description'] = $survey->description;
+        $settings['category'] = $survey->category;
         $settings['starts_at'] = $survey->starts_at?->format('Y-m-d\TH:i');
         $settings['ends_at'] = $survey->ends_at?->format('Y-m-d\TH:i')
             ?? Arr::get($settings, 'close_at');
+        $settings['submit_success_message'] = $survey->submit_success_message;
         $settings['max_responses'] = $survey->max_responses;
         $settings['quota_message'] = $survey->quota_message;
         $settings['uniqueness_mode'] = ($survey->uniqueness_mode ?? SurveyUniquenessMode::None)->value;
@@ -72,10 +74,15 @@ class SurveyBuilderSurveySettings
 
         $attributes = [
             'title' => $schema['title'],
+            'allow_anonymous' => true,
         ];
 
         if (array_key_exists('description', $settings)) {
             $attributes['description'] = $this->nullableString($settings['description']);
+        }
+
+        if (array_key_exists('category', $settings)) {
+            $attributes['category'] = $this->nullableString($settings['category']);
         }
 
         if (array_key_exists('starts_at', $settings)) {
@@ -93,6 +100,10 @@ class SurveyBuilderSurveySettings
 
         if (array_key_exists('quota_message', $settings)) {
             $attributes['quota_message'] = $this->nullableString($settings['quota_message']);
+        }
+
+        if (array_key_exists('submit_success_message', $settings)) {
+            $attributes['submit_success_message'] = $this->nullableString($settings['submit_success_message']);
         }
 
         if (array_key_exists('uniqueness_mode', $settings)) {
@@ -124,9 +135,11 @@ class SurveyBuilderSurveySettings
 
         // Strip top-level survey column attributes — they live as DB columns, not in settings_json.
         unset($settings['description']);
+        unset($settings['category']);
         unset($settings['starts_at']);
         unset($settings['ends_at']);
         unset($settings['close_at']);
+        unset($settings['submit_success_message']);
         unset($settings['max_responses']);
         unset($settings['quota_message']);
         unset($settings['uniqueness_mode']);
