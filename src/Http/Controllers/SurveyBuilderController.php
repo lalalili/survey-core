@@ -38,8 +38,7 @@ class SurveyBuilderController extends Controller
                 'google_drive' => [
                     'connected' => $survey->google_drive_account_id !== null,
                     'email' => $survey->googleDriveAccount?->email,
-                    'configured' => (bool) config('survey-core.google_drive.enabled')
-                        && (string) config('survey-core.google_drive.client_id') !== '',
+                    'configured' => $this->googleDriveIsConfigured(),
                 ],
             ],
             'schema' => $buildSchema->execute($survey),
@@ -64,6 +63,7 @@ class SurveyBuilderController extends Controller
                 ->all(),
             'capabilities' => [
                 'can_manage_advanced_fields' => $this->canManageAdvancedFields($request),
+                'is_super_admin' => $this->isSuperAdmin($request),
                 'question_types' => collect(SurveyFieldType::cases())
                     ->reject(fn (SurveyFieldType $type): bool => in_array($type, [
                         SurveyFieldType::Hidden,
@@ -78,7 +78,14 @@ class SurveyBuilderController extends Controller
         ]);
     }
 
-    private function canManageAdvancedFields(Request $request): bool
+    private function googleDriveIsConfigured(): bool
+    {
+        return (bool) config('survey-core.google_drive.enabled')
+            && filled(config('survey-core.google_drive.client_id'))
+            && filled(config('survey-core.google_drive.client_secret'));
+    }
+
+    private function isSuperAdmin(Request $request): bool
     {
         $user = $request->user();
 
@@ -86,6 +93,24 @@ class SurveyBuilderController extends Controller
             return true;
         }
 
+        if (! is_object($user)) {
+            return false;
+        }
+
+        if (! in_array('hasRole', get_class_methods($user), true)) {
+            return false;
+        }
+
+        return (bool) $user->{'hasRole'}('super_admin');
+    }
+
+    private function canManageAdvancedFields(Request $request): bool
+    {
+        if ($this->isSuperAdmin($request)) {
+            return true;
+        }
+
+        $user = $request->user();
         $checkerClass = 'Lalalili\\SubscriptionCore\\Support\\SubscriptionFeatureChecker';
 
         if (! class_exists($checkerClass)) {
