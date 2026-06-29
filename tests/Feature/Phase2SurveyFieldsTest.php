@@ -196,6 +196,27 @@ it('renders local storage draft persistence on the public form', function (): vo
         ->assertSee('lalalili-survey-draft', false);
 });
 
+it('renders file upload limits and drag drop affordance on the public form', function (): void {
+    $survey = phase2Survey();
+    $survey->update(['allow_anonymous' => true]);
+
+    phase2Field($survey, SurveyFieldType::FileUpload, [
+        'field_key' => 'attachment',
+        'settings_json' => [
+            'max_size_mb' => 10,
+            'allowed_mimes' => ['pdf', 'jpg', 'png'],
+        ],
+    ]);
+
+    $this->get(route('survey.show', $survey->public_key))
+        ->assertSuccessful()
+        ->assertSee('選擇檔案或將檔案拖曳至此')
+        ->assertSee('10 MB以下')
+        ->assertSee('檔案格式：文件、圖片')
+        ->assertSee('accept=".pdf,.jpg,.png"', false)
+        ->assertSee('data-file-upload-zone="attachment"', false);
+});
+
 it('validates signature and address structured answers', function (): void {
     $survey = phase2Survey();
     phase2Field($survey, SurveyFieldType::Signature, ['field_key' => 'signature']);

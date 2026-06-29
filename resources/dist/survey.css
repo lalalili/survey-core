@@ -172,6 +172,57 @@ body {
 
 .survey-textarea { resize: vertical; }
 
+.survey-file-input { display: none; }
+
+.survey-file-dropzone {
+    width: 100%;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    border: 1px dashed var(--survey-border, #e5e7eb);
+    border-radius: var(--survey-radius, 0.5rem);
+    background: #fff;
+    color: var(--survey-text-muted, #6b7280);
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
+}
+
+.survey-file-dropzone:hover,
+.survey-file-dropzone.is-dragging {
+    border-color: var(--survey-primary, #6366f1);
+    background: color-mix(in srgb, var(--survey-primary, #6366f1) 7%, #fff);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--survey-primary, #6366f1) 16%, transparent);
+}
+
+.survey-file-dropzone.is-uploaded { border-style: solid; }
+
+.survey-file-icon {
+    color: var(--survey-primary, #6366f1);
+    font-size: 2.5rem;
+    line-height: 1;
+}
+
+.survey-file-title {
+    color: var(--survey-primary, #6366f1);
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.survey-file-limit {
+    color: var(--survey-text, #111827);
+    font-size: 1rem;
+}
+
+.survey-file-format,
+.survey-file-status {
+    color: var(--survey-text-muted, #6b7280);
+    font-size: 0.875rem;
+}
+
 /* ── Choice inputs ───────────────────────────────────────────────────── */
 .survey-choices { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.25rem; }
 

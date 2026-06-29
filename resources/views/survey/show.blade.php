@@ -10,6 +10,47 @@
         $theme = $theme ?? [];
         $optionUsage = $optionUsage ?? [];
         $cssMode = config('survey-core.frontend.css', 'cdn');
+        $fileUploadFormatGroups = [
+            '文件' => ['pdf', 'doc', 'docx', 'txt', 'rtf'],
+            '簡報' => ['ppt', 'pptx'],
+            '試算表' => ['xls', 'xlsx', 'csv'],
+            '圖片' => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'],
+            '影片' => ['mpg', 'mpeg', 'mp4', 'mov', 'avi', 'wmv', 'mkv', 'webm'],
+            '音樂' => ['mp3', 'wav', 'aac', 'm4a', 'ogg', 'flac'],
+        ];
+        $fileUploadAllowedExtensions = function ($field): array {
+            return array_values(array_filter(array_map(
+                fn ($extension) => ltrim(trim((string) $extension), '.'),
+                (array) ($field->settings_json['allowed_mimes'] ?? []),
+            )));
+        };
+        $fileUploadAccept = fn ($field): ?string => ($extensions = $fileUploadAllowedExtensions($field)) === []
+            ? null
+            : implode(',', array_map(fn (string $extension): string => '.'.$extension, $extensions));
+        $fileUploadSizeLabel = fn ($field): string => ((int) ($field->settings_json['max_size_mb'] ?? 0)) > 0
+            ? ((int) ($field->settings_json['max_size_mb'] ?? 0)).' MB以下'
+            : '未限制大小';
+        $fileUploadFormatLabel = function ($field) use ($fileUploadAllowedExtensions, $fileUploadFormatGroups): string {
+            $extensions = $fileUploadAllowedExtensions($field);
+
+            if ($extensions === []) {
+                return '不限';
+            }
+
+            $labels = [];
+            $known = [];
+
+            foreach ($fileUploadFormatGroups as $label => $groupExtensions) {
+                if (array_intersect($groupExtensions, $extensions) !== []) {
+                    $labels[] = $label;
+                    $known = array_merge($known, $groupExtensions);
+                }
+            }
+
+            $custom = array_values(array_diff($extensions, $known));
+
+            return implode('、', array_values(array_unique(array_merge($labels, $custom))));
+        };
     @endphp
 
     @if($cssMode === 'cdn')
@@ -106,6 +147,61 @@
             outline: 2px solid var(--survey-primary);
             outline-offset: 2px;
             border-radius: 4px;
+        }
+
+        .survey-file-input {
+            display: none;
+        }
+
+        .survey-file-dropzone {
+            width: 100%;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.7rem;
+            border: 1px dashed var(--survey-border);
+            border-radius: var(--survey-radius);
+            background: #fff;
+            color: var(--survey-text-muted);
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
+        }
+
+        .survey-file-dropzone:hover,
+        .survey-file-dropzone.is-dragging {
+            border-color: var(--survey-primary);
+            background: color-mix(in srgb, var(--survey-primary) 7%, #fff);
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--survey-primary) 16%, transparent);
+        }
+
+        .survey-file-dropzone.is-uploaded {
+            border-style: solid;
+        }
+
+        .survey-file-icon {
+            color: var(--survey-primary);
+            font-size: 2.5rem;
+            line-height: 1;
+        }
+
+        .survey-file-title {
+            color: var(--survey-primary);
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .survey-file-limit {
+            color: var(--survey-text);
+            font-size: 1rem;
+        }
+
+        .survey-file-format,
+        .survey-file-status {
+            color: var(--survey-text-muted);
+            font-size: 0.875rem;
         }
 
         .survey-rating-stars {
@@ -939,7 +1035,21 @@
                         <p class="text-sm text-gray-400" data-selection-empty>請先回答來源題目，這裡會顯示可複選的選項。</p>
                     </div>
                 @elseif($type === 'file_upload')
-                    <input type="file" data-file-upload-field="{{ $fk }}" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm">
+                    <div class="space-y-2">
+                        <input type="file" data-file-upload-field="{{ $fk }}" @if($fileUploadAccept($field)) accept="{{ $fileUploadAccept($field) }}" @endif class="survey-file-input">
+                        <button
+                            type="button"
+                            class="survey-file-dropzone"
+                            data-file-upload-zone="{{ $fk }}"
+                            aria-describedby="file-upload-help-{{ $fk }}"
+                        >
+                            <span class="survey-file-icon" aria-hidden="true">☁</span>
+                            <span class="survey-file-title">選擇檔案或將檔案拖曳至此</span>
+                            <span class="survey-file-limit">{{ $fileUploadSizeLabel($field) }}</span>
+                            <span id="file-upload-help-{{ $fk }}" class="survey-file-format">檔案格式：{{ $fileUploadFormatLabel($field) }}</span>
+                        </button>
+                        <p class="survey-file-status hidden" data-file-upload-status="{{ $fk }}" aria-live="polite"></p>
+                    </div>
                     <input type="hidden" name="answers[{{ $fk }}][media_id]" data-file-media-id="{{ $fk }}">
                     <input type="hidden" name="answers[{{ $fk }}][upload_token]" data-file-upload-token="{{ $fk }}">
                     <input type="hidden" name="answers[{{ $fk }}][filename]" data-file-filename="{{ $fk }}">
@@ -1380,7 +1490,21 @@
                         <p class="survey-help" data-selection-empty>請先回答來源題目，這裡會顯示可複選的選項。</p>
                     </div>
                 @elseif($type === 'file_upload')
-                    <input type="file" data-file-upload-field="{{ $fk }}" class="survey-input">
+                    <div class="survey-choices">
+                        <input type="file" data-file-upload-field="{{ $fk }}" @if($fileUploadAccept($field)) accept="{{ $fileUploadAccept($field) }}" @endif class="survey-file-input">
+                        <button
+                            type="button"
+                            class="survey-file-dropzone"
+                            data-file-upload-zone="{{ $fk }}"
+                            aria-describedby="file-upload-help-{{ $fk }}"
+                        >
+                            <span class="survey-file-icon" aria-hidden="true">☁</span>
+                            <span class="survey-file-title">選擇檔案或將檔案拖曳至此</span>
+                            <span class="survey-file-limit">{{ $fileUploadSizeLabel($field) }}</span>
+                            <span id="file-upload-help-{{ $fk }}" class="survey-file-format">檔案格式：{{ $fileUploadFormatLabel($field) }}</span>
+                        </button>
+                        <p class="survey-file-status hidden" data-file-upload-status="{{ $fk }}" aria-live="polite"></p>
+                    </div>
                     <input type="hidden" name="answers[{{ $fk }}][media_id]" data-file-media-id="{{ $fk }}">
                     <input type="hidden" name="answers[{{ $fk }}][upload_token]" data-file-upload-token="{{ $fk }}">
                     <input type="hidden" name="answers[{{ $fk }}][filename]" data-file-filename="{{ $fk }}">
@@ -2233,18 +2357,42 @@
         });
     }
 
+    function fileUploadElements(fieldKey) {
+        return {
+            mediaId: document.querySelector('[data-file-media-id="' + fieldKey + '"]'),
+            uploadToken: document.querySelector('[data-file-upload-token="' + fieldKey + '"]'),
+            filename: document.querySelector('[data-file-filename="' + fieldKey + '"]'),
+            size: document.querySelector('[data-file-size="' + fieldKey + '"]'),
+            zone: document.querySelector('[data-file-upload-zone="' + fieldKey + '"]'),
+            status: document.querySelector('[data-file-upload-status="' + fieldKey + '"]'),
+        };
+    }
+
+    function setFileUploadStatus(fieldKey, message, isVisible) {
+        var status = document.querySelector('[data-file-upload-status="' + fieldKey + '"]');
+        if (!status) { return; }
+        status.textContent = message || '';
+        status.classList.toggle('hidden', !isVisible);
+    }
+
+    function formatFileSize(bytes) {
+        if (!bytes) { return ''; }
+        if (bytes < 1024 * 1024) { return Math.max(1, Math.round(bytes / 1024)) + ' KB'; }
+        return (bytes / 1024 / 1024).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1) + ' MB';
+    }
+
     async function updateFileUploadMeta(input) {
         var fieldKey = input.getAttribute('data-file-upload-field');
         var file = input.files && input.files[0] ? input.files[0] : null;
         if (!fieldKey || !file) { return; }
-        var mediaId = document.querySelector('[data-file-media-id="' + fieldKey + '"]');
-        var uploadToken = document.querySelector('[data-file-upload-token="' + fieldKey + '"]');
-        var filename = document.querySelector('[data-file-filename="' + fieldKey + '"]');
-        var size = document.querySelector('[data-file-size="' + fieldKey + '"]');
+        var elements = fileUploadElements(fieldKey);
         var token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         var body = new FormData();
         body.append('field_key', fieldKey);
         body.append('file', file);
+
+        if (elements.zone) { elements.zone.classList.remove('is-uploaded'); }
+        setFileUploadStatus(fieldKey, '上傳中：' + file.name, true);
 
         var res = await fetch(appendSurveyQuery(UPLOAD_URL), {
             method: 'POST',
@@ -2254,18 +2402,22 @@
         var data = await res.json();
 
         if (!res.ok) {
-            if (mediaId) { mediaId.value = ''; }
-            if (uploadToken) { uploadToken.value = ''; }
-            if (filename) { filename.value = ''; }
-            if (size) { size.value = ''; }
+            if (elements.mediaId) { elements.mediaId.value = ''; }
+            if (elements.uploadToken) { elements.uploadToken.value = ''; }
+            if (elements.filename) { elements.filename.value = ''; }
+            if (elements.size) { elements.size.value = ''; }
+            if (elements.zone) { elements.zone.classList.remove('is-uploaded'); }
+            setFileUploadStatus(fieldKey, '', false);
             showFieldErrors({ [fieldKey]: [data.message || '檔案上傳失敗。'] });
             return;
         }
 
-        if (mediaId) { mediaId.value = String(data.media_id); }
-        if (uploadToken) { uploadToken.value = data.upload_token || ''; }
-        if (filename) { filename.value = data.filename || file.name; }
-        if (size) { size.value = String(data.size || file.size); }
+        if (elements.mediaId) { elements.mediaId.value = String(data.media_id); }
+        if (elements.uploadToken) { elements.uploadToken.value = data.upload_token || ''; }
+        if (elements.filename) { elements.filename.value = data.filename || file.name; }
+        if (elements.size) { elements.size.value = String(data.size || file.size); }
+        if (elements.zone) { elements.zone.classList.add('is-uploaded'); }
+        setFileUploadStatus(fieldKey, '已選擇：' + (data.filename || file.name) + (data.size || file.size ? '（' + formatFileSize(data.size || file.size) + '）' : ''), true);
     }
 
     function parseCascadeData(raw) {
@@ -2506,6 +2658,47 @@
         evaluateBranching();
         if (IS_MULTI_PAGE) { updateNavButtons(); }
         persistDraft();
+    });
+    document.addEventListener('click', function (event) {
+        var zone = event.target && event.target.closest ? event.target.closest('[data-file-upload-zone]') : null;
+        if (!zone) { return; }
+        var fieldKey = zone.getAttribute('data-file-upload-zone');
+        var input = document.querySelector('[data-file-upload-field="' + fieldKey + '"]');
+        if (input) { input.click(); }
+    });
+    document.addEventListener('dragenter', function (event) {
+        var zone = event.target && event.target.closest ? event.target.closest('[data-file-upload-zone]') : null;
+        if (!zone) { return; }
+        event.preventDefault();
+        zone.classList.add('is-dragging');
+    });
+    document.addEventListener('dragover', function (event) {
+        var zone = event.target && event.target.closest ? event.target.closest('[data-file-upload-zone]') : null;
+        if (!zone) { return; }
+        event.preventDefault();
+        zone.classList.add('is-dragging');
+    });
+    document.addEventListener('dragleave', function (event) {
+        var zone = event.target && event.target.closest ? event.target.closest('[data-file-upload-zone]') : null;
+        if (!zone || (event.relatedTarget instanceof Node && zone.contains(event.relatedTarget))) { return; }
+        zone.classList.remove('is-dragging');
+    });
+    document.addEventListener('drop', function (event) {
+        var zone = event.target && event.target.closest ? event.target.closest('[data-file-upload-zone]') : null;
+        if (!zone) { return; }
+        event.preventDefault();
+        zone.classList.remove('is-dragging');
+        var fieldKey = zone.getAttribute('data-file-upload-zone');
+        var input = document.querySelector('[data-file-upload-field="' + fieldKey + '"]');
+        var files = event.dataTransfer && event.dataTransfer.files;
+        if (!input || !files || files.length === 0) { return; }
+        try {
+            input.files = files;
+        } catch (error) {
+            showFieldErrors({ [fieldKey]: ['此瀏覽器不支援拖曳檔案，請使用選擇檔案。'] });
+            return;
+        }
+        void updateFileUploadMeta(input);
     });
     document.addEventListener('input', function () {
         evaluateBranching();
