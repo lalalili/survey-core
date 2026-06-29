@@ -5,19 +5,7 @@ use Lalalili\SurveyCore\Models\GoogleDriveAccount;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Support\GoogleDriveClientFactory;
-
-class RecordingDriveClientFactory extends GoogleDriveClientFactory
-{
-    /** @var array<int, array{folder: ?string, name: string}> */
-    public array $uploads = [];
-
-    public function uploadFile(GoogleDriveAccount $account, ?string $folderId, string $name, mixed $contents, string $mimeType): array
-    {
-        $this->uploads[] = ['folder' => $folderId, 'name' => $name];
-
-        return ['id' => 'drive-'.count($this->uploads), 'link' => 'https://drive.google.com/file/d/drive-'.count($this->uploads).'/view'];
-    }
-}
+use Lalalili\SurveyCore\Tests\Fixtures\RecordingDriveClientFactory;
 
 it('uploads response media to drive and records file id and link', function () {
     $factory = new RecordingDriveClientFactory;
