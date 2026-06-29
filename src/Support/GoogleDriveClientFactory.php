@@ -159,27 +159,51 @@ class GoogleDriveClientFactory
     /**
      * Ensure a folder exists in the account's Drive and return its id.
      */
-    public function ensureFolder(GoogleDriveAccount $account, string $name, ?string $existingFolderId = null): string
+    public function ensureFolder(GoogleDriveAccount $account, string $name, ?string $existingFolderId = null, ?string $parentFolderId = null): string
     {
         $drive = $this->driveService($account);
+        $parent = $parentFolderId !== null && $parentFolderId !== '' ? $parentFolderId : 'root';
 
         if ($existingFolderId !== null && $existingFolderId !== '') {
             try {
-                $drive->files->get($existingFolderId, ['fields' => 'id, trashed']);
+                $existing = $drive->files->get($existingFolderId, ['fields' => 'id, trashed, parents']);
 
-                return $existingFolderId;
+                if (! $existing->getTrashed() && in_array($parent, $existing->getParents() ?? [], true)) {
+                    return $existingFolderId;
+                }
             } catch (\Throwable) {
                 // 資料夾不存在或無權限，往下重新建立。
             }
         }
 
+        $matches = $drive->files->listFiles([
+            'q' => sprintf(
+                "mimeType = 'application/vnd.google-apps.folder' and trashed = false and name = '%s' and '%s' in parents",
+                $this->escapeDriveQueryString($name),
+                $this->escapeDriveQueryString($parent),
+            ),
+            'fields' => 'files(id)',
+            'pageSize' => 1,
+        ])->getFiles();
+        $match = ($matches ?? [])[0] ?? null;
+
+        if ($match !== null && (string) $match->getId() !== '') {
+            return (string) $match->getId();
+        }
+
         $folder = new DriveFile([
             'name' => $name,
             'mimeType' => 'application/vnd.google-apps.folder',
+            'parents' => [$parent],
         ]);
 
         $created = $drive->files->create($folder, ['fields' => 'id']);
 
         return (string) $created->getId();
+    }
+
+    private function escapeDriveQueryString(string $value): string
+    {
+        return str_replace(['\\', "'"], ['\\\\', "\\'"], $value);
     }
 }

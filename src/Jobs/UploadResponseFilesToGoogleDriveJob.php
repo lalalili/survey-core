@@ -45,18 +45,29 @@ class UploadResponseFilesToGoogleDriveJob implements ShouldQueue
         }
 
         $deleteLocal = (bool) config('survey-core.google_drive.delete_local_after_upload', false);
+        $mediaItems = $response->getMedia('survey_files')
+            ->reject(fn ($media): bool => (string) $media->getCustomProperty('google_drive_file_id') !== '');
 
-        foreach ($response->getMedia('survey_files') as $media) {
-            if ((string) $media->getCustomProperty('google_drive_file_id') !== '') {
-                continue; // 已上傳過，避免重試時重複。
-            }
+        if ($mediaItems->isEmpty()) {
+            return;
+        }
 
+        $rootFolderId = $clients->ensureFolder($account, $this->rootFolderName());
+        $surveyFolderId = $clients->ensureFolder($account, $this->surveyFolderName($survey->id, $survey->title), $survey->google_drive_folder_id, $rootFolderId);
+
+        if ($survey->google_drive_folder_id !== $surveyFolderId) {
+            $survey->forceFill(['google_drive_folder_id' => $surveyFolderId])->save();
+        }
+
+        $responseFolderId = $clients->ensureFolder($account, $this->responseFolderName($response->id), null, $surveyFolderId);
+
+        foreach ($mediaItems as $media) {
             $stream = $media->stream();
 
             try {
                 $result = $clients->uploadFile(
                     $account,
-                    $survey->google_drive_folder_id,
+                    $responseFolderId,
                     $media->file_name,
                     $stream,
                     $media->mime_type ?: 'application/octet-stream',
@@ -80,5 +91,20 @@ class UploadResponseFilesToGoogleDriveJob implements ShouldQueue
             'response_id' => $response->id,
             'survey_id' => $survey->id,
         ]);
+    }
+
+    private function rootFolderName(): string
+    {
+        return 'Survey File Upload';
+    }
+
+    private function surveyFolderName(int $surveyId, string $surveyTitle): string
+    {
+        return '問卷 #'.$surveyId.' - '.$surveyTitle;
+    }
+
+    private function responseFolderName(int $responseId): string
+    {
+        return '回覆 #'.$responseId;
     }
 }
