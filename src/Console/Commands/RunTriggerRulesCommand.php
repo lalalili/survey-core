@@ -3,6 +3,7 @@
 namespace Lalalili\SurveyCore\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Schema;
 use Lalalili\SurveyCore\Actions\Triggers\RunTriggerRuleBatchAction;
 use Lalalili\SurveyCore\Enums\TriggerRunType;
 use Lalalili\SurveyCore\Models\SurveyTriggerRule;
@@ -16,6 +17,12 @@ class RunTriggerRulesCommand extends Command
 
     public function handle(RunTriggerRuleBatchAction $batch): int
     {
+        if (! $this->scheduleColumnsAreReady()) {
+            $this->components->warn('Survey trigger schedule columns are not migrated yet; skipping this run.');
+
+            return self::SUCCESS;
+        }
+
         $now = now();
 
         $rules = SurveyTriggerRule::query()
@@ -49,5 +56,14 @@ class RunTriggerRulesCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    private function scheduleColumnsAreReady(): bool
+    {
+        $table = (string) config('survey-core.table_names.survey_trigger_rules', 'survey_trigger_rules');
+
+        return Schema::hasColumn($table, 'schedule_enabled')
+            && Schema::hasColumn($table, 'schedule_time')
+            && Schema::hasColumn($table, 'last_scheduled_run_at');
     }
 }
