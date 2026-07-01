@@ -1097,7 +1097,7 @@
 
         {{-- Terms checkbox --}}
         @if($hasTerms)
-        <div id="terms-row" class="rounded-lg bg-white border border-gray-200 p-4 shadow-sm" style="background: var(--survey-surface); border-color: var(--survey-border); border-radius: var(--survey-radius);">
+        <div id="terms-row" class="rounded-lg bg-white border border-gray-200 p-4 shadow-sm @if($isMultiPage) hidden @endif" style="background: var(--survey-surface); border-color: var(--survey-border); border-radius: var(--survey-radius);">
             <label class="flex items-start gap-3 cursor-pointer text-sm text-gray-700" style="color: var(--survey-text);">
                 <input type="checkbox" id="terms-checkbox" class="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600" style="accent-color: var(--survey-primary);">
                 <span>{{ $termsText }}</span>
@@ -1552,7 +1552,7 @@
 
         {{-- Terms checkbox (published mode) --}}
         @if($hasTerms)
-        <div id="terms-row" class="survey-field-card" style="margin-bottom:1rem;">
+        <div id="terms-row" class="survey-field-card @if($isMultiPage) survey-hidden @endif" style="margin-bottom:1rem;">
             <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:0.875rem;color:#374151;">
                 <input type="checkbox" id="terms-checkbox"
                     style="margin-top:2px;width:1rem;height:1rem;accent-color:var(--survey-primary);cursor:pointer;flex-shrink:0;">
@@ -1848,6 +1848,7 @@
         var nextBtn   = document.getElementById('btn-next');
         var submitBtn = document.getElementById('submit-btn');
         var navRight  = document.getElementById('nav-right');
+        var termsRow  = document.getElementById('terms-row');
 
         // Show prev when there's history and allow_back is enabled
         if (prevBtn) {
@@ -1863,11 +1864,17 @@
             }
         }
 
+        var nextKey = resolveNextPageKey(currentPageKey);
+        var isLastPage = (nextKey === null || nextKey === 'END_SURVEY');
+
+        // Terms checkbox only makes sense right before submitting, so only show it on the last page
+        if (termsRow) {
+            if (isLastPage) { show(termsRow); } else { hide(termsRow); }
+        }
+
         if (!nextBtn || !submitBtn) { return; }
 
-        var nextKey = resolveNextPageKey(currentPageKey);
-
-        if (nextKey === null || nextKey === 'END_SURVEY') {
+        if (isLastPage) {
             // Last page or end_survey → show submit
             hide(nextBtn);
             show(submitBtn);
