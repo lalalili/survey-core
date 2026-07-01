@@ -673,10 +673,7 @@
 
     {{-- Success --}}
     <div id="success-message" class="hidden rounded-lg bg-green-50 border border-green-200 p-6 text-center">
-        <svg class="mx-auto h-12 w-12 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-        </svg>
-        <div class="mt-4 text-lg font-medium survey-rich-content" id="success-text">
+        <div class="text-lg font-medium survey-rich-content" id="success-text">
             @if($hasThankYouPage && !empty($thankYouSettings['message']))
                 {!! $thankYouSettings['message'] !!}
             @else
@@ -1166,9 +1163,6 @@
     @endif
 
     <div id="success-message" class="survey-banner survey-banner--success survey-hidden">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-        </svg>
         <p id="success-text">{{ $survey->submit_success_message ?? '感謝您的填寫！' }}</p>
     </div>
 
