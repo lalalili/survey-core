@@ -128,6 +128,31 @@ it('validates constant sum answers against options and configured total', functi
     );
 })->throws(SurveyValidationException::class);
 
+it('renders constant sum public summary state', function (): void {
+    $survey = phase2Survey();
+    $survey->update(['allow_anonymous' => true]);
+
+    phase2Field($survey, SurveyFieldType::ConstantSum, [
+        'field_key' => 'budget',
+        'label' => '預算分配',
+        'options_json' => [
+            ['id' => 'a', 'label' => '廣告', 'value' => 'ads'],
+            ['id' => 'b', 'label' => '活動', 'value' => 'events'],
+        ],
+        'settings_json' => ['total' => 100, 'unit' => '%'],
+    ]);
+
+    $this->get(route('survey.show', $survey->public_key))
+        ->assertSuccessful()
+        ->assertSee('data-constant-sum-total="100"', false)
+        ->assertSee('data-constant-sum-summary', false)
+        ->assertSee('data-constant-sum-current', false)
+        ->assertSee('data-constant-sum-status', false)
+        ->assertSee('目前合計')
+        ->assertSee('目標 100')
+        ->assertSee('剩餘 100');
+});
+
 it('validates matrix answers per row and persists structured json', function (): void {
     $survey = phase2Survey();
     phase2Field($survey, SurveyFieldType::MatrixSingle, [

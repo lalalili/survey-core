@@ -204,6 +204,44 @@
             font-size: 0.875rem;
         }
 
+        .survey-constant-sum-summary {
+            align-items: center;
+            background: color-mix(in srgb, var(--survey-primary) 6%, #fff);
+            border: 1px solid color-mix(in srgb, var(--survey-primary) 18%, var(--survey-border));
+            border-radius: var(--survey-radius);
+            color: var(--survey-text-muted);
+            display: flex;
+            flex-wrap: wrap;
+            font-size: 0.75rem;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .survey-constant-sum-summary strong {
+            color: var(--survey-text);
+            font-weight: 600;
+            margin-left: auto;
+        }
+
+        .survey-constant-sum-summary[data-status="matched"] {
+            background: oklch(96% 0.04 145);
+            border-color: oklch(82% 0.09 145);
+        }
+
+        .survey-constant-sum-summary[data-status="matched"] strong {
+            color: oklch(42% 0.13 145);
+        }
+
+        .survey-constant-sum-summary[data-status="over"] {
+            background: oklch(96% 0.03 27);
+            border-color: oklch(85% 0.06 27);
+        }
+
+        .survey-constant-sum-summary[data-status="over"] strong {
+            color: oklch(58% 0.18 27);
+        }
+
         .survey-rating-stars {
             display: flex;
             gap: 0.25rem;
@@ -969,7 +1007,11 @@
                             </label>
                         @endforeach
                         @if(isset($field->settings_json['total']))
-                            <p class="text-xs text-gray-500">總和需為 {{ $field->settings_json['total'] }}</p>
+                            <div class="survey-constant-sum-summary" data-constant-sum-summary>
+                                <span>目前合計 <span data-constant-sum-current>0</span></span>
+                                <span>目標 {{ $field->settings_json['total'] }}</span>
+                                <strong data-constant-sum-status>剩餘 {{ $field->settings_json['total'] }}</strong>
+                            </div>
                         @endif
                     </div>
                 @elseif($type === 'cascade_select')
@@ -1422,7 +1464,11 @@
                             </label>
                         @endforeach
                         @if(isset($field->settings_json['total']))
-                            <p class="survey-field-description">總和需為 {{ $field->settings_json['total'] }}</p>
+                            <div class="survey-constant-sum-summary" data-constant-sum-summary>
+                                <span>目前合計 <span data-constant-sum-current>0</span></span>
+                                <span>目標 {{ $field->settings_json['total'] }}</span>
+                                <strong data-constant-sum-status>剩餘 {{ $field->settings_json['total'] }}</strong>
+                            </div>
                         @endif
                     </div>
                 @elseif($type === 'cascade_select')
@@ -1719,6 +1765,58 @@
         return String(Math.round(value * 100000) / 100000);
     }
 
+    function calculateConstantSumField(fieldEl) {
+        var inputs = Array.from(fieldEl.querySelectorAll('input[type="number"]:not(:disabled)'));
+        var sum = 0;
+
+        inputs.forEach(function (input) {
+            var number = Number(input.value);
+            if (input.value !== '' && Number.isFinite(number)) {
+                sum += number;
+            }
+        });
+
+        return {
+            inputs: inputs,
+            sum: sum,
+            total: Number(fieldEl.getAttribute('data-constant-sum-total')),
+        };
+    }
+
+    function updateConstantSumSummary(fieldEl) {
+        var summary = fieldEl.querySelector('[data-constant-sum-summary]');
+        if (!summary) { return; }
+
+        var state = calculateConstantSumField(fieldEl);
+        var currentEl = summary.querySelector('[data-constant-sum-current]');
+        var statusEl = summary.querySelector('[data-constant-sum-status]');
+
+        if (currentEl) {
+            currentEl.textContent = formatSurveyNumber(state.sum);
+        }
+
+        if (!Number.isFinite(state.total)) {
+            summary.setAttribute('data-status', 'neutral');
+            if (statusEl) { statusEl.textContent = '尚未設定合計目標'; }
+            return;
+        }
+
+        var diff = state.total - state.sum;
+
+        if (Math.abs(diff) <= 0.00001) {
+            summary.setAttribute('data-status', 'matched');
+            if (statusEl) { statusEl.textContent = '合計符合目標'; }
+            return;
+        }
+
+        summary.setAttribute('data-status', diff > 0 ? 'under' : 'over');
+        if (statusEl) {
+            statusEl.textContent = diff > 0
+                ? '剩餘 ' + formatSurveyNumber(diff)
+                : '超出 ' + formatSurveyNumber(Math.abs(diff));
+        }
+    }
+
     async function recordSurveyEvent(eventName, extra) {
         try {
             await fetch(appendSurveyQuery(EVENTS_URL), {
@@ -1974,12 +2072,12 @@
 
         var fieldLabel = fieldEl.getAttribute('data-field-label') || '此總計題';
         var required = fieldEl.getAttribute('data-field-required') === 'true';
-        var inputs = Array.from(fieldEl.querySelectorAll('input[type="number"]:not(:disabled)'));
+        var state = calculateConstantSumField(fieldEl);
+        var inputs = state.inputs;
         var hasAnyValue = inputs.some(function (input) { return input.value !== ''; });
 
         if (!required && !hasAnyValue) { return null; }
 
-        var sum = 0;
         for (var i = 0; i < inputs.length; i++) {
             var input = inputs[i];
             var optionLabel = input.closest('label')?.querySelector('span')?.textContent?.trim() || '選項';
@@ -1994,12 +2092,10 @@
             if (!Number.isFinite(number)) {
                 return '「' + fieldLabel + '」的「' + optionLabel + '」必須是數字。';
             }
-
-            sum += number;
         }
 
-        if (Math.abs(sum - total) > 0.00001) {
-            return '「' + fieldLabel + '」目前合計為 ' + formatSurveyNumber(sum) + '，需等於 ' + formatSurveyNumber(total) + '，請調整各項數字。';
+        if (Math.abs(state.sum - total) > 0.00001) {
+            return '「' + fieldLabel + '」目前合計為 ' + formatSurveyNumber(state.sum) + '，需等於 ' + formatSurveyNumber(total) + '，請調整各項數字。';
         }
 
         return null;
@@ -2763,7 +2859,17 @@
         }
         void updateFileUploadMeta(input);
     });
-    document.addEventListener('input', function () {
+    document.querySelectorAll('[data-field-type="constant_sum"][data-constant-sum-total]').forEach(updateConstantSumSummary);
+
+    document.addEventListener('input', function (event) {
+        var target = event.target;
+        if (target instanceof HTMLInputElement && target.type === 'number') {
+            var constantSumField = target.closest('[data-field-type="constant_sum"][data-constant-sum-total]');
+            if (constantSumField) {
+                updateConstantSumSummary(constantSumField);
+            }
+        }
+
         evaluateBranching();
         persistDraft();
     });
