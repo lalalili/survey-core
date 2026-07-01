@@ -1096,13 +1096,13 @@
                 @elseif($type === 'ranking')
                     <p class="sr-only" id="ranking-help-{{ $fk }}">使用每個項目的「上移」「下移」按鈕調整排序。</p>
                     <div class="survey-ranking-list space-y-2" data-ranking-list="{{ $fk }}" role="group" aria-describedby="ranking-help-{{ $fk }}">
-                        @foreach($field->optionsForDisplay() as $optVal => $optLabel)
-                            <div class="survey-ranking-item flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2" draggable="true" data-ranking-item data-ranking-option="{{ $optVal }}">
+                        @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
+                            <div class="survey-ranking-item flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2" draggable="true" data-ranking-item data-ranking-option="{{ $option['value'] }}">
                                 <span class="survey-ranking-position" data-ranking-position></span>
                                 <span class="survey-ranking-handle" aria-hidden="true">☰</span>
-                                <span class="survey-ranking-label text-sm text-gray-700">{{ $optLabel }}</span>
-                                <button type="button" class="survey-ranking-move" data-ranking-move="up" aria-label="將「{{ $optLabel }}」上移">↑</button>
-                                <button type="button" class="survey-ranking-move" data-ranking-move="down" aria-label="將「{{ $optLabel }}」下移">↓</button>
+                                <span class="survey-ranking-label text-sm text-gray-700">{{ $option['label'] }}</span>
+                                <button type="button" class="survey-ranking-move" data-ranking-move="up" aria-label="將「{{ $option['label'] }}」上移">↑</button>
+                                <button type="button" class="survey-ranking-move" data-ranking-move="down" aria-label="將「{{ $option['label'] }}」下移">↓</button>
                             </div>
                         @endforeach
                         <input type="hidden" name="answers[{{ $fk }}]" data-ranking-value="{{ $fk }}">
@@ -1552,13 +1552,13 @@
                 @elseif($type === 'ranking')
                     <p class="sr-only" id="ranking-help-{{ $fk }}">使用每個項目的「上移」「下移」按鈕調整排序。</p>
                     <div class="survey-ranking-list" data-ranking-list="{{ $fk }}" role="group" aria-describedby="ranking-help-{{ $fk }}">
-                        @foreach($field->optionsForDisplay() as $optVal => $optLabel)
-                            <div class="survey-ranking-item" draggable="true" data-ranking-item data-ranking-option="{{ $optVal }}">
+                        @foreach($field->displayOptions($shuffleSeed ?? null) as $option)
+                            <div class="survey-ranking-item" draggable="true" data-ranking-item data-ranking-option="{{ $option['value'] }}">
                                 <span class="survey-ranking-position" data-ranking-position></span>
                                 <span class="survey-ranking-handle" aria-hidden="true">☰</span>
-                                <span class="survey-ranking-label">{{ $optLabel }}</span>
-                                <button type="button" class="survey-ranking-move" data-ranking-move="up" aria-label="將「{{ $optLabel }}」上移">↑</button>
-                                <button type="button" class="survey-ranking-move" data-ranking-move="down" aria-label="將「{{ $optLabel }}」下移">↓</button>
+                                <span class="survey-ranking-label">{{ $option['label'] }}</span>
+                                <button type="button" class="survey-ranking-move" data-ranking-move="up" aria-label="將「{{ $option['label'] }}」上移">↑</button>
+                                <button type="button" class="survey-ranking-move" data-ranking-move="down" aria-label="將「{{ $option['label'] }}」下移">↓</button>
                             </div>
                         @endforeach
                         <input type="hidden" name="answers[{{ $fk }}]" data-ranking-value="{{ $fk }}">

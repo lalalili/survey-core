@@ -91,3 +91,26 @@ it('counts array answers for multiple choice capacity', function () {
 
     app(SubmitSurveyResponseAction::class)->execute($survey->load('fields'), new SubmissionPayload(['choices' => ['a']]));
 })->throws(SurveyValidationException::class);
+
+it('does not apply option capacity to ranking fields', function () {
+    $survey = Survey::create(['title' => 'Ranking Capacity', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
+    $field = SurveyField::create([
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::Ranking,
+        'label' => 'Rank',
+        'field_key' => 'rank',
+        'is_required' => true,
+        'options_json' => [
+            ['id' => 'a', 'label' => 'A', 'value' => 'a', 'capacity' => 1],
+            ['id' => 'b', 'label' => 'B', 'value' => 'b'],
+        ],
+        'sort_order' => 1,
+    ]);
+
+    $response = SurveyResponse::create(['survey_id' => $survey->id, 'submitted_at' => now(), 'completion_status' => 'complete']);
+    SurveyAnswer::create(['survey_response_id' => $response->id, 'survey_field_id' => $field->id, 'answer_json' => ['a', 'b']]);
+
+    $submitted = app(SubmitSurveyResponseAction::class)->execute($survey->load('fields'), new SubmissionPayload(['rank' => ['a', 'b']]));
+
+    expect($submitted->id)->toBeInt();
+});

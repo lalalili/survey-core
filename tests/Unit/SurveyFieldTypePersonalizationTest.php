@@ -2,6 +2,10 @@
 
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 
+it('labels the section title content block as title', function () {
+    expect(SurveyFieldType::SectionTitle->label())->toBe('標題');
+});
+
 it('supports personalization on free-text and scalar field types', function (SurveyFieldType $type) {
     expect($type->supportsPersonalization())->toBeTrue();
 })->with([

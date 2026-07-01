@@ -790,7 +790,7 @@ it('publishes the draft schema and syncs answer fields', function () {
             'id' => 'intro',
             'type' => 'section_title',
             'field_key' => null,
-            'label' => '區段標題',
+            'label' => '標題',
             'description' => 'Welcome',
             'required' => false,
             'placeholder' => null,

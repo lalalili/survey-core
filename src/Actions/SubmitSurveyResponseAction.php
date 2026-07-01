@@ -277,7 +277,7 @@ class SubmitSurveyResponseAction
         foreach ($answers as $fieldKey => $value) {
             $field = $fieldsByKey->get($fieldKey);
 
-            if (! $field instanceof SurveyField || ! $field->type->requiresOptions()) {
+            if (! $field instanceof SurveyField || ! $field->type->supportsOptionCapacity()) {
                 continue;
             }
 

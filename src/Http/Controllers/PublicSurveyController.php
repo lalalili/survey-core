@@ -626,7 +626,7 @@ class PublicSurveyController extends Controller
         $usage = [];
 
         foreach ($survey->fields as $field) {
-            if (! $field->type->requiresOptions()) {
+            if (! $field->type->supportsOptionCapacity()) {
                 continue;
             }
 

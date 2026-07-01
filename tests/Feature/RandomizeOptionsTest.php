@@ -19,6 +19,22 @@ function makeChoiceField(array $settings = []): SurveyField
     ]);
 }
 
+function makeOptionField(SurveyFieldType $type, array $settings = []): SurveyField
+{
+    return new SurveyField([
+        'field_key' => $type->value,
+        'type' => $type,
+        'options_json' => [
+            ['label' => 'A', 'value' => 'a'],
+            ['label' => 'B', 'value' => 'b'],
+            ['label' => 'C', 'value' => 'c'],
+            ['label' => 'D', 'value' => 'd'],
+            ['label' => 'E', 'value' => 'e'],
+        ],
+        'settings_json' => $settings,
+    ]);
+}
+
 it('keeps original option order when randomize is off', function () {
     $field = makeChoiceField();
 
@@ -51,6 +67,24 @@ it('produces different orders for different seeds', function () {
         ->unique();
 
     expect($orders->count())->toBeGreaterThan(1);
+});
+
+it('supports randomizing the initial order of ranking fields', function () {
+    $field = makeOptionField(SurveyFieldType::Ranking, ['randomize_options' => true]);
+
+    $orders = collect(range(1, 12))
+        ->map(fn (int $seed): string => implode(',', array_column($field->displayOptions($seed), 'value')))
+        ->unique();
+
+    expect($orders->count())->toBeGreaterThan(1);
+});
+
+it('does not randomize constant sum rows with the option randomization setting', function () {
+    $field = makeOptionField(SurveyFieldType::ConstantSum, ['randomize_options' => true]);
+
+    $values = array_column($field->displayOptions(123), 'value');
+
+    expect($values)->toBe(['a', 'b', 'c', 'd', 'e']);
 });
 
 it('shuffles matrix rows only when randomize_rows is on', function () {

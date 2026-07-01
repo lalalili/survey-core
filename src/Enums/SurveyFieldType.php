@@ -58,7 +58,7 @@ enum SurveyFieldType: string
             self::LinearScale => '數字滑桿',
             self::ConstantSum => '總計題',
             self::Hidden => '個性化欄位',
-            self::SectionTitle => '區段標題',
+            self::SectionTitle => '標題',
             self::DescriptionBlock => '說明文字',
             self::Divider => '分隔線',
             self::QuoteBlock => '引言',
@@ -68,6 +68,16 @@ enum SurveyFieldType: string
     public function requiresOptions(): bool
     {
         return in_array($this, [self::SingleChoice, self::MultipleChoice, self::Select, self::Ranking, self::ConstantSum], true);
+    }
+
+    public function supportsOptionCapacity(): bool
+    {
+        return in_array($this, [self::SingleChoice, self::MultipleChoice, self::Select], true);
+    }
+
+    public function supportsOptionRandomization(): bool
+    {
+        return in_array($this, [self::SingleChoice, self::MultipleChoice, self::Select, self::Ranking], true);
     }
 
     public function isAlwaysHidden(): bool

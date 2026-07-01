@@ -207,7 +207,8 @@ class SurveyField extends Model
             $groups[$label][] = $option;
         }
 
-        $randomizeWithin = (bool) ($this->settings_json['randomize_options'] ?? false);
+        $randomizeWithin = $this->type->supportsOptionRandomization()
+            && (bool) ($this->settings_json['randomize_options'] ?? false);
 
         $result = [];
         foreach ($groups as $label => $options) {
