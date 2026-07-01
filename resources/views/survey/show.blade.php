@@ -215,7 +215,9 @@
             display: inline-flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             gap: 0.125rem;
+            width: 2rem;
             cursor: pointer;
             line-height: 1;
         }
@@ -232,7 +234,7 @@
             display: inline-block;
             font-size: 2rem;
             color: #d1d5db;
-            transition: color 120ms, transform 120ms;
+            transition: color 120ms, transform 120ms, filter 120ms;
             user-select: none;
         }
 
@@ -252,6 +254,20 @@
         .survey-rating-star-label.filled .survey-rating-star-number,
         .survey-rating-star-label.hovered .survey-rating-star-number {
             color: #d97706;
+        }
+
+        /* thumb 為原生彩色 emoji，color 對其無效，改用 grayscale + opacity 區分未選中狀態 */
+        .survey-rating-star-label.shape-thumb .survey-rating-star-icon {
+            filter: grayscale(1) opacity(0.35);
+        }
+
+        .survey-rating-star-label.shape-thumb.filled .survey-rating-star-icon,
+        .survey-rating-star-label.shape-thumb.hovered .survey-rating-star-icon {
+            filter: none;
+        }
+
+        .survey-rating-star-label.shape-thumb.popping .survey-rating-star-icon {
+            transform: scale(1.35);
         }
 
         .survey-nps-wrap {
@@ -858,7 +874,7 @@
                     @endphp
                     <div class="survey-rating-stars mt-1" data-rating-id="{{ $ratingId }}">
                         @foreach(range(1, $ratingCount) as $star)
-                            <label class="survey-rating-star-label" title="{{ $star }} 分">
+                            <label class="survey-rating-star-label shape-{{ $ratingShape }}" title="{{ $star }} 分">
                                 <input type="radio" name="answers[{{ $fk }}]" value="{{ $star }}"
                                     aria-label="{{ $star }} 分"
                                     @if($field->is_required) required @endif
@@ -1323,7 +1339,7 @@
                     @endphp
                     <div class="survey-rating-stars" data-rating-id="{{ $ratingId }}">
                         @foreach(range(1, $ratingCount) as $star)
-                            <label class="survey-rating-star-label" title="{{ $star }} 分">
+                            <label class="survey-rating-star-label shape-{{ $ratingShape }}" title="{{ $star }} 分">
                                 <input type="radio" name="answers[{{ $fk }}]" value="{{ $star }}"
                                     aria-label="{{ $star }} 分"
                                     @if($field->is_required) required @endif
@@ -2817,6 +2833,8 @@
 
             lbl.querySelector('.survey-rating-radio').addEventListener('change', function () {
                 updateFill(getCheckedIndex());
+                lbl.classList.add('popping');
+                setTimeout(function () { lbl.classList.remove('popping'); }, 180);
             });
         });
 
