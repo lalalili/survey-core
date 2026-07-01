@@ -178,6 +178,84 @@ it('rejects legacy field types when saving new builder schemas', function (strin
     'address',
 ]);
 
+it('rejects cascade select questions without levels or first level options', function () {
+    try {
+        app(ValidateSurveyBuilderSchemaAction::class)->execute(builderSchema([
+            'pages' => [
+                [
+                    'id' => 'page_1',
+                    'title' => 'Page 1',
+                    'elements' => [
+                        [
+                            'id' => 'cascade',
+                            'type' => 'cascade_select',
+                            'field_key' => 'location',
+                            'label' => 'Location',
+                            'description' => '',
+                            'required' => true,
+                            'placeholder' => null,
+                            'options' => [],
+                            'settings' => [],
+                            'cascade_levels' => [],
+                            'cascade_data' => [],
+                        ],
+                    ],
+                ],
+            ],
+        ]));
+    } catch (SurveyValidationException $exception) {
+        expect($exception->getErrors())
+            ->toHaveKey('pages.0.elements.0.cascade_levels')
+            ->and($exception->getErrors()['pages.0.elements.0.cascade_levels'])
+            ->toContain('巢狀選擇題至少需要一個層級。')
+            ->and($exception->getErrors())
+            ->toHaveKey('pages.0.elements.0.cascade_data');
+
+        return;
+    }
+
+    $this->fail('Expected a cascade select validation exception.');
+});
+
+it('rejects cascade select questions without first level options', function () {
+    try {
+        app(ValidateSurveyBuilderSchemaAction::class)->execute(builderSchema([
+            'pages' => [
+                [
+                    'id' => 'page_1',
+                    'title' => 'Page 1',
+                    'elements' => [
+                        [
+                            'id' => 'cascade',
+                            'type' => 'cascade_select',
+                            'field_key' => 'location',
+                            'label' => 'Location',
+                            'description' => '',
+                            'required' => true,
+                            'placeholder' => null,
+                            'options' => [],
+                            'settings' => [],
+                            'cascade_levels' => [
+                                ['id' => 'city', 'label' => '縣市'],
+                            ],
+                            'cascade_data' => [],
+                        ],
+                    ],
+                ],
+            ],
+        ]));
+    } catch (SurveyValidationException $exception) {
+        expect($exception->getErrors())
+            ->toHaveKey('pages.0.elements.0.cascade_data')
+            ->and($exception->getErrors()['pages.0.elements.0.cascade_data'])
+            ->toContain('巢狀選擇題至少需要一個第一層選項。');
+
+        return;
+    }
+
+    $this->fail('Expected a cascade select validation exception.');
+});
+
 it('rejects personalized builder fields without an audience column mapping', function () {
     app(ValidateSurveyBuilderSchemaAction::class)->execute(builderSchema([
         'pages' => [

@@ -330,6 +330,29 @@
             color: #4b5563;
         }
 
+        #progress-bar {
+            accent-color: var(--survey-primary);
+        }
+
+        #progress-bar::-webkit-progress-bar {
+            background: var(--survey-border);
+            border-radius: 999px;
+        }
+
+        #progress-bar::-webkit-progress-value {
+            background: var(--survey-primary);
+            border-radius: 999px;
+        }
+
+        #progress-bar::-moz-progress-bar {
+            background: var(--survey-primary);
+            border-radius: 999px;
+        }
+
+        .progress-step.is-active {
+            background: var(--survey-primary) !important;
+        }
+
         .survey-linear-scale {
             display: flex;
             flex-direction: column;
@@ -695,7 +718,7 @@
         @elseif($progressMode === 'steps')
             <div id="progress-steps" class="flex justify-center gap-2" role="img" aria-label="第 1 頁，共 {{ $pageCount }} 頁">
                 @foreach(range(1, $pageCount) as $step)
-                    <span class="progress-step inline-block h-2.5 w-2.5 rounded-full {{ $step === 1 ? 'bg-indigo-600' : 'bg-gray-300' }}" aria-hidden="true"></span>
+                    <span class="progress-step inline-block h-2.5 w-2.5 rounded-full bg-gray-300 {{ $step === 1 ? 'is-active' : '' }}" aria-hidden="true"></span>
                 @endforeach
             </div>
         @else
@@ -1901,11 +1924,9 @@
         }
         document.querySelectorAll('.progress-step').forEach(function (step, index) {
             if (index <= pageIdx) {
-                step.classList.remove('bg-gray-300');
-                step.classList.add('bg-indigo-600');
+                step.classList.add('is-active');
             } else {
-                step.classList.remove('bg-indigo-600');
-                step.classList.add('bg-gray-300');
+                step.classList.remove('is-active');
             }
         });
 
@@ -2649,6 +2670,7 @@
             if (res.ok) {
                 clearDraft();
                 hide(document.getElementById('survey-form'));
+                hide(document.getElementById('page-indicator'));
                 show(document.getElementById('success-message'));
                 var successText = document.getElementById('success-text');
                 if (successText) {
@@ -2955,7 +2977,7 @@
 
             options.forEach(function (option) {
                 var label = document.createElement('label');
-                label.className = isSurveyTheme ? 'survey-choice' : 'flex items-center gap-2 cursor-pointer';
+                label.className = isSurveyTheme ? 'survey-choice-label' : 'flex items-center gap-2 cursor-pointer';
                 var input = document.createElement('input');
                 input.type = 'checkbox';
                 input.name = 'answers[' + fieldKey + '][]';

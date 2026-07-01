@@ -68,6 +68,33 @@ it('renders a progress element when mode is bar', function () {
         ->assertSee('id="progress-bar"', false);
 });
 
+it('hides the progress indicator while the welcome screen is shown', function () {
+    $survey = Survey::create(['title' => 'Welcome Progress', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
+    app(SaveSurveyDraftSchemaAction::class)->execute($survey, progressSchema('bar'));
+    $survey->update(['status' => SurveyStatus::Published]);
+
+    $html = $this->get(route('survey.show', $survey->public_key))
+        ->assertSuccessful()
+        ->getContent();
+
+    expect($html)
+        ->toContain('id="page-indicator"')
+        ->toMatch('/id="page-indicator"[^>]*class="[^"]*hidden/');
+});
+
+it('uses the survey primary color for progress steps', function () {
+    $survey = Survey::create(['title' => 'Steps', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
+    app(SaveSurveyDraftSchemaAction::class)->execute($survey, progressSchema('steps'));
+    $survey->update(['status' => SurveyStatus::Published]);
+
+    $this->get(route('survey.show', $survey->public_key))
+        ->assertSuccessful()
+        ->assertSee('.progress-step.is-active', false)
+        ->assertSee('background: var(--survey-primary) !important;', false)
+        ->assertSee('progress-step inline-block h-2.5 w-2.5 rounded-full bg-gray-300 is-active', false)
+        ->assertDontSee('progress-step inline-block h-2.5 w-2.5 rounded-full bg-indigo-600', false);
+});
+
 it('renders page count text when mode is percent', function () {
     $survey = Survey::create(['title' => 'Percent', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, progressSchema('percent'));

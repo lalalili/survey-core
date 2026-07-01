@@ -218,6 +218,16 @@ class ValidateSurveyBuilderSchemaAction
                         }
                     }
 
+                    if ($type === SurveyFieldType::CascadeSelect) {
+                        if (empty($element['cascade_levels'] ?? [])) {
+                            $errors["{$path}.cascade_levels"][] = '巢狀選擇題至少需要一個層級。';
+                        }
+
+                        if (! $this->hasCascadeFirstLevelOptions($element['cascade_data'] ?? [])) {
+                            $errors["{$path}.cascade_data"][] = '巢狀選擇題至少需要一個第一層選項。';
+                        }
+                    }
+
                     continue;
                 }
 
@@ -297,5 +307,23 @@ class ValidateSurveyBuilderSchemaAction
         if ($errors !== []) {
             throw new SurveyValidationException($errors);
         }
+    }
+
+    /**
+     * @param  mixed  $cascadeData
+     */
+    private function hasCascadeFirstLevelOptions(mixed $cascadeData): bool
+    {
+        if (! is_array($cascadeData)) {
+            return false;
+        }
+
+        foreach ($cascadeData as $node) {
+            if (is_array($node) && filled($node['label'] ?? null)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
