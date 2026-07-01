@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Lalalili\AudienceCore\Models\AudienceList;
 use Lalalili\SurveyCore\Actions\BuildSurveyBuilderSchemaAction;
+use Lalalili\SurveyCore\Actions\CreateCascadeSelectTemplateAction;
+use Lalalili\SurveyCore\Actions\ParseCascadeSelectImportAction;
 use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Actions\RecordSurveyBuilderActivityAction;
 use Lalalili\SurveyCore\Actions\RestoreSurveyPublishedSchemaAction;
@@ -20,7 +22,9 @@ use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyTheme;
 use Lalalili\SurveyCore\Support\ImageUploadSanitizer;
+use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class SurveyBuilderController extends Controller
 {
@@ -186,6 +190,59 @@ class SurveyBuilderController extends Controller
         return response()->json([
             'url' => url(Storage::disk($disk)->url($path)),
         ]);
+    }
+
+    public function downloadCascadeTemplate(Survey $survey, CreateCascadeSelectTemplateAction $createTemplate): BinaryFileResponse
+    {
+        Gate::authorize('update', $survey);
+
+        $path = tempnam(sys_get_temp_dir(), 'cascade-select-template-');
+
+        if ($path === false) {
+            abort(500, 'Unable to create template file.');
+        }
+
+        $xlsxPath = $path.'.xlsx';
+        rename($path, $xlsxPath);
+
+        $createTemplate->writeToPath($xlsxPath);
+
+        return response()
+            ->download($xlsxPath, 'cascade-select-template.xlsx', [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ])
+            ->deleteFileAfterSend();
+    }
+
+    public function importCascadeData(Request $request, Survey $survey, ParseCascadeSelectImportAction $parseImport): JsonResponse
+    {
+        Gate::authorize('update', $survey);
+
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx', 'max:2048'],
+        ]);
+
+        $path = $request->file('file')?->getRealPath();
+
+        if (! is_string($path) || $path === '') {
+            return response()->json([
+                'message' => '檔案上傳失敗，請重新選擇檔案。',
+                'errors' => [
+                    'file' => ['檔案上傳失敗，請重新選擇檔案。'],
+                ],
+            ], 422);
+        }
+
+        try {
+            return response()->json($parseImport->execute($path));
+        } catch (RuntimeException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'errors' => [
+                    'file' => [$exception->getMessage()],
+                ],
+            ], 422);
+        }
     }
 
     public function publish(Request $request, Survey $survey, PublishSurveyAction $publishSurvey, RecordSurveyBuilderActivityAction $recordActivity): JsonResponse
