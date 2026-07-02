@@ -131,6 +131,13 @@ $url = route('survey.collector.show', $collector->slug);
 - 若設定 `settings_json.terms_text`，提交必須帶 `_terms_accepted = true`，並在 `survey_response_consents` 記錄同意版本與時間。
 - `settings_json.security.min_submission_ms` 可覆寫全域最短填寫時間門檻。
 
+### 選項容量與併發限制
+
+- 選項可設 `capacity` 上限（額滿後前端停用、提交時擋下），`max_responses` 限制整份問卷回收數。
+- **防超賣鎖僅在 PostgreSQL 生效**：提交時以 `pg_advisory_xact_lock` 序列化同欄位的容量檢查；
+  其他資料庫驅動（MySQL、SQLite）會退回**無鎖檢查**，高併發下可能超賣最後名額。
+  預約制、名額制問卷請務必使用 PostgreSQL 部署。
+
 ### Actions
 
 ```php
