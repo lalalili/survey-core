@@ -24,7 +24,6 @@ use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
 use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
 use Lalalili\SurveyCore\Http\Requests\SubmitSurveyRequest;
 use Lalalili\SurveyCore\Models\Survey;
-use Lalalili\SurveyCore\Models\SurveyAnswer;
 use Lalalili\SurveyCore\Models\SurveyCollector;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyPage;
@@ -34,6 +33,7 @@ use Lalalili\SurveyCore\Models\SurveyToken;
 use Lalalili\SurveyCore\Services\TurnstileVerifier;
 use Lalalili\SurveyCore\Support\ConditionGroupEvaluator;
 use Lalalili\SurveyCore\Support\SurveyFileUploadToken;
+use Lalalili\SurveyCore\Support\SurveyOptionUsageCounter;
 use Throwable;
 
 class PublicSurveyController extends Controller
@@ -637,14 +637,17 @@ class PublicSurveyController extends Controller
                 fn (array $option): bool => $option['capacity'] !== null,
             );
 
+            if ($capacityOptions === []) {
+                continue;
+            }
+
+            $counts = SurveyOptionUsageCounter::count(
+                $field,
+                array_map(fn (array $option): string => (string) $option['value'], $capacityOptions),
+            );
+
             foreach ($capacityOptions as $option) {
-                $usage[$field->field_key][$option['value']] = SurveyAnswer::query()
-                    ->where('survey_field_id', $field->id)
-                    ->where(function ($query) use ($option): void {
-                        $query->where('answer_text', $option['value'])
-                            ->orWhereJsonContains('answer_json', $option['value']);
-                    })
-                    ->count();
+                $usage[$field->field_key][$option['value']] = $counts[(string) $option['value']] ?? 0;
             }
         }
 

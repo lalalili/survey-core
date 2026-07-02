@@ -85,6 +85,7 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 '2026_06_28_000001_create_google_drive_accounts_table',
                 '2026_06_28_000002_add_google_drive_to_surveys_table',
                 '2026_06_29_000001_create_media_table',
+                '2026_07_02_000001_add_field_index_to_survey_answers_table',
             ])
             ->runsMigrations()
             ->hasRoutes(['web']);

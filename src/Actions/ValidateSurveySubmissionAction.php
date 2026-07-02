@@ -380,16 +380,45 @@ class ValidateSurveySubmissionAction
             return;
         }
 
+        $cascadeData = is_array($field->settings_json['cascade_data'] ?? null) ? $field->settings_json['cascade_data'] : [];
+        $currentNodes = $cascadeData;
+
         foreach ($levels as $level) {
             $levelId = (string) ($level['id'] ?? '');
             if ($levelId === '') {
                 continue;
             }
 
-            if ($field->is_required && blank($value[$levelId] ?? null)) {
-                $levelLabel = (string) ($level['label'] ?? $levelId);
-                $validator->errors()->add($field->field_key, "「{$field->label}」的「{$levelLabel}」尚未選擇。");
+            $levelLabel = (string) ($level['label'] ?? $levelId);
+            $answer = trim((string) ($value[$levelId] ?? ''));
+
+            if ($answer === '') {
+                if ($field->is_required) {
+                    $validator->errors()->add($field->field_key, "「{$field->label}」的「{$levelLabel}」尚未選擇。");
+                }
+
+                // 空層之後的深層選擇沒有合法選項集合可比對
+                $currentNodes = [];
+
+                continue;
             }
+
+            if ($cascadeData === []) {
+                continue;
+            }
+
+            $matched = collect($currentNodes)
+                ->filter(fn (mixed $node): bool => is_array($node))
+                ->first(fn (array $node): bool => (string) ($node['id'] ?? $node['label'] ?? '') === $answer);
+
+            if ($matched === null) {
+                $validator->errors()->add($field->field_key, "「{$field->label}」的「{$levelLabel}」包含不存在的選項，請重新選擇。");
+                $currentNodes = [];
+
+                continue;
+            }
+
+            $currentNodes = is_array($matched['children'] ?? null) ? $matched['children'] : [];
         }
     }
 

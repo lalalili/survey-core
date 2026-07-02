@@ -18,6 +18,7 @@ use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Models\SurveyToken;
 use Lalalili\SurveyCore\Support\JumpLogicResolver;
 use Lalalili\SurveyCore\Support\SurveyFileUploadToken;
+use Lalalili\SurveyCore\Support\SurveyOptionUsageCounter;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class SubmitSurveyResponseAction
@@ -303,16 +304,13 @@ class SubmitSurveyResponseAction
                 DB::statement('SELECT pg_advisory_xact_lock(hashtext(?))', ['field_capacity_'.$field->id]);
             }
 
-            foreach ($capacityOptions as $option) {
-                $usedCount = SurveyAnswer::query()
-                    ->where('survey_field_id', $field->id)
-                    ->where(function ($query) use ($option): void {
-                        $query->where('answer_text', $option['value'])
-                            ->orWhereJsonContains('answer_json', $option['value']);
-                    })
-                    ->count();
+            $counts = SurveyOptionUsageCounter::count(
+                $field,
+                array_map(fn (array $option): string => (string) $option['value'], $capacityOptions),
+            );
 
-                if ($usedCount >= $option['capacity']) {
+            foreach ($capacityOptions as $option) {
+                if (($counts[(string) $option['value']] ?? 0) >= $option['capacity']) {
                     $errors[$field->field_key][] = "{$option['label']} 已額滿。";
                 }
             }

@@ -66,6 +66,19 @@ it('renders full options as disabled', function () {
         ->assertSee('早場（已額滿）');
 });
 
+it('renders full options as disabled in published css mode', function () {
+    config(['survey-core.frontend.css' => 'published']);
+
+    [$survey, $field] = phase3CapacitySurvey(1);
+    $response = SurveyResponse::create(['survey_id' => $survey->id, 'submitted_at' => now(), 'completion_status' => 'complete']);
+    SurveyAnswer::create(['survey_response_id' => $response->id, 'survey_field_id' => $field->id, 'answer_text' => 'morning']);
+
+    $this->get("/survey/{$survey->public_key}")
+        ->assertSuccessful()
+        ->assertSee('disabled', false)
+        ->assertSee('早場（已額滿）');
+});
+
 it('keeps non-full options enabled', function () {
     [$survey] = phase3CapacitySurvey(1);
 
