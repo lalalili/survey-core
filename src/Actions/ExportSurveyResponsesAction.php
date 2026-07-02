@@ -11,6 +11,7 @@ use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Services\Exports\SurveyExportManager;
 use Lalalili\SurveyCore\Services\Exports\XlsxSurveyExportDriver;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ExportSurveyResponsesAction
@@ -46,7 +47,16 @@ class ExportSurveyResponsesAction
 
         try {
             app(XlsxSurveyExportDriver::class)->writeToPath($tmpPath, $rows, $headers);
-            Storage::disk($disk)->put($storagePath, (string) file_get_contents($tmpPath));
+
+            $contents = file_get_contents($tmpPath);
+
+            if ($contents === false) {
+                throw new RuntimeException("Unable to read generated export file [{$tmpPath}].");
+            }
+
+            if (! Storage::disk($disk)->put($storagePath, $contents)) {
+                throw new RuntimeException("Unable to store generated export file [{$storagePath}] on disk [{$disk}].");
+            }
         } finally {
             @unlink($tmpPath);
         }

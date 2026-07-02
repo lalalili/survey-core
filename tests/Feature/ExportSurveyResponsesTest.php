@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 use Lalalili\SurveyCore\Actions\ExportSurveyResponsesAction;
 use Lalalili\SurveyCore\Actions\GenerateSurveyTokenAction;
 use Lalalili\SurveyCore\Actions\ResolveSurveyTokenAction;
@@ -73,6 +74,24 @@ it('returns a StreamedResponse for XLSX export', function () {
     expect($response->headers->get('Content-Type'))
         ->toContain('spreadsheetml.sheet');
 });
+
+it('throws when storing an async XLSX export fails', function () {
+    Storage::shouldReceive('disk')
+        ->once()
+        ->with('broken')
+        ->andReturn(new class () {
+            public function put(string $path, string $contents): bool
+            {
+                return false;
+            }
+        });
+
+    app(ExportSurveyResponsesAction::class)->exportToDisk(
+        $this->survey,
+        'broken',
+        'reports/export.xlsx',
+    );
+})->throws(RuntimeException::class, 'Unable to store generated export file [reports/export.xlsx] on disk [broken].');
 
 it('throws on unknown export driver', function () {
     app(ExportSurveyResponsesAction::class)->execute($this->survey, 'pdf');
