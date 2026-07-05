@@ -21,6 +21,13 @@ Laravel 問卷系統核心套件。提供完整的問卷引擎（token 機制、
 - 商用題型基礎：Email、手機、地址單欄以 `short_text` 預設建立；legacy `email` / `phone` / `address` 仍可讀取與提交。手機預設採台灣格式驗證（10
   碼純數字且 `09` 開頭），`time` / `linear_scale` / `constant_sum` 可用於活動時間、數字滑桿與總計分配，`section_title` /
   `description_block` / `quote_block` / `divider` 可建立內容區塊，ranking 公開端支援拖曳排序與上下移動
+- **檔案上傳題（`file_upload`）與簽名題（`signature`）**：`file_upload` 附件可在送出後非同步上傳至問卷綁定的 Google Drive；`signature`
+  以 canvas 手寫簽名並存為圖片
+- **Google Drive 整合**：`GoogleDriveClientFactory` 處理 OAuth、token 刷新與資料夾建立；問卷可綁定 Drive 帳號與資料夾，含檔案上傳題的問卷未綁定時會**阻擋發佈**，匯出會輸出檔案的
+  Drive 連結
+- **重複核選題（`selection_based`）**：以先前選擇題的作答為選項來源，後台分析依來源題選項彙整分布，草稿還原時補回已勾選項
+- **選項與題組隨機排序**：選項可分組並設定組內／組間隨機，題組（及題組內題目）亦可隨機排序；下拉題（`select`）依選項組渲染 `optgroup` 分組
+- **題目匯入**：`ImportSurveyQuestionsFromCsvAction` 從 CSV 匯入題目；巢狀選擇題（`cascade_select`）以 `ParseCascadeSelectImportAction` 支援 XLSX 匯入
 - Events hook 點（SurveyViewed / SurveyStarted / SurveyTokenResolved / SurveySubmitted / SurveyClosed）
 
 ## 安裝
@@ -138,6 +145,26 @@ $url = route('survey.collector.show', $collector->slug);
   其他資料庫驅動（MySQL、SQLite）會退回**無鎖檢查**，高併發下可能超賣最後名額。
   預約制、名額制問卷請務必使用 PostgreSQL 部署。
 
+### Google Drive 檔案上傳
+
+含**檔案上傳題**的問卷需綁定一個 Google Drive 帳號；填答上傳的附件會在送出後**非同步**推送到該問卷的 Drive 資料夾，匯出時輸出可點的 Drive 連結。
+未綁定的問卷若包含檔案上傳題會**無法發佈**。
+
+設定 `config/survey-core.php` 的 `google_drive` 區塊（需先於 Google Cloud 建立 OAuth client 並啟用 Drive API）：
+
+| 鍵                                   | 說明                                              | 預設                          |
+|-------------------------------------|-------------------------------------------------|-----------------------------|
+| `google_drive.enabled`              | 是否啟用 Drive 整合                                  | `GOOGLE_DRIVE_ENABLED`（true）|
+| `google_drive.client_id`            | OAuth client id                                 | `GOOGLE_CLIENT_ID`          |
+| `google_drive.client_secret`        | OAuth client secret                             | `GOOGLE_CLIENT_SECRET`      |
+| `google_drive.redirect_uri`         | OAuth redirect URI（需與 Google Console 一致）       | `GOOGLE_DRIVE_REDIRECT_URI` |
+| `google_drive.scopes`               | 預設 `drive.file`（僅存取本 App 建立的檔案，最小權限）        | —                           |
+| `google_drive.delete_local_after_upload` | 上傳成功後是否刪除本地暫存檔                          | `GOOGLE_DRIVE_DELETE_LOCAL`（false）|
+| `google_drive.queue`                | 非同步上傳所用的 queue 名稱                            | `GOOGLE_DRIVE_QUEUE`        |
+
+綁定帳號以 `GoogleDriveAccount` model 儲存，OAuth／token 刷新由 `GoogleDriveClientFactory` 處理。若安裝 `lalalili/survey-filament`，可在
+Builder 的上傳設定內以 OAuth 彈窗完成綁定。
+
 ### Actions
 
 ```php
@@ -146,6 +173,7 @@ use Lalalili\SurveyCore\Actions\GenerateSurveyTokenAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
 use Lalalili\SurveyCore\Actions\ExportSurveyResponsesAction;
 use Lalalili\SurveyCore\Actions\ComputeSurveyAnalyticsAction;
+use Lalalili\SurveyCore\Actions\ImportSurveyQuestionsFromCsvAction;
 
 // 發佈問卷
 app(PublishSurveyAction::class)->execute($survey);
@@ -159,6 +187,9 @@ return app(ExportSurveyResponsesAction::class)->execute($survey);
 
 // 分析資料（可供 Filament、API 或自訂報表共用）
 $analytics = app(ComputeSurveyAnalyticsAction::class)->execute($survey);
+
+// 從 CSV 內容匯入題目（回傳匯入題數）
+$imported = app(ImportSurveyQuestionsFromCsvAction::class)->execute($survey, $csvContent);
 ```
 
 ### 個性化 resolver 替換
