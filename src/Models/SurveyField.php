@@ -88,9 +88,6 @@ class SurveyField extends Model
         return $this->belongsTo(SurveyPage::class, 'survey_page_id');
     }
 
-    /**
-     * @return HasMany<SurveyAnswer, $this>
-     */
     protected static function booted(): void
     {
         // sqlsrv 上 answers.survey_field_id FK 為 NO ACTION（multiple cascade paths 限制），
@@ -100,6 +97,9 @@ class SurveyField extends Model
         });
     }
 
+    /**
+     * @return HasMany<SurveyAnswer, $this>
+     */
     public function answers(): HasMany
     {
         return $this->hasMany(SurveyAnswer::class);

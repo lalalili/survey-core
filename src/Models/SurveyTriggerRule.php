@@ -63,9 +63,6 @@ class SurveyTriggerRule extends Model
         return $this->belongsTo(Survey::class);
     }
 
-    /**
-     * @return HasMany<SurveyTriggerDispatch, $this>
-     */
     protected static function booted(): void
     {
         // sqlsrv 上 dispatches.survey_trigger_rule_id FK 為 NO ACTION（multiple cascade paths 限制），
@@ -75,6 +72,9 @@ class SurveyTriggerRule extends Model
         });
     }
 
+    /**
+     * @return HasMany<SurveyTriggerDispatch, $this>
+     */
     public function dispatches(): HasMany
     {
         return $this->hasMany(SurveyTriggerDispatch::class);

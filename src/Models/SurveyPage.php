@@ -47,9 +47,6 @@ class SurveyPage extends Model
         return $this->belongsTo(Survey::class);
     }
 
-    /**
-     * @return HasMany<SurveyField, $this>
-     */
     protected static function booted(): void
     {
         // sqlsrv 上 fields.survey_page_id FK 為 NO ACTION（multiple cascade paths 限制），
@@ -59,6 +56,9 @@ class SurveyPage extends Model
         });
     }
 
+    /**
+     * @return HasMany<SurveyField, $this>
+     */
     public function fields(): HasMany
     {
         return $this->hasMany(SurveyField::class, 'survey_page_id')->orderBy('sort_order');

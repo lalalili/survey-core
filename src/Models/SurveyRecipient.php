@@ -64,9 +64,6 @@ class SurveyRecipient extends Model
         return $this->belongsTo(AudienceListRow::class);
     }
 
-    /**
-     * @return HasMany<SurveyToken, $this>
-     */
     protected static function booted(): void
     {
         // sqlsrv 上 tokens.survey_recipient_id 與 responses.survey_recipient_id FK 為
@@ -81,6 +78,9 @@ class SurveyRecipient extends Model
         });
     }
 
+    /**
+     * @return HasMany<SurveyToken, $this>
+     */
     public function tokens(): HasMany
     {
         return $this->hasMany(SurveyToken::class);

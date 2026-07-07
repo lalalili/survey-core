@@ -106,9 +106,6 @@ class SurveyResponse extends Model implements HasMedia
         return $this->belongsTo(SurveyCollector::class, 'survey_collector_id');
     }
 
-    /**
-     * @return HasMany<SurveyAnswer, $this>
-     */
     protected static function booted(): void
     {
         // sqlsrv 上 events.survey_response_id FK 為 NO ACTION（multiple cascade paths 限制），
@@ -118,6 +115,9 @@ class SurveyResponse extends Model implements HasMedia
         });
     }
 
+    /**
+     * @return HasMany<SurveyAnswer, $this>
+     */
     public function answers(): HasMany
     {
         return $this->hasMany(SurveyAnswer::class);

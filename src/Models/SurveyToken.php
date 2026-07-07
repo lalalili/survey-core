@@ -68,9 +68,6 @@ class SurveyToken extends Model
         return $this->belongsTo(SurveyRecipient::class, 'survey_recipient_id');
     }
 
-    /**
-     * @return HasMany<SurveyResponse, $this>
-     */
     protected static function booted(): void
     {
         // sqlsrv 上 responses.survey_token_id FK 為 NO ACTION（multiple cascade paths 限制），
@@ -80,6 +77,9 @@ class SurveyToken extends Model
         });
     }
 
+    /**
+     * @return HasMany<SurveyResponse, $this>
+     */
     public function responses(): HasMany
     {
         return $this->hasMany(SurveyResponse::class);

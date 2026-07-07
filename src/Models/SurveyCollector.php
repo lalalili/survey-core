@@ -52,9 +52,6 @@ class SurveyCollector extends Model
         return $this->belongsTo(Survey::class);
     }
 
-    /**
-     * @return HasMany<SurveyResponse, $this>
-     */
     protected static function booted(): void
     {
         // sqlsrv 上 responses/events 的 collector FK 為 NO ACTION（multiple cascade paths 限制），
@@ -65,6 +62,9 @@ class SurveyCollector extends Model
         });
     }
 
+    /**
+     * @return HasMany<SurveyResponse, $this>
+     */
     public function responses(): HasMany
     {
         return $this->hasMany(SurveyResponse::class, 'survey_collector_id');

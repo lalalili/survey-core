@@ -31,9 +31,6 @@ class SurveyTag extends Model
         return $this->belongsTo(Survey::class);
     }
 
-    /**
-     * @return BelongsToMany<SurveyResponse, $this>
-     */
     protected static function booted(): void
     {
         // sqlsrv 上 pivot.survey_tag_id FK 為 NO ACTION（multiple cascade paths 限制），
@@ -43,6 +40,9 @@ class SurveyTag extends Model
         });
     }
 
+    /**
+     * @return BelongsToMany<SurveyResponse, $this>
+     */
     public function responses(): BelongsToMany
     {
         return $this->belongsToMany(SurveyResponse::class, 'survey_response_tag');
