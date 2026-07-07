@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -20,7 +21,15 @@ return new class extends Migration
 
         Schema::create('survey_response_tag', function (Blueprint $table) {
             $table->foreignId('survey_response_id')->constrained('survey_responses')->cascadeOnDelete();
-            $table->foreignId('survey_tag_id')->constrained('survey_tags')->cascadeOnDelete();
+
+            // SQL Server 不允許 multiple cascade paths（surveys→responses→pivot 與
+            // surveys→tags→pivot）：tag FK 改 NO ACTION，刪 tag 前由應用層先清 pivot。
+            if (DB::getDriverName() === 'sqlsrv') {
+                $table->foreignId('survey_tag_id')->constrained('survey_tags')->noActionOnDelete();
+            } else {
+                $table->foreignId('survey_tag_id')->constrained('survey_tags')->cascadeOnDelete();
+            }
+
             $table->primary(['survey_response_id', 'survey_tag_id']);
         });
     }

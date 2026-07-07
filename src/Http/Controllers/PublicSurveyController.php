@@ -40,9 +40,11 @@ class PublicSurveyController extends Controller
 {
     public function show(string $publicKey, ResolveSurveyTokenAction $resolveToken): Response|JsonResponse
     {
+        // pages/fields 關聯已內建 orderBy(sort_order)；SQL Server 不允許 ORDER BY 重複欄位，
+        // 呼叫端不可再排一次。
         $survey = Survey::with([
-            'pages' => fn ($q) => $q->orderBy('sort_order'),
-            'fields' => fn ($q) => $q->orderBy('sort_order'),
+            'pages',
+            'fields',
             'theme',
             'calculations',
         ])->where('public_key', $publicKey)->firstOrFail();
@@ -53,8 +55,8 @@ class PublicSurveyController extends Controller
     public function showCollector(string $collectorSlug, ResolveSurveyTokenAction $resolveToken): Response|JsonResponse
     {
         $collector = SurveyCollector::with([
-            'survey.pages' => fn ($q) => $q->orderBy('sort_order'),
-            'survey.fields' => fn ($q) => $q->orderBy('sort_order'),
+            'survey.pages',
+            'survey.fields',
             'survey.theme',
             'survey.calculations',
         ])->where('slug', $collectorSlug)->firstOrFail();

@@ -17,6 +17,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('surveys', function (Blueprint $table) {
+            // SQL Server 不允許直接 drop 仍被 index 依賴的欄位，先卸 index。
+            $table->dropIndex(['category']);
             $table->dropColumn('category');
         });
     }

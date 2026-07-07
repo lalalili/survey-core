@@ -91,6 +91,15 @@ class SurveyField extends Model
     /**
      * @return HasMany<SurveyAnswer, $this>
      */
+    protected static function booted(): void
+    {
+        // sqlsrv 上 answers.survey_field_id FK 為 NO ACTION（multiple cascade paths 限制），
+        // 刪欄位前先清答案；其他 driver 有 DB cascade，重複刪除無害。
+        static::deleting(function (self $field): void {
+            $field->answers()->delete();
+        });
+    }
+
     public function answers(): HasMany
     {
         return $this->hasMany(SurveyAnswer::class);

@@ -66,6 +66,15 @@ class SurveyTriggerRule extends Model
     /**
      * @return HasMany<SurveyTriggerDispatch, $this>
      */
+    protected static function booted(): void
+    {
+        // sqlsrv 上 dispatches.survey_trigger_rule_id FK 為 NO ACTION（multiple cascade paths 限制），
+        // 刪規則前先清派送紀錄；其他 driver 有 DB cascade，重複刪除無害。
+        static::deleting(function (self $rule): void {
+            $rule->dispatches()->delete();
+        });
+    }
+
     public function dispatches(): HasMany
     {
         return $this->hasMany(SurveyTriggerDispatch::class);

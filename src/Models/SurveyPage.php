@@ -50,6 +50,15 @@ class SurveyPage extends Model
     /**
      * @return HasMany<SurveyField, $this>
      */
+    protected static function booted(): void
+    {
+        // sqlsrv 上 fields.survey_page_id FK 為 NO ACTION（multiple cascade paths 限制），
+        // 刪頁面前先把欄位的頁面參照設 null；其他 driver 有 DB SET NULL，重複更新無害。
+        static::deleting(function (self $page): void {
+            $page->fields()->update(['survey_page_id' => null]);
+        });
+    }
+
     public function fields(): HasMany
     {
         return $this->hasMany(SurveyField::class, 'survey_page_id')->orderBy('sort_order');

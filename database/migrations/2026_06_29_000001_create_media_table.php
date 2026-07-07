@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -18,7 +19,7 @@ return new class extends Migration
             $table->id();
 
             $table->morphs('model');
-            $table->uuid()->nullable()->unique();
+            $table->uuid()->nullable();
             $table->string('collection_name');
             $table->string('name');
             $table->string('file_name');
@@ -34,5 +35,19 @@ return new class extends Migration
 
             $table->nullableTimestamps();
         });
+
+        // SQL Server 的 unique index 視多個 NULL 為重複，需用 filtered index 排除 NULL。
+        if (DB::getDriverName() === 'sqlsrv') {
+            DB::statement('CREATE UNIQUE INDEX media_uuid_unique ON media (uuid) WHERE uuid IS NOT NULL');
+        } else {
+            Schema::table('media', function (Blueprint $table): void {
+                $table->unique('uuid');
+            });
+        }
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('media');
     }
 };

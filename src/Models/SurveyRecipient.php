@@ -67,6 +67,20 @@ class SurveyRecipient extends Model
     /**
      * @return HasMany<SurveyToken, $this>
      */
+    protected static function booted(): void
+    {
+        // sqlsrv 上 tokens.survey_recipient_id 與 responses.survey_recipient_id FK 為
+        // NO ACTION（multiple cascade paths 限制），刪收件人前先解除參照並清 tokens；
+        // 其他 driver 有 DB cascade / SET NULL，重複操作無害。
+        static::deleting(function (self $recipient): void {
+            SurveyResponse::query()
+                ->whereIn('survey_token_id', $recipient->tokens()->select('id'))
+                ->update(['survey_token_id' => null]);
+            $recipient->tokens()->delete();
+            $recipient->responses()->update(['survey_recipient_id' => null]);
+        });
+    }
+
     public function tokens(): HasMany
     {
         return $this->hasMany(SurveyToken::class);

@@ -49,9 +49,7 @@ class SubmitSurveyResponseAction
             // 僅在有額度上限時序列化提交：用 advisory lock 取代 surveys 列鎖，
             // 既避免超賣，又不阻塞後台對該問卷的編輯。無上限的問卷完全免鎖。
             if ($survey->max_responses !== null) {
-                if (DB::connection()->getDriverName() === 'pgsql') {
-                    DB::statement('SELECT pg_advisory_xact_lock(hashtext(?))', ['survey_quota_'.$survey->id]);
-                }
+                $this->acquireTransactionLock('survey_quota_'.$survey->id);
 
                 if (! $survey->refresh()->hasQuotaAvailable()) {
                     throw new SurveyNotAvailableException($survey->quota_message ?: '問卷已額滿。');
@@ -299,10 +297,7 @@ class SubmitSurveyResponseAction
             }
 
             // 序列化同一欄位的容量檢查，但不鎖 survey_fields 列（避免與後台編輯互卡）。
-            // advisory lock 為 PostgreSQL 專屬；其他驅動（如測試用 sqlite）退回無鎖檢查。
-            if (DB::connection()->getDriverName() === 'pgsql') {
-                DB::statement('SELECT pg_advisory_xact_lock(hashtext(?))', ['field_capacity_'.$field->id]);
-            }
+            $this->acquireTransactionLock('field_capacity_'.$field->id);
 
             $counts = SurveyOptionUsageCounter::count(
                 $field,
@@ -368,6 +363,34 @@ class SubmitSurveyResponseAction
 
         if ($isEmptiedDraft) {
             $draft->delete();
+        }
+    }
+
+    /**
+     * 取得隨交易自動釋放的 application lock，序列化配額/容量檢查。
+     * SQL Server 用 sp_getapplock（@LockOwner=Transaction，commit/rollback 自動釋放，
+     * 語義等同 pg_advisory_xact_lock）；sqlite（測試）退回無鎖檢查。
+     * 必須在 DB::transaction() 內呼叫。
+     */
+    private function acquireTransactionLock(string $key): void
+    {
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'sqlite') {
+            return;
+        }
+
+        if ($driver !== 'sqlsrv') {
+            throw new \RuntimeException("Unsupported database driver [{$driver}] for transaction lock.");
+        }
+
+        $result = DB::selectOne(
+            "DECLARE @r int; EXEC @r = sp_getapplock @Resource = ?, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 10000; SELECT @r AS result",
+            [$key],
+        );
+
+        if ($result === null || (int) $result->result < 0) {
+            throw new \RuntimeException("Failed to acquire application lock [{$key}].");
         }
     }
 }

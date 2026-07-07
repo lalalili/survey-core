@@ -34,6 +34,15 @@ class SurveyTag extends Model
     /**
      * @return BelongsToMany<SurveyResponse, $this>
      */
+    protected static function booted(): void
+    {
+        // sqlsrv 上 pivot.survey_tag_id FK 為 NO ACTION（multiple cascade paths 限制），
+        // 刪標籤前先清 pivot；其他 driver 有 DB cascade，重複刪除無害。
+        static::deleting(function (self $tag): void {
+            $tag->responses()->detach();
+        });
+    }
+
     public function responses(): BelongsToMany
     {
         return $this->belongsToMany(SurveyResponse::class, 'survey_response_tag');

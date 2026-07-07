@@ -71,6 +71,15 @@ class SurveyToken extends Model
     /**
      * @return HasMany<SurveyResponse, $this>
      */
+    protected static function booted(): void
+    {
+        // sqlsrv 上 responses.survey_token_id FK 為 NO ACTION（multiple cascade paths 限制），
+        // 刪 token 前先把參照設 null；其他 driver 有 DB SET NULL，重複更新無害。
+        static::deleting(function (self $token): void {
+            $token->responses()->update(['survey_token_id' => null]);
+        });
+    }
+
     public function responses(): HasMany
     {
         return $this->hasMany(SurveyResponse::class);

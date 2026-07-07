@@ -55,6 +55,16 @@ class SurveyCollector extends Model
     /**
      * @return HasMany<SurveyResponse, $this>
      */
+    protected static function booted(): void
+    {
+        // sqlsrv 上 responses/events 的 collector FK 為 NO ACTION（multiple cascade paths 限制），
+        // 刪收集器前先把參照設 null；其他 driver 有 DB SET NULL，重複更新無害。
+        static::deleting(function (self $collector): void {
+            $collector->responses()->update(['survey_collector_id' => null]);
+            $collector->events()->update(['survey_collector_id' => null]);
+        });
+    }
+
     public function responses(): HasMany
     {
         return $this->hasMany(SurveyResponse::class, 'survey_collector_id');

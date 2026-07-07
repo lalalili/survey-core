@@ -109,6 +109,15 @@ class SurveyResponse extends Model implements HasMedia
     /**
      * @return HasMany<SurveyAnswer, $this>
      */
+    protected static function booted(): void
+    {
+        // sqlsrv 上 events.survey_response_id FK 為 NO ACTION（multiple cascade paths 限制），
+        // 刪回覆前先把事件參照設 null；其他 driver 有 DB SET NULL，重複更新無害。
+        static::deleting(function (self $response): void {
+            $response->events()->update(['survey_response_id' => null]);
+        });
+    }
+
     public function answers(): HasMany
     {
         return $this->hasMany(SurveyAnswer::class);
