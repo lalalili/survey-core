@@ -28,6 +28,7 @@ class SurveyHtmlSanitizer
         'h3',
         'h4',
         'blockquote',
+        'span',
         'code',
         'pre',
         'img',
@@ -159,6 +160,7 @@ class SurveyHtmlSanitizer
             'img' => $this->sanitizeImgAttributes($element),
             'iframe' => $this->sanitizeIframeAttributes($element),
             'div' => $this->sanitizeDivAttributes($element),
+            'span' => $this->sanitizeSpanAttributes($element),
             default => $this->stripAllAttributes($element),
         };
     }
@@ -239,6 +241,28 @@ class SurveyHtmlSanitizer
 
         if ($class === 'survey-video') {
             $element->setAttribute('class', 'survey-video');
+        }
+    }
+
+    private function sanitizeSpanAttributes(DOMElement $element): void
+    {
+        $class = trim($element->getAttribute('class'));
+        $token = html_entity_decode(trim($element->getAttribute('data-variable-token')), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $label = trim($element->getAttribute('data-variable-label'));
+
+        foreach (iterator_to_array($element->attributes) as $attribute) {
+            $element->removeAttribute($attribute->name);
+        }
+
+        if ($class !== 'survey-variable-token' || preg_match('/^\{\{\s*calc\.[A-Za-z0-9_\-]+\s*\}\}$/', $token) !== 1) {
+            return;
+        }
+
+        $element->setAttribute('class', 'survey-variable-token');
+        $element->setAttribute('data-variable-token', $token);
+
+        if ($label !== '') {
+            $element->setAttribute('data-variable-label', mb_substr($label, 0, 80));
         }
     }
 

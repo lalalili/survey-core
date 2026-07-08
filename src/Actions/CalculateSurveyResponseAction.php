@@ -44,7 +44,13 @@ class CalculateSurveyResponseAction
                     continue;
                 }
 
-                foreach (($option['score_delta_json'] ?? []) as $calculationKey => $delta) {
+                $scoreDeltas = is_array($option['score_delta_json'] ?? null) ? $option['score_delta_json'] : [];
+
+                foreach ($scoreDeltas as $calculationKey => $delta) {
+                    if (! array_key_exists($calculationKey, $scores) && count($scores) === 1 && count($scoreDeltas) === 1) {
+                        $calculationKey = array_key_first($scores);
+                    }
+
                     if (! array_key_exists($calculationKey, $scores)) {
                         continue;
                     }

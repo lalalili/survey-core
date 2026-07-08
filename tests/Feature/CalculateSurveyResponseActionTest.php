@@ -56,6 +56,42 @@ it('calculates a single score from selected option deltas', function () {
     expect($result['score'])->toBe(5);
 });
 
+it('maps a legacy single score delta key to the only calculation', function () {
+    $survey = Survey::create(['title' => 'Legacy Score Key', 'status' => SurveyStatus::Published]);
+    app(SaveSurveyDraftSchemaAction::class)->execute($survey, [
+        'id' => 1,
+        'title' => 'Legacy Score Key',
+        'status' => 'draft',
+        'version' => 1,
+        'calculations' => [
+            ['id' => 'calc_total', 'key' => 'total_score', 'label' => '總分', 'initial_value' => 0],
+        ],
+        'pages' => [[
+            'id' => 'page_1',
+            'kind' => 'question',
+            'title' => 'Page',
+            'elements' => [[
+                'id' => 'q_1',
+                'type' => 'single_choice',
+                'field_key' => 'choice',
+                'label' => 'Choice',
+                'description' => '',
+                'required' => true,
+                'placeholder' => null,
+                'options' => [
+                    ['id' => 'opt_1', 'label' => 'A', 'value' => 'a', 'score_delta_json' => ['score_dnfqw' => 10]],
+                    ['id' => 'opt_2', 'label' => 'B', 'value' => 'b'],
+                ],
+                'settings' => [],
+            ]],
+        ]],
+    ]);
+
+    $result = app(CalculateSurveyResponseAction::class)->execute($survey->refresh(), ['choice' => 'a']);
+
+    expect($result['total_score'])->toBe(10);
+});
+
 it('calculates multiple variables independently', function () {
     $survey = Survey::create(['title' => 'Multi', 'status' => SurveyStatus::Published]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, calculationSchema());

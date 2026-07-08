@@ -279,7 +279,7 @@ class PublicSurveyController extends Controller
         ]);
 
         $jsonResponse = response()->json([
-            'message' => $this->thankYouMessage($survey, $response->calculations_json ?? []),
+            'message' => $this->thankYouMessage($survey, $response->calculations_json ?? [], $response),
             'thank_you_page_id' => $this->thankYouPage($survey, $response->calculations_json ?? [])?->page_key,
             'response_id' => $response->id,
             'response_number' => $response->response_number,
@@ -362,7 +362,7 @@ class PublicSurveyController extends Controller
     /**
      * @param  array<string, mixed>  $calculations
      */
-    private function thankYouMessage(Survey $survey, array $calculations): string
+    private function thankYouMessage(Survey $survey, array $calculations, ?SurveyResponse $response = null): string
     {
         $survey->loadMissing('pages');
 
@@ -371,9 +371,42 @@ class PublicSurveyController extends Controller
             ?? $survey->submit_success_message
             ?? '感謝您的填寫！';
 
-        return preg_replace_callback('/\{\{\s*calc\.([A-Za-z0-9_\-]+)\s*\}\}/', function (array $matches) use ($calculations): string {
+        $message = $this->normalizeCalculationTokens($this->normalizeVariableTokenChips((string) $message));
+
+        $message = preg_replace_callback('/\{\{\s*calc\.([A-Za-z0-9_\-]+)\s*\}\}/', function (array $matches) use ($calculations): string {
             return (string) ($calculations[$matches[1]] ?? '');
-        }, (string) $message) ?? (string) $message;
+        }, $message) ?? $message;
+
+        $responseNumber = $response instanceof SurveyResponse ? (string) $response->response_number : '';
+
+        return preg_replace('/\{\{\s*response_number\s*\}\}/', $responseNumber, $message) ?? $message;
+    }
+
+    private function normalizeVariableTokenChips(string $message): string
+    {
+        return preg_replace_callback('/<span\b[^>]*\bdata-variable-token=(["\'])(.*?)\1[^>]*>.*?<\/span>/is', function (array $matches): string {
+            $token = html_entity_decode((string) $matches[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+            if (preg_match('/^\{\{\s*calc\.[A-Za-z0-9_\-]+\s*\}\}$/', $token) !== 1) {
+                return (string) $matches[0];
+            }
+
+            return $token;
+        }, $message) ?? $message;
+    }
+
+    private function normalizeCalculationTokens(string $message): string
+    {
+        return preg_replace_callback('/\{\{(.*?)\}\}/s', function (array $matches): string {
+            $inner = html_entity_decode(strip_tags((string) $matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $inner = preg_replace('/\s+/', ' ', trim($inner)) ?? trim($inner);
+
+            if (preg_match('/^calc\.([A-Za-z0-9_\-]+)$/', $inner, $calcMatches) !== 1) {
+                return (string) $matches[0];
+            }
+
+            return '{{ calc.'.$calcMatches[1].' }}';
+        }, $message) ?? $message;
     }
 
     private function availabilityView(Survey $survey): ?Response
