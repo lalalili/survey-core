@@ -569,7 +569,7 @@ it('sanitizes rich html in builder schema before saving and publishing', functio
     config()->set('survey-core.security.sanitize_html', true);
 
     $survey = Survey::create(['title' => 'Unsafe HTML', 'status' => SurveyStatus::Draft, 'version' => 1]);
-    $unsafeHtml = '<p>Hello <strong>safe</strong><script>bad()</script><a href="javascript:alert(1)" onclick="bad()">bad link</a><a href="https://example.com" target="_blank">safe link</a></p>';
+    $unsafeHtml = '<p>Hello <strong>safe</strong><script>bad()</script><a href="javascript:alert(1)" onclick="bad()">bad link</a><a href="https://example.com" target="_blank">safe link</a><img src="http://54.249.44.62:8443/storage/survey-builder/welcome.jpg" alt="welcome"></p>';
 
     $schema = builderSchema([
         'settings' => [
@@ -624,6 +624,7 @@ it('sanitizes rich html in builder schema before saving and publishing', functio
     expect($combined)
         ->toContain('<strong>safe</strong>')
         ->toContain('href="https://example.com"')
+        ->toContain('src="http://54.249.44.62:8443/storage/survey-builder/welcome.jpg"')
         ->toContain('rel="noopener noreferrer"')
         ->not->toContain('<script>')
         ->not->toContain('javascript:')

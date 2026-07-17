@@ -40,6 +40,17 @@ it('resolves a valid token and returns recipient payload', function () {
         ->and($result->payload)->toBe(['customer_name' => 'Alice', 'member_level' => 'gold']);
 });
 
+it('casts SQL Server foreign key strings before validating token ownership', function () {
+    $token = new SurveyToken;
+    $token->setRawAttributes([
+        'survey_id' => (string) $this->survey->id,
+        'survey_recipient_id' => (string) $this->recipient->id,
+    ]);
+
+    expect($token->survey_id)->toBe($this->survey->id)
+        ->and($token->survey_recipient_id)->toBe($this->recipient->id);
+});
+
 it('throws for a non-existent token', function () {
     $this->action->execute($this->survey, 'does-not-exist');
 })->throws(InvalidSurveyTokenException::class, 'Token not found.');

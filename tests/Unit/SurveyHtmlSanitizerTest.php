@@ -42,6 +42,14 @@ it('allows img with https src', function () {
         ->toContain('loading="lazy"');
 });
 
+it('allows img with http src used by non-TLS builder environments', function () {
+    $result = sanitize('<img src="http://54.249.44.62:8443/storage/survey-builder/welcome.jpg" alt="photo">');
+
+    expect($result)
+        ->toContain('<img')
+        ->toContain('src="http://54.249.44.62:8443/storage/survey-builder/welcome.jpg"');
+});
+
 it('allows img with root-relative src', function () {
     $result = sanitize('<img src="/uploads/img.png" alt="">');
     expect($result)->toContain('src="/uploads/img.png"');

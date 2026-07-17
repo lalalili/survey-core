@@ -283,7 +283,7 @@ class SurveyHtmlSanitizer
             return true;
         }
 
-        return preg_match('/^https:\/\//i', $src) === 1;
+        return preg_match('/^https?:\/\//i', $src) === 1;
     }
 
     private function isAllowedIframeSrc(string $src): bool

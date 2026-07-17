@@ -43,6 +43,8 @@ class SurveyToken extends Model
     protected function casts(): array
     {
         return [
+            'survey_id' => 'integer',
+            'survey_recipient_id' => 'integer',
             'status' => SurveyTokenStatus::class,
             'expires_at' => 'datetime',
             'last_used_at' => 'datetime',
