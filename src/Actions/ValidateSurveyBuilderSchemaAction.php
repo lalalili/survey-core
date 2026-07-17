@@ -147,6 +147,7 @@ class ValidateSurveyBuilderSchemaAction
     {
         $errors = [];
         $fieldKeys = [];
+        $selectionSourceFieldKeys = [];
         $pageIds = array_column($schema['pages'], 'id');
         $welcomeIndexes = [];
         $thankYouIndexes = [];
@@ -205,6 +206,20 @@ class ValidateSurveyBuilderSchemaAction
                     }
 
                     $fieldKeys[] = $fieldKey;
+
+                    if ($type === SurveyFieldType::SelectionBased) {
+                        $sourceFieldKey = (string) data_get($element, 'settings.source_field_key', '');
+
+                        if (blank($sourceFieldKey)) {
+                            $errors["{$path}.settings.source_field_key"][] = '重複核選題請選擇來源題目。';
+                        } elseif (! in_array($sourceFieldKey, $selectionSourceFieldKeys, true)) {
+                            $errors["{$path}.settings.source_field_key"][] = '重複核選題的來源題目必須是此題之前的單選、複選或下拉題。';
+                        }
+                    }
+
+                    if (in_array($type, [SurveyFieldType::SingleChoice, SurveyFieldType::MultipleChoice, SurveyFieldType::Select], true) && $fieldKey !== '') {
+                        $selectionSourceFieldKeys[] = $fieldKey;
+                    }
                 }
 
                 if (! $type->requiresOptions()) {

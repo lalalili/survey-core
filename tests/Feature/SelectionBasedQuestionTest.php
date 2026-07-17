@@ -6,6 +6,7 @@ use Lalalili\SurveyCore\Actions\ValidateSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Data\SubmissionPayload;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
+use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyAnswer;
 use Lalalili\SurveyCore\Models\SurveyField;
@@ -58,6 +59,32 @@ it('accepts selection_based elements during schema validation', function () {
     $element = collect($validated['pages'][0]['elements'])->firstWhere('type', 'selection_based');
 
     expect($element)->not->toBeNull();
+});
+
+it('requires selection_based questions to select a source question', function () {
+    $schema = selectionBasedSchema();
+    data_set($schema, 'pages.0.elements.1.settings.source_field_key', null);
+
+    try {
+        app(ValidateSurveyBuilderSchemaAction::class)->execute($schema);
+    } catch (SurveyValidationException $exception) {
+        expect($exception->getErrors())
+            ->toHaveKey('pages.0.elements.1.settings.source_field_key')
+            ->and($exception->getErrors()['pages.0.elements.1.settings.source_field_key'])
+            ->toContain('重複核選題請選擇來源題目。');
+
+        return;
+    }
+
+    $this->fail('Expected schema validation to reject a missing selection source.');
+});
+
+it('requires selection_based sources to reference an earlier eligible question', function () {
+    $schema = selectionBasedSchema();
+    data_set($schema, 'pages.0.elements.1.settings.source_field_key', 'missing');
+
+    expect(fn () => app(ValidateSurveyBuilderSchemaAction::class)->execute($schema))
+        ->toThrow(SurveyValidationException::class);
 });
 
 it('syncs selection_based source setting to the persisted field', function () {
