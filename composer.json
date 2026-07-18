@@ -28,6 +28,7 @@
         "pestphp/pest-plugin-laravel": "^3.0|^4.0",
         "laravel/pint": "^1.0",
         "larastan/larastan": "^3.0",
+        "phpstan/phpstan": "~2.2.0",
         "lalalili/package-testing-support": "*"
     },
     "autoload": {

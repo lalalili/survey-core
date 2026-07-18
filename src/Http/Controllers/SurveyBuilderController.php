@@ -97,15 +97,11 @@ class SurveyBuilderController extends Controller
             return true;
         }
 
-        if (! is_object($user)) {
+        if (! is_object($user) || ! method_exists($user, 'hasRole')) {
             return false;
         }
 
-        if (! in_array('hasRole', get_class_methods($user), true)) {
-            return false;
-        }
-
-        return (bool) $user->{'hasRole'}('super_admin');
+        return (bool) $user->hasRole('super_admin');
     }
 
     private function canManageAdvancedFields(Request $request): bool
