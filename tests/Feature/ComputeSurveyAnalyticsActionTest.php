@@ -8,6 +8,7 @@ use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyAnswer;
 use Lalalili\SurveyCore\Models\SurveyCollector;
 use Lalalili\SurveyCore\Models\SurveyField;
+use Lalalili\SurveyCore\Models\SurveyPage;
 use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Models\SurveyResponseEvent;
 
@@ -179,4 +180,37 @@ it('filters totals, daily trend, and question stats by collector', function (): 
 
     expect($unfiltered['totals']['submitted'])->toBe(2)
         ->and($unfiltered['questions'][0]['average'])->toBe(6.0);
+});
+
+it('builds a per-page drop-off funnel from page_viewed events', function (): void {
+    $survey = Survey::create([
+        'title' => 'Funnel',
+        'status' => SurveyStatus::Published,
+        'allow_anonymous' => true,
+    ]);
+
+    SurveyPage::create(['survey_id' => $survey->id, 'page_key' => 'p1', 'title' => '第一頁', 'sort_order' => 1]);
+    SurveyPage::create(['survey_id' => $survey->id, 'page_key' => 'p2', 'title' => '第二頁', 'sort_order' => 2]);
+
+    foreach (range(1, 3) as $ignored) {
+        SurveyResponseEvent::create(['survey_id' => $survey->id, 'event' => 'started', 'occurred_at' => now()]);
+    }
+    // 第一頁 3 次瀏覽、第二頁 2 次（1 人流失）。
+    foreach (['p1', 'p1', 'p1', 'p2', 'p2'] as $pageKey) {
+        SurveyResponseEvent::create(['survey_id' => $survey->id, 'event' => 'page_viewed', 'page_key' => $pageKey, 'occurred_at' => now()]);
+    }
+    SurveyResponse::create([
+        'survey_id' => $survey->id,
+        'submitted_at' => now(),
+        'completion_status' => SurveyResponseCompletionStatus::Complete,
+    ]);
+
+    $funnel = app(ComputeSurveyAnalyticsAction::class)->execute($survey)['funnel'];
+
+    expect($funnel['steps'])->toBe([
+        ['key' => '__started__', 'label' => '開始填寫', 'count' => 3],
+        ['key' => 'p1', 'label' => '第一頁', 'count' => 3],
+        ['key' => 'p2', 'label' => '第二頁', 'count' => 2],
+        ['key' => '__submitted__', 'label' => '送出', 'count' => 1],
+    ]);
 });

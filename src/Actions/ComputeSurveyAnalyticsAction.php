@@ -8,6 +8,7 @@ use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyAnswer;
 use Lalalili\SurveyCore\Models\SurveyCollector;
 use Lalalili\SurveyCore\Models\SurveyField;
+use Lalalili\SurveyCore\Models\SurveyPage;
 use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Models\SurveyResponseEvent;
 
@@ -23,7 +24,7 @@ class ComputeSurveyAnalyticsAction
      */
     public function execute(Survey $survey, ?int $collectorId = null): array
     {
-        $survey->loadMissing(['fields', 'collectors']);
+        $survey->loadMissing(['fields', 'collectors', 'pages']);
 
         $submittedResponses = SurveyResponse::query()
             ->with('answers')
@@ -51,6 +52,39 @@ class ComputeSurveyAnalyticsAction
             'daily' => $this->dailyTrend($events, $submittedResponses),
             'collectors' => $this->collectorPerformance($survey->collectors, $events, $submittedResponses),
             'questions' => $this->questionStats($survey->fields, $submittedResponses),
+            'funnel' => $this->funnelStats($survey, $events, $startedCount, $submittedCount),
+        ];
+    }
+
+    /**
+     * 依頁面順序統計每頁的 page_viewed 事件數，呈現填答流程的逐頁流失。
+     * 以「開始」為漏斗首階、「送出」為末階；頁面步驟間的落差即 drop-off。
+     * 註：匿名部分作答的事件未必帶 survey_response_id，故以事件數（頁面瀏覽量）
+     * 而非不重複人數計算。
+     *
+     * @param  Collection<int, SurveyResponseEvent>  $events
+     * @return array{steps: list<array{key: string, label: string, count: int}>}
+     */
+    private function funnelStats(Survey $survey, Collection $events, int $startedCount, int $submittedCount): array
+    {
+        $pageViews = $events->where('event', 'page_viewed');
+
+        $pageSteps = $survey->pages
+            ->sortBy('sort_order')
+            ->values()
+            ->map(fn (SurveyPage $page): array => [
+                'key' => (string) $page->page_key,
+                'label' => (string) ($page->title !== null && $page->title !== '' ? $page->title : $page->page_key),
+                'count' => $pageViews->where('page_key', $page->page_key)->count(),
+            ])
+            ->all();
+
+        return [
+            'steps' => [
+                ['key' => '__started__', 'label' => '開始填寫', 'count' => $startedCount],
+                ...$pageSteps,
+                ['key' => '__submitted__', 'label' => '送出', 'count' => $submittedCount],
+            ],
         ];
     }
 
