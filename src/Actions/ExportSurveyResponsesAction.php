@@ -39,10 +39,11 @@ class ExportSurveyResponsesAction
      *
      * @param  Collection<int, SurveyResponse>|null  $responses
      * @param  (\Closure(int $processed, int $total): void)|null  $onProgress  每處理完一個 chunk 回報進度
+     * @param  list<int>|null  $responseIds  只匯出指定回覆；以串流方式載入，適合大量選取
      */
-    public function exportToDisk(Survey $survey, string $disk, string $storagePath, ?Collection $responses = null, bool $answersOnly = false, ?\Closure $onProgress = null): void
+    public function exportToDisk(Survey $survey, string $disk, string $storagePath, ?Collection $responses = null, bool $answersOnly = false, ?\Closure $onProgress = null, ?array $responseIds = null): void
     {
-        [$headers, $rows] = $this->buildExportData($survey, $responses, $answersOnly, $onProgress);
+        [$headers, $rows] = $this->buildExportData($survey, $responses, $answersOnly, $onProgress, $responseIds);
 
         $tmpPath = tempnam(sys_get_temp_dir(), 'survey-export-').'.xlsx';
 
@@ -66,13 +67,14 @@ class ExportSurveyResponsesAction
     /**
      * @param  Collection<int, SurveyResponse>|null  $responses
      * @param  (\Closure(int $processed, int $total): void)|null  $onProgress
+     * @param  list<int>|null  $responseIds
      * @return array{0: list<string>, 1: list<list<mixed>>}
      */
-    private function buildExportData(Survey $survey, ?Collection $responses, bool $answersOnly, ?\Closure $onProgress = null): array
+    private function buildExportData(Survey $survey, ?Collection $responses, bool $answersOnly, ?\Closure $onProgress = null, ?array $responseIds = null): array
     {
         $survey->loadMissing(['activeFields', 'calculations']);
 
-        $fields = $this->exportFields($survey, $responses);
+        $fields = $this->exportFields($survey, $responses, $responseIds);
         $calculations = $survey->calculations;
 
         $fieldLabels = $fields->map(fn (array $field): string => $field['label'])->all();
@@ -92,12 +94,18 @@ class ExportSurveyResponsesAction
         $eager = ['answers.field', 'recipient', 'token', 'media'];
 
         if ($responses === null) {
-            // 串流載入全部回覆（可達 3 萬筆、答案數十萬）：每 chunk 釋放 Eloquent 模型，
+            // 串流載入回覆（可達 3 萬筆、答案數十萬）：每 chunk 釋放 Eloquent 模型，
             // 僅累積輕量 row 陣列，避免一次 load 全部 answers 造成 OOM。
-            $total = $survey->responses()->count();
+            // 指定 id 時用 whereIntegerInRaw 內嵌整數，避開 SQL Server 2100 個綁定參數上限。
+            $query = $survey->responses()->with($eager);
 
-            $survey->responses()
-                ->with($eager)
+            if ($responseIds !== null) {
+                $query->whereIntegerInRaw('survey_responses.id', $responseIds);
+            }
+
+            $total = (clone $query)->toBase()->getCountForPagination();
+
+            $query
                 ->chunkById(500, function (Collection $chunk) use (&$rows, &$processed, $fields, $calculations, $answersOnly, $total, $onProgress): void {
                     foreach ($chunk as $response) {
                         $rows[] = $this->mapResponseToRow($response, $fields, $calculations, $answersOnly);
@@ -189,9 +197,10 @@ class ExportSurveyResponsesAction
 
     /**
      * @param  Collection<int, SurveyResponse>|null  $responses
+     * @param  list<int>|null  $responseIds
      * @return \Illuminate\Support\Collection<int, array{key: string, label: string, type: string}>
      */
-    private function exportFields(Survey $survey, ?Collection $responses): \Illuminate\Support\Collection
+    private function exportFields(Survey $survey, ?Collection $responses, ?array $responseIds = null): \Illuminate\Support\Collection
     {
         $fields = $survey->activeFields
             ->map(fn (SurveyField $field): array => [
@@ -213,7 +222,13 @@ class ExportSurveyResponsesAction
                     'snapshot_field_type',
                 ])
                 ->with('field')
-                ->whereHas('response', fn ($query) => $query->where('survey_id', $survey->id))
+                ->whereHas('response', function ($query) use ($survey, $responseIds): void {
+                    $query->where('survey_id', $survey->id);
+
+                    if ($responseIds !== null) {
+                        $query->whereIntegerInRaw('survey_responses.id', $responseIds);
+                    }
+                })
                 ->distinct()
                 ->get())
             ->map(fn (SurveyAnswer $answer): array => [
