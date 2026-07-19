@@ -8,6 +8,8 @@ use Lalalili\MarketingAutomation\Models\ActivityTemplate;
 use Lalalili\MarketingAutomation\Models\MarketingActivity;
 use Lalalili\SurveyCore\Actions\EvaluateAnswerRuleTreeAction;
 use Lalalili\SurveyCore\Actions\ImportSurveyBuilderSchemaAction;
+use Lalalili\SurveyCore\Actions\PublishSurveyAction;
+use Lalalili\SurveyCore\Actions\SaveSurveyDraftSchemaAction;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyAnswer;
 use Lalalili\SurveyCore\Models\SurveyRecipient;
@@ -20,7 +22,7 @@ use Lalalili\SurveyCore\Models\SurveyTriggerRule;
 
 /**
  * 塞入問卷 Demo 資料（問卷結構、觸發規則、白名單）。
- * 以 examples/abc-vehicle-owner-survey.builder.json 為模板，前兩題改為個性化。
+ * 以 examples/abc-vehicle-owner-survey.builder.json 為模板，固定結果欄位由個性化名單帶入。
  * 結束時將 survey_id 回綁至 MarketingActivity 與 ActivityTemplate。
  * 可重複執行（upsert）。
  */
@@ -37,8 +39,11 @@ class SeedSurveyDemoCommand extends Command
 
     private const IQS_SURVEY_TITLE = '新車品質滿意度問卷（Demo）';
 
-    public function handle(ImportSurveyBuilderSchemaAction $importAction): int
-    {
+    public function handle(
+        ImportSurveyBuilderSchemaAction $importAction,
+        SaveSurveyDraftSchemaAction $saveDraftSchema,
+        PublishSurveyAction $publishSurvey,
+    ): int {
         if ($this->option('fresh')) {
             $this->cleanup();
         }
@@ -47,17 +52,20 @@ class SeedSurveyDemoCommand extends Command
         $ssiList = AudienceList::where('name', '新車銷售滿意度調查名單')->first();
         $iqsList = AudienceList::where('name', '新車品質調查名單')->first();
 
+        if (! $csiList instanceof AudienceList || ! $ssiList instanceof AudienceList || ! $iqsList instanceof AudienceList) {
+            $this->error('找不到完整的 CSI、SSI、IQS Demo 名單，請先執行 marketing:seed-demo。');
+
+            return self::FAILURE;
+        }
+
         $this->info('=== 建立 服務滿意度 問卷 ===');
-        $csiSurvey = $this->ensureSurvey($importAction, self::CSI_SURVEY_TITLE, 'csi');
-        $this->bindPersonalizationList($csiSurvey, $csiList, 'name');
+        $csiSurvey = $this->ensureSurvey($importAction, $saveDraftSchema, $publishSurvey, self::CSI_SURVEY_TITLE, 'csi', $csiList);
 
         $this->info('=== 建立 銷售滿意度 問卷 ===');
-        $ssiSurvey = $this->ensureSurvey($importAction, self::SSI_SURVEY_TITLE, 'ssi');
-        $this->bindPersonalizationList($ssiSurvey, $ssiList, 'name');
+        $ssiSurvey = $this->ensureSurvey($importAction, $saveDraftSchema, $publishSurvey, self::SSI_SURVEY_TITLE, 'ssi', $ssiList);
 
         $this->info('=== 建立 新車品質 問卷 ===');
-        $iqsSurvey = $this->ensureSurvey($importAction, self::IQS_SURVEY_TITLE, 'iqs');
-        $this->bindPersonalizationList($iqsSurvey, $iqsList, 'name');
+        $iqsSurvey = $this->ensureSurvey($importAction, $saveDraftSchema, $publishSurvey, self::IQS_SURVEY_TITLE, 'iqs', $iqsList);
 
         $this->info('=== 建立 DMS 動作設定（觸發動作預設）===');
         $presets = $this->seedActionPresets();
@@ -80,61 +88,90 @@ class SeedSurveyDemoCommand extends Command
         return self::SUCCESS;
     }
 
-    private function bindPersonalizationList(Survey $survey, ?AudienceList $list, string $nameColumn): void
-    {
-        if ($list === null) {
-            $this->line("  個性化名單：找不到對應名單，跳過設定（{$survey->title}）");
-
-            return;
-        }
-
-        $settings = $survey->settings_json ?? [];
-        $settings['personalization'] = [
-            'audience_list_id' => $list->id,
-            'name_column' => $nameColumn,
-        ];
-        $survey->settings_json = $settings;
-        $survey->save();
-
-        $this->line("  個性化名單：{$list->name}（ID {$list->id}）→ {$survey->title}");
-    }
-
-    private function ensureSurvey(ImportSurveyBuilderSchemaAction $importAction, string $title, string $listType): Survey
-    {
-        // 問卷分類驅動各角色資料範圍（app\Enums\SurveyCategory：CSI/SSI/IQS）。
-        // listType（csi/ssi/iqs）轉大寫即對應 enum 值，不從 package 反向引用 app 層。
+    private function ensureSurvey(
+        ImportSurveyBuilderSchemaAction $importAction,
+        SaveSurveyDraftSchemaAction $saveDraftSchema,
+        PublishSurveyAction $publishSurvey,
+        string $title,
+        string $listType,
+        AudienceList $audienceList,
+    ): Survey {
         $category = strtoupper($listType);
-
         $existing = Survey::where('title', $title)->first();
 
-        if ($existing) {
-            // 既有問卷補設分類（早期 demo 未設 category）。
-            if ($existing->category !== $category) {
-                $existing->category = $category;
-                $existing->save();
-            }
-            $this->line("  沿用既有問卷：{$title}（ID {$existing->id}，分類 {$category}）");
+        if ($existing instanceof Survey) {
+            $schema = is_array($existing->draft_schema)
+                ? $existing->draft_schema
+                : $this->buildSchema($listType);
+            $schema = $this->configureDemoSchema($schema, $category, $audienceList, $listType);
+            $survey = $publishSurvey->execute($saveDraftSchema->execute($existing, $schema));
+            $this->line("  更新既有問卷：{$title}（ID {$survey->id}，分類 {$category}）");
 
-            return $existing;
+            return $survey;
         }
 
         $schema = $this->buildSchema($listType);
         $schema['title'] = $title;
+        $schema = $this->configureDemoSchema($schema, $category, $audienceList, $listType);
 
         $survey = $importAction->execute($schema, $title, publish: true);
-        $survey->category = $category;
-        $survey->save();
         $this->line("  建立問卷：{$title}（ID {$survey->id}，分類 {$category}）");
 
         return $survey;
     }
 
     /**
-     * 載入 abc-vehicle-owner-survey.builder.json 並將 page_basic 前兩題改為個性化隱藏欄位。
-     *
-     * 個性化欄位對應：
-     *   - purchase_service_center → dept（服務/銷售部門）
-     *   - vehicle_plate_number    → regono（車牌號碼）
+     * @param  array<string, mixed>  $schema
+     * @return array<string, mixed>
+     */
+    private function configureDemoSchema(array $schema, string $category, AudienceList $audienceList, string $listType): array
+    {
+        $schema['settings'] = is_array($schema['settings'] ?? null) ? $schema['settings'] : [];
+        $schema['settings']['category'] = $category;
+        $schema['settings']['personalization'] = [
+            'audience_list_id' => $audienceList->id,
+            'name_column' => 'name',
+            'required' => true,
+            'field_mappings' => [],
+            'result_context_columns' => [
+                'dealer' => 'dlr',
+                'location' => 'dept',
+                'vehicle_plate' => 'regono',
+                'delivery_date' => $listType === 'csi' ? 'timedelivered' : 'delivery_date',
+            ],
+        ];
+        $pages = [];
+        $schemaPages = is_array($schema['pages'] ?? null) ? $schema['pages'] : [];
+
+        foreach ($schemaPages as $page) {
+            if (! is_array($page)) {
+                continue;
+            }
+
+            $elements = is_array($page['elements'] ?? null) ? $page['elements'] : [];
+            $page['elements'] = array_values(array_filter(
+                $elements,
+                fn (mixed $element): bool => ! is_array($element) || ! in_array(
+                    (string) ($element['field_key'] ?? ''),
+                    ['purchase_service_center', 'vehicle_plate_number'],
+                    true,
+                ),
+            ));
+
+            if (($page['id'] ?? null) === 'page_basic' && $page['elements'] === []) {
+                continue;
+            }
+
+            $pages[] = $page;
+        }
+
+        $schema['pages'] = $pages;
+
+        return $schema;
+    }
+
+    /**
+     * 載入 abc-vehicle-owner-survey.builder.json，並依 Demo 類型調整題目。
      *
      * @return array<string, mixed>
      */
@@ -169,27 +206,6 @@ class SeedSurveyDemoCommand extends Command
         foreach ($schema['pages'] as &$page) {
             foreach ($page['elements'] as &$element) {
                 $key = $element['field_key'] ?? '';
-
-                if ($key === 'purchase_service_center') {
-                    $element['is_hidden'] = true;
-                    $element['personalized_key'] = 'dept';
-                    $element['required'] = false;
-                    $element['label'] = match ($listType) {
-                        'csi' => '服務部門',
-                        'iqs' => '交車服務中心',
-                        default => '您購車的展示服務中心:',
-                    };
-                }
-
-                if ($key === 'vehicle_plate_number') {
-                    $element['is_hidden'] = true;
-                    $element['personalized_key'] = 'regono';
-                    $element['required'] = false;
-                    $element['label'] = match ($listType) {
-                        'csi', 'iqs' => '車牌號碼',
-                        default => '您愛車的牌照號碼 (請正確填寫以避免保修抵用金無法入帳):',
-                    };
-                }
 
                 // SSI 銷售題逐題對齊客戶原始問卷文字。
                 if ($listType === 'ssi' && isset($ssiLabels[$key])) {
