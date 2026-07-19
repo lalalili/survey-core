@@ -1,5 +1,6 @@
 <?php
 
+use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Actions\SaveSurveyDraftSchemaAction;
 use Lalalili\SurveyCore\Data\SurveySettings;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
@@ -70,7 +71,7 @@ it('injects REDIRECT_CONFIG into the public survey page', function () {
         $survey,
         redirectSchema(['url' => 'https://example.com/next', 'mode' => 'auto', 'delay_seconds' => 8]),
     );
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $this->get(route('survey.show', $survey->public_key))
         ->assertSuccessful()
@@ -82,7 +83,7 @@ it('injects REDIRECT_CONFIG into the public survey page', function () {
 it('omits REDIRECT_CONFIG url when none is set', function () {
     $survey = Survey::create(['title' => 'NoRedirect', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, redirectSchema([]));
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $this->get(route('survey.show', $survey->public_key))
         ->assertSuccessful()

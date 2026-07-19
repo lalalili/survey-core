@@ -1,6 +1,7 @@
 <?php
 
 use Lalalili\SurveyCore\Actions\ImportSurveyQuestionsFromCsvAction;
+use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Models\Survey;
@@ -21,6 +22,8 @@ it('imports questions from a CSV into a new question page', function () {
     CSV;
 
     $count = importCsv($survey, $csv);
+    // 匯入只寫 draft_schema；要看到 survey_fields 必須先發佈。
+    app(PublishSurveyAction::class)->execute($survey);
 
     expect($count)->toBe(3);
 
@@ -49,6 +52,7 @@ it('skips rows with unknown type, empty label, or choice without options', funct
     CSV;
 
     $count = importCsv($survey, $csv);
+    app(PublishSurveyAction::class)->execute($survey);
 
     expect($count)->toBe(1)
         ->and($survey->fields()->count())->toBe(1)

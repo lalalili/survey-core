@@ -1,5 +1,6 @@
 <?php
 
+use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Actions\SaveSurveyDraftSchemaAction;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
@@ -98,6 +99,9 @@ it('persists option group labels through the builder sync', function () {
             ]],
         ]],
     ]);
+
+    // 存草稿只寫 draft_schema；survey_fields 要到發佈才同步。
+    app(PublishSurveyAction::class)->execute($survey);
 
     $field = $survey->fields()->where('field_key', 'fruit')->first();
 

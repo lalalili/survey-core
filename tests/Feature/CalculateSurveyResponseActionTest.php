@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Actions\CalculateSurveyResponseAction;
 use Lalalili\SurveyCore\Actions\SaveSurveyDraftSchemaAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
@@ -50,6 +51,7 @@ function calculationSchema(array $optionOverrides = []): array
 it('calculates a single score from selected option deltas', function () {
     $survey = Survey::create(['title' => 'Score', 'status' => SurveyStatus::Published]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, calculationSchema());
+    app(PublishSurveyAction::class)->execute($survey);
 
     $result = app(CalculateSurveyResponseAction::class)->execute($survey->refresh(), ['choice' => 'a']);
 
@@ -86,6 +88,7 @@ it('maps a legacy single score delta key to the only calculation', function () {
             ]],
         ]],
     ]);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $result = app(CalculateSurveyResponseAction::class)->execute($survey->refresh(), ['choice' => 'a']);
 
@@ -95,6 +98,7 @@ it('maps a legacy single score delta key to the only calculation', function () {
 it('calculates multiple variables independently', function () {
     $survey = Survey::create(['title' => 'Multi', 'status' => SurveyStatus::Published]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, calculationSchema());
+    app(PublishSurveyAction::class)->execute($survey);
 
     $result = app(CalculateSurveyResponseAction::class)->execute($survey->refresh(), ['choice' => 'a']);
 
@@ -105,6 +109,7 @@ it('calculates multiple variables independently', function () {
 it('ignores options without score deltas', function () {
     $survey = Survey::create(['title' => 'Ignore', 'status' => SurveyStatus::Published]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, calculationSchema());
+    app(PublishSurveyAction::class)->execute($survey);
 
     $result = app(CalculateSurveyResponseAction::class)->execute($survey->refresh(), ['choice' => 'b']);
 
@@ -116,7 +121,8 @@ it('writes calculations_json when a response is submitted', function () {
     Event::fake([SurveySubmitted::class]);
     $survey = Survey::create(['title' => 'Submit', 'status' => SurveyStatus::Published]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, calculationSchema());
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $response = app(SubmitSurveyResponseAction::class)->execute($survey->refresh(), new SubmissionPayload(['choice' => 'a']));
 
@@ -129,7 +135,8 @@ it('includes calculations in webhook payload', function () {
     config()->set('survey-core.webhooks.endpoints', ['https://example.com/hook']);
     $survey = Survey::create(['title' => 'Webhook Calc', 'status' => SurveyStatus::Published]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, calculationSchema());
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
+    app(PublishSurveyAction::class)->execute($survey);
     $response = app(SubmitSurveyResponseAction::class)->execute($survey->refresh(), new SubmissionPayload(['choice' => 'a']));
 
     app(DispatchSurveySubmittedWebhook::class)->handle(new SurveySubmitted($response, $survey));

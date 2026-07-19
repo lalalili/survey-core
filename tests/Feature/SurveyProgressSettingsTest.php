@@ -1,5 +1,6 @@
 <?php
 
+use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Actions\SaveSurveyDraftSchemaAction;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Models\Survey;
@@ -51,7 +52,7 @@ function progressSchema(string $mode = 'bar', int $estimatedMinutes = 5): array
 it('does not render progress markup when mode is none', function () {
     $survey = Survey::create(['title' => 'None', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, progressSchema('none'));
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $this->get(route('survey.show', $survey->public_key))
         ->assertSuccessful()
@@ -61,7 +62,7 @@ it('does not render progress markup when mode is none', function () {
 it('renders a progress element when mode is bar', function () {
     $survey = Survey::create(['title' => 'Bar', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, progressSchema('bar'));
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $this->get(route('survey.show', $survey->public_key))
         ->assertSuccessful()
@@ -71,7 +72,7 @@ it('renders a progress element when mode is bar', function () {
 it('hides the progress indicator while the welcome screen is shown', function () {
     $survey = Survey::create(['title' => 'Welcome Progress', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, progressSchema('bar'));
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $html = $this->get(route('survey.show', $survey->public_key))
         ->assertSuccessful()
@@ -85,7 +86,7 @@ it('hides the progress indicator while the welcome screen is shown', function ()
 it('uses the survey primary color for progress steps', function () {
     $survey = Survey::create(['title' => 'Steps', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, progressSchema('steps'));
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $this->get(route('survey.show', $survey->public_key))
         ->assertSuccessful()
@@ -98,7 +99,7 @@ it('uses the survey primary color for progress steps', function () {
 it('renders page count text when mode is percent', function () {
     $survey = Survey::create(['title' => 'Percent', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, progressSchema('percent'));
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $this->get(route('survey.show', $survey->public_key))
         ->assertSuccessful()
@@ -108,7 +109,7 @@ it('renders page count text when mode is percent', function () {
 it('shows estimated time on the welcome screen', function () {
     $survey = Survey::create(['title' => 'Estimate', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, progressSchema('bar', 7));
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $this->get(route('survey.show', $survey->public_key))
         ->assertSuccessful()
@@ -120,5 +121,6 @@ it('stores progress settings through autosave', function () {
 
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, progressSchema('steps'));
 
-    expect($survey->refresh()->settings_json['progress']['mode'])->toBe('steps');
+    // 自動儲存只寫 draft_schema；settings_json 要到發佈才落地（見 PublishSurveyAction）。
+    expect($survey->refresh()->draft_schema['settings']['progress']['mode'])->toBe('steps');
 });

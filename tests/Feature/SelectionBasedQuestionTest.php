@@ -1,5 +1,6 @@
 <?php
 
+use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Actions\SaveSurveyDraftSchemaAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
 use Lalalili\SurveyCore\Actions\ValidateSurveyBuilderSchemaAction;
@@ -91,6 +92,8 @@ it('syncs selection_based source setting to the persisted field', function () {
     $survey = Survey::create(['title' => 'Selection Based', 'status' => SurveyStatus::Draft]);
 
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, selectionBasedSchema());
+    // 存草稿只寫 draft_schema；survey_fields 要到發佈才同步。
+    app(PublishSurveyAction::class)->execute($survey);
 
     $field = $survey->fields()->where('field_key', 'favorite')->first();
 

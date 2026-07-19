@@ -1,8 +1,10 @@
 <?php
 
+use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Actions\SaveSurveyDraftSchemaAction;
 use Lalalili\SurveyCore\Actions\ValidateSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
+use Lalalili\SurveyCore\Models\GoogleDriveAccount;
 use Lalalili\SurveyCore\Models\Survey;
 
 function uploadSchema(): array
@@ -52,9 +54,17 @@ it('accepts file_upload and signature elements during schema validation', functi
 });
 
 it('syncs file_upload settings to the persisted field', function () {
-    $survey = Survey::create(['title' => 'Upload Survey', 'status' => SurveyStatus::Draft]);
+    // 含檔案上傳題的問卷必須先綁定 Google Drive 才能發佈。
+    $account = GoogleDriveAccount::create(['google_user_id' => 'sub-upload', 'email' => 'upload@example.test']);
+    $survey = Survey::create([
+        'title' => 'Upload Survey',
+        'status' => SurveyStatus::Draft,
+        'google_drive_account_id' => $account->id,
+    ]);
 
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, uploadSchema());
+    // 存草稿只寫 draft_schema；survey_fields 要到發佈才同步。
+    app(PublishSurveyAction::class)->execute($survey);
 
     $field = $survey->fields()->where('field_key', 'attachment')->first();
 

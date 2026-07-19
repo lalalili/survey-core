@@ -1,5 +1,6 @@
 <?php
 
+use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Actions\SaveSurveyDraftSchemaAction;
 use Lalalili\SurveyCore\Database\Seeders\SurveyThemeSeeder;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
@@ -57,7 +58,7 @@ it('merges theme overrides over tokens', function () {
 it('uses default CSS variables when no theme is set', function () {
     $survey = Survey::create(['title' => 'Default Theme', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, pageKindSchema([kindQuestionPage('page_1')]));
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $this->get(route('survey.show', $survey->public_key))
         ->assertSuccessful()
@@ -70,7 +71,7 @@ it('renders CSS variables from the selected theme', function () {
     $schema = pageKindSchema([kindQuestionPage('page_1')]);
     $schema['theme_id'] = $theme->id;
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, $schema);
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $this->get(route('survey.show', $survey->public_key))
         ->assertSuccessful()
@@ -84,7 +85,7 @@ it('applies theme overrides to CSS variables', function () {
     $schema['theme_id'] = $theme->id;
     $schema['theme_overrides'] = ['primary' => '#abcdef'];
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, $schema);
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $this->get(route('survey.show', $survey->public_key))
         ->assertSuccessful()
@@ -104,7 +105,7 @@ it('renders the accent CSS variable from theme overrides', function () {
     $schema['theme_id'] = $theme->id;
     $schema['theme_overrides'] = ['accent' => '#ddeeff'];
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, $schema);
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $this->get(route('survey.show', $survey->public_key))
         ->assertSuccessful()
@@ -114,7 +115,7 @@ it('renders the accent CSS variable from theme overrides', function () {
 it('applies the accent token to secondary actions', function () {
     $survey = Survey::create(['title' => 'Accent Buttons', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
     app(SaveSurveyDraftSchemaAction::class)->execute($survey, pageKindSchema([kindQuestionPage('page_1')]));
-    $survey->update(['status' => SurveyStatus::Published]);
+    app(PublishSurveyAction::class)->execute($survey);
 
     $this->get(route('survey.show', $survey->public_key))
         ->assertSuccessful()
