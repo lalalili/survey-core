@@ -6,8 +6,8 @@ use Lalalili\EmailCampaign\Models\EmailCampaignRecipient;
 use Lalalili\SurveyCore\Actions\GenerateSurveyTokenAction;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Integrations\EmailCampaign\SurveyVariableProvider;
-use Lalalili\SurveyCore\Models\AudienceList;
-use Lalalili\SurveyCore\Models\AudienceListRow;
+use Lalalili\AudienceCore\Models\AudienceList;
+use Lalalili\AudienceCore\Models\AudienceListRow;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyRecipient;
 

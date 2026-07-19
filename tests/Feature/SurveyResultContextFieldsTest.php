@@ -12,7 +12,7 @@ use Lalalili\SurveyCore\Data\SubmissionPayload;
 use Lalalili\SurveyCore\Enums\SurveyRecipientStatus;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
-use Lalalili\SurveyCore\Models\AudienceList;
+use Lalalili\AudienceCore\Models\AudienceList;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyRecipient;
 use Lalalili\SurveyCore\Support\SurveyResultContextFields;

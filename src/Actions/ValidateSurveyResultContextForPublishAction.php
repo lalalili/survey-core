@@ -3,7 +3,7 @@
 namespace Lalalili\SurveyCore\Actions;
 
 use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
-use Lalalili\SurveyCore\Models\AudienceList;
+use Lalalili\AudienceCore\Models\AudienceList;
 use Lalalili\SurveyCore\Support\SurveyResultContextFields;
 use Symfony\Component\HttpFoundation\Response;
 

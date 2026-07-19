@@ -2,7 +2,7 @@
 
 namespace Lalalili\SurveyCore\Actions;
 
-use Lalalili\SurveyCore\Models\AudienceList;
+use Lalalili\AudienceCore\Models\AudienceList;
 use Lalalili\SurveyCore\Support\SurveyResultContextFields;
 
 class SyncSurveyResultContextFieldsAction
