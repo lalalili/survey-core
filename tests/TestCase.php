@@ -3,6 +3,8 @@
 namespace Lalalili\SurveyCore\Tests;
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Filesystem\Filesystem;
+use Monolog\Handler\NullHandler;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Lalalili\AudienceCore\AudienceCoreServiceProvider;
@@ -28,6 +30,46 @@ abstract class TestCase extends PackageTestCase
         }
 
         return $providers;
+    }
+
+    /**
+     * medialibrary 預設把檔案放在 `public` 磁碟，但套件測試環境沒有定義任何磁碟，
+     * 凡是走 addMedia*() 的測試都會拋 DiskCannotBeAccessed。指向 testbench
+     * 的暫存 storage 即可，測試結束由 tearDown 清掉。
+     */
+    protected function getEnvironmentSetUp($app): void
+    {
+        parent::getEnvironmentSetUp($app);
+
+        config()->set('filesystems.disks.public', [
+            'driver' => 'local',
+            'root' => $this->mediaTestRoot(),
+            'throw' => false,
+        ]);
+
+        // 預設 log channel 會寫進 testbench 在 vendor/ 底下的 storage：該路徑可能
+        // 不可寫（例如曾被 root 執行留下的檔案），且測試不該依賴 vendor 可寫。
+        config()->set('logging.default', 'null');
+        config()->set('logging.channels.null', [
+            'driver' => 'monolog',
+            'handler' => NullHandler::class,
+        ]);
+    }
+
+    protected function tearDown(): void
+    {
+        $root = $this->mediaTestRoot();
+
+        if (is_dir($root)) {
+            (new Filesystem())->deleteDirectory($root);
+        }
+
+        parent::tearDown();
+    }
+
+    private function mediaTestRoot(): string
+    {
+        return sys_get_temp_dir().'/survey-core-media-tests';
     }
 
     protected function defineDatabaseMigrations(): void
