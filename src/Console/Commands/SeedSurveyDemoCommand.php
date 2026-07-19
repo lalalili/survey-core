@@ -132,7 +132,6 @@ class SeedSurveyDemoCommand extends Command
             'audience_list_id' => $audienceList->id,
             'name_column' => 'name',
             'required' => true,
-            'field_mappings' => [],
             'result_context_columns' => [
                 'dealer' => 'dlr',
                 'location' => 'dept',

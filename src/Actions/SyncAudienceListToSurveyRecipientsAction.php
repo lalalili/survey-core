@@ -31,24 +31,13 @@ class SyncAudienceListToSurveyRecipientsAction
         $emailColumn = $settings->emailColumn ?? '';
         $nameColumn = $settings->nameColumn ?? '';
         $externalIdColumn = $settings->externalIdColumn ?? '';
-        $fieldMappings = $survey->settings_json['personalization']['field_mappings'] ?? [];
         $synced = 0;
 
-        DB::transaction(function () use ($audienceList, $survey, $generateTokens, $emailColumn, $nameColumn, $externalIdColumn, $fieldMappings, &$synced): void {
-            if (is_array($fieldMappings)) {
-                foreach ($fieldMappings as $fieldKey => $column) {
-                    if (filled($fieldKey) && filled($column)) {
-                        $survey->fields()
-                            ->where('field_key', (string) $fieldKey)
-                            ->where('is_hidden', true)
-                            ->update([
-                                'is_personalized' => true,
-                                'personalized_key' => (string) $column,
-                            ]);
-                    }
-                }
-            }
-
+        // 本動作只同步收件人，不再改寫欄位定義：哪些題目是個性化欄位、對應名單的哪個
+        // 鍵，唯一來源是 builder 的逐題 personalized_key（發佈時由
+        // SyncSurveyBuilderSchemaToFieldsAction 寫入）。先前這裡會依
+        // settings_json.personalization.field_mappings 覆寫，兩條路徑互相蓋來蓋去。
+        DB::transaction(function () use ($audienceList, $survey, $generateTokens, $emailColumn, $nameColumn, $externalIdColumn, &$synced): void {
             $audienceList->rows()
                 ->where('status', 'active')
                 ->orderBy('id')

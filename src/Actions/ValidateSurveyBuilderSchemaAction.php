@@ -60,7 +60,6 @@ class ValidateSurveyBuilderSchemaAction
             'settings.personalization.name_column' => ['nullable', 'string', 'max:255'],
             'settings.personalization.email_column' => ['nullable', 'string', 'max:255'],
             'settings.personalization.external_id_column' => ['nullable', 'string', 'max:255'],
-            'settings.personalization.field_mappings' => ['nullable', 'array'],
             'settings.personalization.result_context_columns' => ['nullable', 'array'],
             'settings.personalization.result_context_columns.dealer' => ['nullable', 'string', 'max:255'],
             'settings.personalization.result_context_columns.location' => ['nullable', 'string', 'max:255'],
