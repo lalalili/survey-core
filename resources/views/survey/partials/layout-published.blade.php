@@ -38,6 +38,7 @@
     @endif
 
     <form id="survey-form" novalidate>
+        <input type="hidden" name="schema_version_id" value="{{ $survey->published_schema_version_id }}">
         <input type="text" name="_hp" autocomplete="off" tabindex="-1" aria-hidden="true" class="survey-hidden" style="display:none">
 
         @php $questionNo = 0; @endphp
@@ -410,4 +411,3 @@
     </form>
     @if($hasPassword)</div>@endif
 </div>
-

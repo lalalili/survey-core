@@ -39,7 +39,7 @@ class SyncSurveyBuilderSchemaToFieldsAction
 
         // Hidden fields assigned to builder-managed pages are visible in the builder,
         // so deleting them there should remove the backing field as well.
-        $survey->fields()
+        $fieldsToDelete = $survey->fields()
             ->whereNotIn('field_key', $managedKeys)
             ->where(function ($query) use ($managedPageIds): void {
                 $query->where('is_hidden', false);
@@ -51,7 +51,22 @@ class SyncSurveyBuilderSchemaToFieldsAction
                     });
                 }
             })
-            ->delete();
+            ->withCount('answers')
+            ->get();
+
+        foreach ($fieldsToDelete as $field) {
+            if ((int) $field->answers_count > 0) {
+                $field->update([
+                    'retired_at' => $field->retired_at ?? now(),
+                    'survey_page_id' => null,
+                ]);
+
+                continue;
+            }
+
+            $field->versions()->update(['survey_field_id' => null]);
+            $field->delete();
+        }
 
         $this->syncCalculations($survey, $schema);
 
@@ -75,8 +90,13 @@ class SyncSurveyBuilderSchemaToFieldsAction
             $pageKeyToId[(string) $page['id']] = $pageRecord->id;
         }
 
-        // Delete pages no longer in schema (hidden fields on them get survey_page_id = null via FK).
-        $survey->pages()->whereNotIn('page_key', $currentPageKeys)->delete();
+        $stalePages = $survey->pages()
+            ->whereNotIn('page_key', $currentPageKeys)
+            ->get();
+
+        foreach ($stalePages as $stalePage) {
+            $stalePage->delete();
+        }
 
         // Upsert fields, assigning survey_page_id from the map.
         foreach ($pages as $pageIndex => $page) {
@@ -123,6 +143,7 @@ class SyncSurveyBuilderSchemaToFieldsAction
                         'survey_page_id' => $surveyPageId,
                         'show_if_field_key' => $legacyShowIf['field_key'],
                         'show_if_value' => $legacyShowIf['value'],
+                        'retired_at' => null,
                     ],
                 );
             }

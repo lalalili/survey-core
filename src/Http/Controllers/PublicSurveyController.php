@@ -28,6 +28,7 @@ use Lalalili\SurveyCore\Models\SurveyCollector;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Models\SurveyResponseConsent;
+use Lalalili\SurveyCore\Models\SurveySchemaVersion;
 use Lalalili\SurveyCore\Models\SurveyToken;
 use Lalalili\SurveyCore\Services\TurnstileVerifier;
 use Lalalili\SurveyCore\Support\SurveyFileUploadToken;
@@ -43,26 +44,26 @@ class PublicSurveyController extends Controller
         // 呼叫端不可再排一次。
         $survey = Survey::with([
             'pages',
-            'fields',
+            'activeFields',
             'theme',
             'calculations',
         ])->where('public_key', $publicKey)->firstOrFail();
 
-        return $this->renderSurvey($survey, request(), $resolveToken);
+        return $this->renderSurvey($this->useActiveFields($survey), request(), $resolveToken);
     }
 
     public function showCollector(string $collectorSlug, ResolveSurveyTokenAction $resolveToken): Response|JsonResponse
     {
         $collector = SurveyCollector::with([
             'survey.pages',
-            'survey.fields',
+            'survey.activeFields',
             'survey.theme',
             'survey.calculations',
         ])->where('slug', $collectorSlug)->firstOrFail();
 
         abort_unless($collector->isActive(), 404);
 
-        return $this->renderSurvey($collector->survey, request(), $resolveToken, $collector);
+        return $this->renderSurvey($this->useActiveFields($collector->survey), request(), $resolveToken, $collector);
     }
 
     public function unlock(string $publicKey, Request $request): JsonResponse
@@ -204,7 +205,13 @@ class PublicSurveyController extends Controller
         RecordSurveyResponseEventAction $recordEvent,
         ThankYouMessageRenderer $thankYou,
     ): JsonResponse {
-        $survey = Survey::with(['fields', 'pages', 'calculations'])->where('public_key', $publicKey)->firstOrFail();
+        $survey = Survey::with(['activeFields', 'pages', 'calculations'])->where('public_key', $publicKey)->firstOrFail();
+        $this->useActiveFields($survey);
+
+        $schemaVersionId = $this->requestedSchemaVersionId($survey, $request);
+        if ($schemaVersionId === false) {
+            return response()->json(['message' => '問卷已更新，請重新整理後再填答。'], 409);
+        }
 
         if (! $survey->isAcceptingSubmissions()) {
             return response()->json(['message' => '此問卷目前未開放填寫。'], 403);
@@ -265,9 +272,10 @@ class PublicSurveyController extends Controller
                     'is_anomaly_duplicate' => $this->hasAnomalyDuplicate($survey, $request),
                 ],
                 collector: $collector,
+                schemaVersionId: $schemaVersionId,
             );
         } catch (SurveyNotAvailableException $e) {
-            return response()->json(['message' => $e->getMessage()], 403);
+            return response()->json(['message' => $e->getMessage()], $e->getStatusCode());
         } catch (SurveyValidationException $e) {
             return response()->json(['message' => '填答內容有誤，請依提示修正。', 'errors' => $e->getErrors()], 422);
         }
@@ -300,7 +308,13 @@ class PublicSurveyController extends Controller
 
     public function upload(string $publicKey, Request $request, SurveyFileUploadToken $uploadToken): JsonResponse
     {
-        $survey = Survey::with('fields')->where('public_key', $publicKey)->firstOrFail();
+        $survey = Survey::with('activeFields')->where('public_key', $publicKey)->firstOrFail();
+        $this->useActiveFields($survey);
+
+        $schemaVersionId = $this->requestedSchemaVersionId($survey, $request);
+        if ($schemaVersionId === false) {
+            return response()->json(['message' => '問卷已更新，請重新整理後再填答。'], 409);
+        }
 
         if (! $survey->isAcceptingSubmissions()) {
             return response()->json(['message' => '此問卷目前未開放填寫。'], 403);
@@ -338,6 +352,7 @@ class PublicSurveyController extends Controller
         try {
             $draftResponse = SurveyResponse::create([
                 'survey_id' => $survey->id,
+                'schema_version_id' => $schemaVersionId,
                 'completion_status' => SurveyResponseCompletionStatus::Partial,
             ]);
 
@@ -357,6 +372,35 @@ class PublicSurveyController extends Controller
 
             return response()->json(['message' => '檔案上傳失敗，請稍後再試。'], 500);
         }
+    }
+
+    private function requestedSchemaVersionId(Survey $survey, Request $request): int|false|null
+    {
+        $requestedId = $request->input('schema_version_id');
+
+        if ($requestedId === null || $requestedId === '') {
+            return $survey->published_schema_version_id;
+        }
+
+        $versionId = filter_var($requestedId, FILTER_VALIDATE_INT);
+
+        if ($versionId === false || (int) $survey->published_schema_version_id !== $versionId) {
+            return false;
+        }
+
+        $belongsToSurvey = SurveySchemaVersion::query()
+            ->whereKey($versionId)
+            ->where('survey_id', $survey->id)
+            ->exists();
+
+        return $belongsToSurvey ? $versionId : false;
+    }
+
+    private function useActiveFields(Survey $survey): Survey
+    {
+        $survey->setRelation('fields', $survey->activeFields);
+
+        return $survey;
     }
 
     private function availabilityView(Survey $survey): ?Response

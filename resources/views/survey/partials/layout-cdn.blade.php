@@ -82,6 +82,7 @@
     {{-- Form --}}
     <form id="survey-form" class="space-y-6 @if($hasWelcomePage) hidden @endif" novalidate>
         @csrf
+        <input type="hidden" name="schema_version_id" value="{{ $survey->published_schema_version_id }}">
         <input type="text" name="_hp" autocomplete="off" tabindex="-1" aria-hidden="true" class="hidden" style="display:none">
 
         @php $questionNo = 0; @endphp
@@ -472,4 +473,3 @@
     @if($hasPassword)</div>@endif
 </div>
 </div>
-

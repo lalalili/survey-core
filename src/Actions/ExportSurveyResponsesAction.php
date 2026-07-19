@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Storage;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Models\Survey;
+use Lalalili\SurveyCore\Models\SurveyAnswer;
 use Lalalili\SurveyCore\Models\SurveyCalculation;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyResponse;
@@ -69,26 +70,26 @@ class ExportSurveyResponsesAction
      */
     private function buildExportData(Survey $survey, ?Collection $responses, bool $answersOnly, ?\Closure $onProgress = null): array
     {
-        $survey->loadMissing(['fields', 'calculations']);
+        $survey->loadMissing(['activeFields', 'calculations']);
 
-        $fields = $survey->fields;
+        $fields = $this->exportFields($survey, $responses);
         $calculations = $survey->calculations;
 
-        $fieldLabels = $fields->map(fn (SurveyField $f): string => $f->label)->all();
+        $fieldLabels = $fields->map(fn (array $field): string => $field['label'])->all();
         $calcLabels = $calculations->map(fn (SurveyCalculation $c): string => $c->label)->all();
 
-        $headers = $answersOnly
-            ? array_values($fieldLabels)
+        $headers = array_values($answersOnly
+            ? $fieldLabels
             : array_merge(
                 ['Response ID', 'Response Number', 'Submitted At', 'IP', 'Completion Status', 'Recipient Name', 'Recipient Email', 'Recipient External ID'],
                 $fieldLabels,
                 $calcLabels,
-            );
+            ));
 
         $rows = [];
         $processed = 0;
 
-        $eager = ['answers.field', 'recipient', 'token'];
+        $eager = ['answers.field', 'recipient', 'token', 'media'];
 
         if ($responses === null) {
             // 串流載入全部回覆（可達 3 萬筆、答案數十萬）：每 chunk 釋放 Eloquent 模型，
@@ -112,7 +113,7 @@ class ExportSurveyResponsesAction
             $responses = $responses
                 ->filter(fn (SurveyResponse $response): bool => $response->survey_id === $survey->id)
                 ->values();
-            $responses->load($eager);
+            $responses->loadMissing($eager);
             $total = $responses->count();
 
             foreach ($responses as $response) {
@@ -129,13 +130,13 @@ class ExportSurveyResponsesAction
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int, SurveyField>  $fields
+     * @param  \Illuminate\Support\Collection<int, array{key: string, label: string, type: string}>  $fields
      * @param  \Illuminate\Support\Collection<int, SurveyCalculation>  $calculations
      * @return list<mixed>
      */
     private function mapResponseToRow(SurveyResponse $response, $fields, $calculations, bool $answersOnly): array
     {
-        $answersByFieldId = $response->answers->keyBy('survey_field_id');
+        $answersByFieldKey = $response->answers->keyBy(fn (SurveyAnswer $answer): string => $answer->fieldKey());
 
         $row = $answersOnly ? [] : [
             $response->id,
@@ -149,13 +150,13 @@ class ExportSurveyResponsesAction
         ];
 
         foreach ($fields as $field) {
-            if ($field->type === SurveyFieldType::FileUpload) {
-                $row[] = $this->fileCell($response, $field);
+            if ($field['type'] === SurveyFieldType::FileUpload->value) {
+                $row[] = $this->fileCell($response, $field['key']);
 
                 continue;
             }
 
-            $answer = $answersByFieldId->get($field->id);
+            $answer = $answersByFieldKey->get($field['key']);
             $value = $answer?->getValue();
             $row[] = is_array($value) ? implode(', ', $value) : $value;
         }
@@ -172,10 +173,10 @@ class ExportSurveyResponsesAction
     /**
      * 檔案上傳欄位輸出：優先 Google Drive 連結，否則回退原始檔名。
      */
-    private function fileCell(SurveyResponse $response, SurveyField $field): ?string
+    private function fileCell(SurveyResponse $response, string $fieldKey): ?string
     {
         $media = $response->getMedia('survey_files')
-            ->first(fn ($item): bool => $item->getCustomProperty('survey_field_key') === $field->field_key);
+            ->first(fn ($item): bool => $item->getCustomProperty('survey_field_key') === $fieldKey);
 
         if ($media === null) {
             return null;
@@ -184,5 +185,46 @@ class ExportSurveyResponsesAction
         $driveLink = $media->getCustomProperty('google_drive_link');
 
         return is_string($driveLink) && $driveLink !== '' ? $driveLink : $media->file_name;
+    }
+
+    /**
+     * @param  Collection<int, SurveyResponse>|null  $responses
+     * @return \Illuminate\Support\Collection<int, array{key: string, label: string, type: string}>
+     */
+    private function exportFields(Survey $survey, ?Collection $responses): \Illuminate\Support\Collection
+    {
+        $fields = $survey->activeFields
+            ->map(fn (SurveyField $field): array => [
+                'key' => $field->field_key,
+                'label' => $field->label,
+                'type' => $field->type->value,
+            ]);
+
+        $historicalAnswers = ($responses !== null
+            ? $responses
+                ->filter(fn (SurveyResponse $response): bool => $response->survey_id === $survey->id)
+                ->loadMissing('answers.field')
+                ->flatMap->answers
+            : SurveyAnswer::query()
+                ->select([
+                    'survey_field_id',
+                    'snapshot_field_key',
+                    'snapshot_field_label',
+                    'snapshot_field_type',
+                ])
+                ->with('field')
+                ->whereHas('response', fn ($query) => $query->where('survey_id', $survey->id))
+                ->distinct()
+                ->get())
+            ->map(fn (SurveyAnswer $answer): array => [
+                'key' => $answer->fieldKey(),
+                'label' => $answer->fieldLabel(),
+                'type' => $answer->fieldType(),
+            ]);
+
+        return $fields
+            ->concat($historicalAnswers)
+            ->unique('key')
+            ->values();
     }
 }

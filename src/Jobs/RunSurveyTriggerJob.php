@@ -39,9 +39,7 @@ class RunSurveyTriggerJob implements ShouldQueue
             return;
         }
 
-        $answerMap = $response->answers
-            ->mapWithKeys(fn ($a) => [$a->field->field_key => $a->getValue()])
-            ->all();
+        $answerMap = $response->answerMapByFieldKey();
 
         // 將 preset 參照展開為具體 http_post 動作（向下相容舊有 inline 動作）。
         $actions = app(ExpandPresetsAction::class)->execute($rule->actions_json ?? []);

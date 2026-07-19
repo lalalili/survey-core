@@ -8,6 +8,7 @@ use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Support\SurveyBuilderSurveySettings;
+use Lalalili\SurveyCore\Support\SurveyReportCacheRevision;
 use Symfony\Component\HttpFoundation\Response;
 
 class PublishSurveyAction
@@ -16,8 +17,13 @@ class PublishSurveyAction
         private readonly BuildSurveyBuilderSchemaAction $buildSchema,
         private readonly ValidateSurveyBuilderSchemaAction $validateSchema,
         private readonly SanitizeSurveyBuilderSchemaAction $sanitizeSchema,
+        private readonly SyncSurveyResultContextFieldsAction $syncResultContextFields,
+        private readonly ValidateSurveyResultContextForPublishAction $validateResultContext,
+        private readonly ValidatePublishedSchemaChangesAction $validatePublishedSchemaChanges,
         private readonly SyncSurveyBuilderSchemaToFieldsAction $syncSchemaToFields,
+        private readonly CreateSurveySchemaVersionAction $createSchemaVersion,
         private readonly SurveyBuilderSurveySettings $surveySettings,
+        private readonly SurveyReportCacheRevision $reportCacheRevision,
     ) {}
 
     public function execute(Survey $survey): Survey
@@ -33,6 +39,9 @@ class PublishSurveyAction
                 $schema = $this->validateSchema->execute($survey->draft_schema ?? $this->buildSchema->execute($survey));
                 $schema = $this->sanitizeSchema->execute($schema);
                 $schema = $this->surveySettings->normalizeSchema($schema);
+                $this->validateResultContext->execute($schema);
+                $schema = $this->syncResultContextFields->execute($schema);
+                $this->validatePublishedSchemaChanges->execute($survey, $schema);
 
                 // 含檔案上傳題的問卷必須先綁定 Google Drive 才能發佈。
                 if ($survey->google_drive_account_id === null && $this->schemaHasFileUpload($schema)) {
@@ -62,6 +71,11 @@ class PublishSurveyAction
                 ]);
 
                 $this->syncSchemaToFields->execute($survey->refresh(), $schema);
+
+                $survey->refresh();
+                $schemaVersion = $this->createSchemaVersion->execute($survey, $schema);
+                $survey->update(['published_schema_version_id' => $schemaVersion->id]);
+                $this->reportCacheRevision->bump();
 
                 return $survey->refresh();
             });

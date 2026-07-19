@@ -101,7 +101,7 @@ it('converts legacy email and phone fields to short text presets for builder sch
         ->and($elements['mobile']['settings']['pattern'])->toBe('09[0-9]{8}');
 });
 
-it('normalizes legacy email and phone elements in draft schemas for the builder', function () {
+it('keeps an existing draft schema authoritative in the builder', function () {
     $survey = Survey::create([
         'title' => 'Legacy draft schema',
         'status' => SurveyStatus::Draft,
@@ -142,12 +142,12 @@ it('normalizes legacy email and phone elements in draft schemas for the builder'
     $schema = app(BuildSurveyBuilderSchemaAction::class)->execute($survey);
     $elements = collect($schema['pages'][0]['elements'])->keyBy('field_key');
 
-    expect($elements['email']['type'])->toBe('short_text')
-        ->and($elements['email']['settings']['input_format'])->toBe('email')
-        ->and($elements['mobile']['type'])->toBe('short_text')
-        ->and($elements['mobile']['settings']['input_format'])->toBe('mobile_tw')
-        ->and($elements['mobile']['settings']['minlength'])->toBe(10)
-        ->and($elements['mobile']['settings']['pattern'])->toBe('09[0-9]{8}');
+    expect($elements['email']['type'])->toBe('email')
+        ->and($elements['email']['settings'])->toBe([])
+        ->and($elements['mobile']['type'])->toBe('phone')
+        ->and($elements['mobile']['settings'])->toBe([])
+        ->and($schema['id'])->toBe($survey->id)
+        ->and($schema['status'])->toBe('draft');
 });
 
 it('rejects legacy field types when saving new builder schemas', function (string $type) {
@@ -366,7 +366,7 @@ it('allows show-if empty checks without a condition value', function () {
     expect(data_get($validated, 'pages.0.elements.1.show_if.conditions.0.op'))->toBe('is_empty');
 });
 
-it('keeps hidden fields visible in the builder when they are missing from draft schema', function () {
+it('does not merge live hidden fields into an authoritative draft schema', function () {
     $survey = Survey::create([
         'title' => 'Personalized Survey',
         'status' => SurveyStatus::Draft,
@@ -426,15 +426,10 @@ it('keeps hidden fields visible in the builder when they are missing from draft 
     $schema = app(BuildSurveyBuilderSchemaAction::class)->execute($survey->refresh());
     $fieldKeys = collect($schema['pages'][0]['elements'])->pluck('field_key')->all();
 
-    expect($fieldKeys)->toBe(['plate_number', 'visible_name'])
-        ->and($schema['pages'][0]['elements'][0])->toMatchArray([
-            'field_key' => 'plate_number',
-            'is_hidden' => true,
-            'personalized_key' => 'plate',
-        ]);
+    expect($fieldKeys)->toBe(['visible_name']);
 });
 
-it('deletes builder-managed hidden fields removed from the draft schema', function () {
+it('defers deleting builder-managed hidden fields until publish', function () {
     $hiddenElement = [
         'id' => 'q_plate',
         'type' => 'short_text',
@@ -510,7 +505,7 @@ it('deletes builder-managed hidden fields removed from the draft schema', functi
     $rebuilt = app(BuildSurveyBuilderSchemaAction::class)->execute($saved->refresh());
     $fieldKeys = collect($rebuilt['pages'][0]['elements'])->pluck('field_key')->all();
 
-    expect($saved->fields()->where('field_key', 'plate_number')->exists())->toBeFalse()
+    expect($saved->fields()->where('field_key', 'plate_number')->exists())->toBeTrue()
         ->and($saved->fields()->where('field_key', 'visible_name')->exists())->toBeTrue()
         ->and($fieldKeys)->toBe(['visible_name']);
 });
@@ -527,7 +522,16 @@ it('syncs survey-level settings through the builder schema', function () {
         'uniqueness_mode' => SurveyUniquenessMode::Cookie,
         'uniqueness_message' => 'Already done',
         'settings_json' => ['password' => 'secret'],
-        'draft_schema' => builderSchema(),
+        'draft_schema' => builderSchema(['settings' => [
+            'description' => 'Original description',
+            'starts_at' => '2026-05-10T09:00',
+            'ends_at' => '2026-05-20T18:00',
+            'max_responses' => 50,
+            'quota_message' => 'Full',
+            'uniqueness_mode' => 'cookie',
+            'uniqueness_message' => 'Already done',
+            'password' => 'secret',
+        ]]),
     ]);
 
     $schema = app(BuildSurveyBuilderSchemaAction::class)->execute($survey);
@@ -554,15 +558,22 @@ it('syncs survey-level settings through the builder schema', function () {
 
     $saved = app(SaveSurveyDraftSchemaAction::class)->execute($survey->refresh(), $schema);
 
-    expect($saved->description)->toBe('Updated description')
-        ->and($saved->starts_at?->format('Y-m-d H:i'))->toBe('2026-06-01 08:30')
-        ->and($saved->ends_at?->format('Y-m-d H:i'))->toBe('2026-06-30 17:45')
-        ->and($saved->max_responses)->toBe(120)
-        ->and($saved->quota_message)->toBe('Quota reached')
-        ->and($saved->uniqueness_mode)->toBe(SurveyUniquenessMode::Ip)
-        ->and($saved->uniqueness_message)->toBe('Duplicate')
-        ->and($saved->settings_json)->toBe(['password' => 'changed'])
+    expect($saved->description)->toBe('Original description')
+        ->and($saved->starts_at?->format('Y-m-d H:i'))->toBe('2026-05-10 09:00')
+        ->and($saved->max_responses)->toBe(50)
+        ->and($saved->settings_json)->toBe(['password' => 'secret'])
         ->and($saved->draft_schema['settings'])->not->toHaveKey('close_at');
+
+    $published = app(PublishSurveyAction::class)->execute($saved);
+
+    expect($published->description)->toBe('Updated description')
+        ->and($published->starts_at?->format('Y-m-d H:i'))->toBe('2026-06-01 08:30')
+        ->and($published->ends_at?->format('Y-m-d H:i'))->toBe('2026-06-30 17:45')
+        ->and($published->max_responses)->toBe(120)
+        ->and($published->quota_message)->toBe('Quota reached')
+        ->and($published->uniqueness_mode)->toBe(SurveyUniquenessMode::Ip)
+        ->and($published->uniqueness_message)->toBe('Duplicate')
+        ->and($published->settings_json)->toBe(['password' => 'changed']);
 });
 
 it('sanitizes rich html in builder schema before saving and publishing', function (): void {
@@ -683,12 +694,12 @@ it('autosaves draft schema without changing the published snapshot', function ()
 
     $saved = app(SaveSurveyDraftSchemaAction::class)->execute($survey, builderSchema(['title' => 'Draft title']));
 
-    expect($saved->title)->toBe('Draft title')
+    expect($saved->title)->toBe('Original')
         ->and($saved->draft_schema['title'])->toBe('Draft title')
         ->and($saved->published_schema['title'])->toBe('Published');
 });
 
-it('syncs builder-managed survey settings to survey columns', function () {
+it('syncs builder-managed survey settings to live columns only on publish', function () {
     $survey = Survey::create([
         'title' => 'Original',
         'status' => SurveyStatus::Draft,
@@ -698,17 +709,24 @@ it('syncs builder-managed survey settings to survey columns', function () {
     $saved = app(SaveSurveyDraftSchemaAction::class)->execute($survey, builderSchema([
         'title' => 'Builder title',
         'settings' => [
-            'category' => 'CSI',
+            'category' => 'GENERAL',
             'submit_success_message' => '感謝您的填寫。',
         ],
     ]));
 
-    expect($saved->title)->toBe('Builder title')
-        ->and($saved->category)->toBe('CSI')
-        ->and($saved->submit_success_message)->toBe('感謝您的填寫。')
-        ->and($saved->allow_anonymous)->toBeTrue()
-        ->and(data_get($saved->settings_json, 'category'))->toBeNull()
-        ->and(data_get($saved->settings_json, 'submit_success_message'))->toBeNull();
+    expect($saved->title)->toBe('Original')
+        ->and($saved->category)->toBeNull()
+        ->and($saved->submit_success_message)->toBeNull()
+        ->and($saved->allow_anonymous)->toBeFalse();
+
+    $published = app(PublishSurveyAction::class)->execute($saved);
+
+    expect($published->title)->toBe('Builder title')
+        ->and($published->category)->toBe('GENERAL')
+        ->and($published->submit_success_message)->toBe('感謝您的填寫。')
+        ->and($published->allow_anonymous)->toBeTrue()
+        ->and(data_get($published->settings_json, 'category'))->toBeNull()
+        ->and(data_get($published->settings_json, 'submit_success_message'))->toBeNull();
 });
 
 it('exports builder-managed survey columns into the builder schema settings', function () {
@@ -750,7 +768,7 @@ it('imports a survey builder schema as a new draft survey', function () {
         ->and($survey->status)->toBe(SurveyStatus::Draft)
         ->and($survey->allow_anonymous)->toBeTrue()
         ->and($survey->draft_schema['title'])->toBe('Imported Override')
-        ->and($survey->fields()->where('field_key', 'purchase_status')->exists())->toBeTrue();
+        ->and($survey->fields()->where('field_key', 'purchase_status')->exists())->toBeFalse();
 });
 
 it('can publish an imported survey builder schema', function () {

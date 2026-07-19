@@ -90,11 +90,7 @@ class DispatchSurveySubmittedWebhook implements ShouldQueue
 
         $response->loadMissing('answers.field');
 
-        $answers = $response->answers->mapWithKeys(function ($answer) {
-            return [
-                $answer->field->field_key => $answer->answer_json ?? $answer->answer_text,
-            ];
-        })->all();
+        $answers = $response->answerMapByFieldKey();
 
         return [
             'event' => 'survey.submitted',

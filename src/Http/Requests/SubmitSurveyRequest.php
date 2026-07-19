@@ -20,6 +20,7 @@ class SubmitSurveyRequest extends FormRequest
     {
         return [
             'answers' => 'sometimes|array',
+            'schema_version_id' => 'nullable|integer',
         ];
     }
 

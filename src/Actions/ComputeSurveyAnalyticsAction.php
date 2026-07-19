@@ -24,15 +24,22 @@ class ComputeSurveyAnalyticsAction
      */
     public function execute(Survey $survey, ?int $collectorId = null): array
     {
-        $survey->loadMissing(['fields', 'collectors', 'pages']);
+        $survey->loadMissing(['activeFields', 'collectors', 'pages']);
 
         $submittedResponses = SurveyResponse::query()
-            ->with('answers')
+            ->with([
+                'answers' => fn ($query) => $query->orderBy('id'),
+                'answers.field',
+            ])
             ->where('survey_id', $survey->id)
-            ->where('is_test', false)
-            ->whereNotNull('submitted_at')
+            ->reportable()
             ->when($collectorId !== null, fn ($query) => $query->where('survey_collector_id', $collectorId))
+            ->orderBy('id')
             ->get();
+
+        $submittedResponses->each(function (SurveyResponse $response): void {
+            $response->answers->each->setRelation('response', $response);
+        });
 
         $events = SurveyResponseEvent::query()
             ->where('survey_id', $survey->id)
@@ -51,7 +58,10 @@ class ComputeSurveyAnalyticsAction
             ],
             'daily' => $this->dailyTrend($events, $submittedResponses),
             'collectors' => $this->collectorPerformance($survey->collectors, $events, $submittedResponses),
-            'questions' => $this->questionStats($survey->fields, $submittedResponses),
+            'questions' => $this->questionStats(
+                $this->analyticsFields($survey->activeFields, $submittedResponses),
+                $submittedResponses,
+            ),
             'funnel' => $this->funnelStats($survey, $events, $startedCount, $submittedCount),
         ];
     }
@@ -174,7 +184,7 @@ class ComputeSurveyAnalyticsAction
     {
         $answers = $responses
             ->flatMap->answers
-            ->filter(fn (SurveyAnswer $answer): bool => $answer->survey_field_id === $field->id)
+            ->filter(fn (SurveyAnswer $answer): bool => $answer->fieldKey() === $field->field_key)
             ->values();
 
         $base = [
@@ -240,7 +250,7 @@ class ComputeSurveyAnalyticsAction
             }
         }
 
-        return array_values(collect($field->normalizedOptions())
+        return array_values($this->optionsForAnswers($field, $answers)
             ->map(fn (array $option): array => [
                 'value' => (string) $option['value'],
                 'label' => (string) $option['label'],
@@ -263,7 +273,11 @@ class ComputeSurveyAnalyticsAction
     {
         $sourceKey = $field->settings_json['source_field_key'] ?? null;
         $source = is_string($sourceKey) ? $fields->firstWhere('field_key', $sourceKey) : null;
-        $options = $source instanceof SurveyField ? $source->normalizedOptions() : [];
+        $options = $this->optionsForAnswers($field, $answers);
+
+        if ($options->isEmpty() && $source instanceof SurveyField) {
+            $options = collect($source->normalizedOptions());
+        }
 
         $counts = [];
 
@@ -273,7 +287,7 @@ class ComputeSurveyAnalyticsAction
             }
         }
 
-        return array_values(collect($options)
+        return array_values($options
             ->map(fn (array $option): array => [
                 'value' => (string) $option['value'],
                 'label' => (string) $option['label'],
@@ -363,7 +377,7 @@ class ComputeSurveyAnalyticsAction
      */
     private function matrixDistribution(SurveyField $field, Collection $answers): array
     {
-        $options = collect($field->normalizedOptions());
+        $options = $this->optionsForAnswers($field, $answers);
         $rows = $options->where('is_row', true)->pluck('label', 'value')->all();
         $cols = $options->where('is_row', false)->pluck('label', 'value')->all();
 
@@ -419,7 +433,7 @@ class ComputeSurveyAnalyticsAction
             }
         }
 
-        return array_values(collect($field->normalizedOptions())
+        return array_values($this->optionsForAnswers($field, $answers)
             ->map(function (array $option) use ($rankSums, $rankCounts): array {
                 $key = (string) $option['value'];
                 $count = $rankCounts[$key] ?? 0;
@@ -461,7 +475,7 @@ class ComputeSurveyAnalyticsAction
             }
         }
 
-        return array_values(collect($field->normalizedOptions())
+        return array_values($this->optionsForAnswers($field, $answers)
             ->map(function (array $option) use ($sums, $counts): array {
                 $key = (string) $option['value'];
                 $count = $counts[$key] ?? 0;
@@ -505,5 +519,62 @@ class ComputeSurveyAnalyticsAction
     {
         return $response->submitted_at?->toDateString()
             ?? $response->created_at?->toDateString();
+    }
+
+    /**
+     * @param  Collection<int, SurveyField>  $currentFields
+     * @param  Collection<int, SurveyResponse>  $responses
+     * @return Collection<int, SurveyField>
+     */
+    private function analyticsFields(Collection $currentFields, Collection $responses): Collection
+    {
+        $historicalFields = $responses
+            ->flatMap->answers
+            ->sort(fn (SurveyAnswer $left, SurveyAnswer $right): int => $this->compareAnswersNewestFirst($left, $right))
+            ->unique(fn (SurveyAnswer $answer): string => $answer->fieldKey())
+            ->reject(fn (SurveyAnswer $answer): bool => $currentFields->contains(
+                fn (SurveyField $field): bool => $field->field_key === $answer->fieldKey(),
+            ))
+            ->map(function (SurveyAnswer $answer): SurveyField {
+                $field = new SurveyField;
+                $field->forceFill([
+                    'id' => $answer->survey_field_id,
+                    'field_key' => $answer->fieldKey(),
+                    'label' => $answer->fieldLabel(),
+                    'type' => $answer->fieldType(),
+                    'is_hidden' => false,
+                    'options_json' => $answer->normalizedSnapshotOptions(),
+                    'settings_json' => $answer->normalizedSnapshotSettings(),
+                ]);
+
+                return $field;
+            });
+
+        return $currentFields->concat($historicalFields)->values();
+    }
+
+    /**
+     * @param  Collection<int, SurveyAnswer>  $answers
+     * @return Collection<int, array{id: string|null, label: string, value: string, capacity: int|null, is_hidden: bool, group: string|null}>
+     */
+    private function optionsForAnswers(SurveyField $field, Collection $answers): Collection
+    {
+        $snapshotOptions = $answers
+            ->sort(fn (SurveyAnswer $left, SurveyAnswer $right): int => $this->compareAnswersNewestFirst($left, $right))
+            ->flatMap(fn (SurveyAnswer $answer): array => $answer->normalizedSnapshotOptions());
+
+        $currentOptions = collect($field->normalizedOptions());
+
+        return ($field->exists ? $currentOptions->concat($snapshotOptions) : $snapshotOptions->concat($currentOptions))
+            ->unique('value')
+            ->values();
+    }
+
+    private function compareAnswersNewestFirst(SurveyAnswer $left, SurveyAnswer $right): int
+    {
+        $leftVersion = (int) ($left->response->schema_version_id ?? 0);
+        $rightVersion = (int) ($right->response->schema_version_id ?? 0);
+
+        return [$rightVersion, $right->id] <=> [$leftVersion, $left->id];
     }
 }

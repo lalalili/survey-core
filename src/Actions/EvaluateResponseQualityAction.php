@@ -9,6 +9,8 @@ use Lalalili\SurveyCore\Models\SurveyResponse;
 
 class EvaluateResponseQualityAction
 {
+    public function __construct(private ReviewSurveyResponseAction $reviewSurveyResponse) {}
+
     /**
      * @param  array{elapsed_ms?: int|null, honeypot_hit?: bool, ip?: string|null, survey_min_ms?: int|null, is_anomaly_duplicate?: bool}  $context
      */
@@ -47,10 +49,14 @@ class EvaluateResponseQualityAction
             default => SurveyResponseQualityStatus::Accepted,
         };
 
-        $response->update([
-            'quality_status' => $status,
-            'quality_flags_json' => $flags === [] ? null : $flags,
-        ]);
+        $response->update(['quality_flags_json' => $flags === [] ? null : $flags]);
+
+        $this->reviewSurveyResponse->execute(
+            $response,
+            $status,
+            $response->notes,
+            'automatic',
+        );
 
         return $status;
     }

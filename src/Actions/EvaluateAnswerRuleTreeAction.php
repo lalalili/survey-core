@@ -30,9 +30,7 @@ class EvaluateAnswerRuleTreeAction
     {
         $response->loadMissing('answers.field', 'token');
 
-        $answerMap = $response->answers
-            ->mapWithKeys(fn ($a) => [$a->field->field_key => $a->getValue()])
-            ->all();
+        $answerMap = $response->answerMapByFieldKey();
 
         // 注入 meta：回填距邀請天數。無 token／未提交者給極大值，使「≤ X 天」不成立。
         $token = $response->token;

@@ -6,6 +6,7 @@ use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyPage;
+use Lalalili\SurveyCore\Models\SurveySchemaVersion;
 
 // ── Basic CRUD ────────────────────────────────────────────────────────────────
 
@@ -100,6 +101,20 @@ it('force-deleting a survey cascades to its pages', function () {
     $survey->forceDelete();
 
     expect(SurveyPage::count())->toBe(0);
+});
+
+it('blocks permanently deleting a survey with published history', function () {
+    $survey = Survey::create(['title' => 'History', 'status' => SurveyStatus::Published]);
+    SurveySchemaVersion::create([
+        'survey_id' => $survey->id,
+        'version' => 1,
+        'schema_json' => ['pages' => []],
+        'source' => 'publish',
+    ]);
+
+    expect(fn () => $survey->forceDelete())
+        ->toThrow(\LogicException::class, '已有回覆或發布版本的問卷不可永久刪除');
+    expect(Survey::withTrashed()->whereKey($survey)->exists())->toBeTrue();
 });
 
 it('deleting a page sets survey_page_id to null on its fields', function () {

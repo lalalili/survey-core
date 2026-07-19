@@ -20,6 +20,8 @@ use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
 use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
 use Lalalili\SurveyCore\Models\Survey;
+use Lalalili\SurveyCore\Models\SurveyAnswer;
+use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyTheme;
 use Lalalili\SurveyCore\Support\ImageUploadSanitizer;
 use RuntimeException;
@@ -46,6 +48,7 @@ class SurveyBuilderController extends Controller
                 ],
             ],
             'schema' => $buildSchema->execute($survey),
+            'field_impacts' => $this->fieldImpacts($survey),
             'themes' => SurveyTheme::query()
                 ->where('is_system', true)
                 ->orderBy('name')
@@ -58,10 +61,11 @@ class SurveyBuilderController extends Controller
                 ->all(),
             'audience_lists' => AudienceList::query()
                 ->orderBy('name')
-                ->get(['id', 'name', 'columns_json'])
+                ->get(['id', 'name', 'schema_profile', 'columns_json'])
                 ->map(fn (AudienceList $audienceList): array => [
                     'id' => $audienceList->id,
                     'name' => $audienceList->name,
+                    'schema_profile' => $audienceList->schema_profile,
                     'columns' => $audienceList->columns_json ?? [],
                 ])
                 ->all(),
@@ -80,6 +84,49 @@ class SurveyBuilderController extends Controller
                     ->all(),
             ],
         ]);
+    }
+
+    /**
+     * @return array<string, array{element_id: string, field_key: string, answer_count: int, response_count: int, locked_properties: list<string>}>
+     */
+    private function fieldImpacts(Survey $survey): array
+    {
+        if (! is_array($survey->published_schema)) {
+            return [];
+        }
+
+        $publishedPages = is_array($survey->published_schema['pages'] ?? null)
+            ? $survey->published_schema['pages']
+            : [];
+        $elements = collect($publishedPages)
+            ->flatMap(fn (mixed $page): array => is_array($page) && is_array($page['elements'] ?? null) ? $page['elements'] : [])
+            ->filter(fn (mixed $element): bool => is_array($element) && filled($element['id'] ?? null) && filled($element['field_key'] ?? null));
+        $fieldKeys = $elements->pluck('field_key')->map(fn (mixed $key): string => (string) $key)->all();
+        $fields = $survey->fields()
+            ->whereIn('field_key', $fieldKeys)
+            ->withCount('answers')
+            ->get()
+            ->keyBy('field_key');
+        $responseCounts = SurveyAnswer::query()
+            ->whereIn('survey_field_id', $fields->pluck('id'))
+            ->selectRaw('survey_field_id, count(distinct survey_response_id) as aggregate')
+            ->groupBy('survey_field_id')
+            ->pluck('aggregate', 'survey_field_id');
+
+        return $elements->mapWithKeys(function (array $element) use ($fields, $responseCounts): array {
+            $elementId = (string) $element['id'];
+            $fieldKey = (string) $element['field_key'];
+            $field = $fields->get($fieldKey);
+            $answerCount = $field instanceof SurveyField ? (int) $field->answers_count : 0;
+
+            return [$elementId => [
+                'element_id' => $elementId,
+                'field_key' => $fieldKey,
+                'answer_count' => $answerCount,
+                'response_count' => $field instanceof SurveyField ? (int) ($responseCounts[$field->id] ?? 0) : 0,
+                'locked_properties' => $answerCount > 0 ? ['field_key', 'type', 'used_option_values'] : [],
+            ]];
+        })->all();
     }
 
     private function googleDriveIsConfigured(): bool

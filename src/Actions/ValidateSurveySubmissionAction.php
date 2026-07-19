@@ -37,6 +37,10 @@ class ValidateSurveySubmissionAction
         // 2. Conditionally visible given the submitted answers (branching)
         // 3. On a page that was reached (jump logic)
         $activeFields = $survey->fields->filter(function (SurveyField $f) use ($visibleAnswers, $visitedPages) {
+            if ($f->retired_at !== null) {
+                return false;
+            }
+
             if ($f->is_hidden) {
                 return false;
             }

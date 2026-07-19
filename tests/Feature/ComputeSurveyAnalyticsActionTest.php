@@ -3,6 +3,7 @@
 use Lalalili\SurveyCore\Actions\ComputeSurveyAnalyticsAction;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyResponseCompletionStatus;
+use Lalalili\SurveyCore\Enums\SurveyResponseQualityStatus;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyAnswer;
@@ -180,6 +181,68 @@ it('filters totals, daily trend, and question stats by collector', function (): 
 
     expect($unfiltered['totals']['submitted'])->toBe(2)
         ->and($unfiltered['questions'][0]['average'])->toBe(6.0);
+});
+
+it('excludes test, flagged, and quarantined responses from analytics', function (): void {
+    $survey = Survey::create([
+        'title' => 'Reportable analytics',
+        'status' => SurveyStatus::Published,
+    ]);
+    $field = SurveyField::create([
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::SingleChoice,
+        'label' => 'Choice',
+        'field_key' => 'choice',
+        'options_json' => [
+            ['label' => 'Included', 'value' => 'included'],
+            ['label' => 'Excluded', 'value' => 'excluded'],
+        ],
+        'sort_order' => 1,
+    ]);
+
+    $responses = collect([
+        SurveyResponse::create([
+            'survey_id' => $survey->id,
+            'submitted_at' => now(),
+            'quality_status' => SurveyResponseQualityStatus::Accepted,
+            'is_test' => false,
+        ]),
+        SurveyResponse::create([
+            'survey_id' => $survey->id,
+            'submitted_at' => now(),
+            'quality_status' => SurveyResponseQualityStatus::Accepted,
+            'is_test' => true,
+        ]),
+        SurveyResponse::create([
+            'survey_id' => $survey->id,
+            'submitted_at' => now(),
+            'quality_status' => SurveyResponseQualityStatus::Flagged,
+            'is_test' => false,
+        ]),
+        SurveyResponse::create([
+            'survey_id' => $survey->id,
+            'submitted_at' => now(),
+            'quality_status' => SurveyResponseQualityStatus::Quarantined,
+            'is_test' => false,
+        ]),
+    ]);
+
+    foreach ($responses as $index => $response) {
+        SurveyAnswer::create([
+            'survey_response_id' => $response->id,
+            'survey_field_id' => $field->id,
+            'answer_text' => $index === 0 ? 'included' : 'excluded',
+        ]);
+    }
+
+    $analytics = app(ComputeSurveyAnalyticsAction::class)->execute($survey);
+
+    expect($analytics['totals']['submitted'])->toBe(1)
+        ->and($analytics['questions'][0]['answered'])->toBe(1)
+        ->and($analytics['questions'][0]['distribution'])->toBe([
+            ['value' => 'included', 'label' => 'Included', 'count' => 1],
+            ['value' => 'excluded', 'label' => 'Excluded', 'count' => 0],
+        ]);
 });
 
 it('builds a per-page drop-off funnel from page_viewed events', function (): void {

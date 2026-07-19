@@ -20,6 +20,7 @@ use Lalalili\SurveyCore\Support\JumpLogicResolver;
 use Lalalili\SurveyCore\Support\SurveyFileUploadToken;
 use Lalalili\SurveyCore\Support\SurveyOptionUsageCounter;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Symfony\Component\HttpFoundation\Response;
 
 class SubmitSurveyResponseAction
 {
@@ -41,11 +42,30 @@ class SubmitSurveyResponseAction
         string $userAgent = '',
         array $qualityContext = [],
         ?SurveyCollector $collector = null,
+        ?int $schemaVersionId = null,
     ): SurveyResponse {
+        $survey->setRelation('fields', $survey->activeFields()->get());
+        $schemaVersionId ??= $survey->published_schema_version_id;
+
+        if (
+            $schemaVersionId !== null
+            && (int) $survey->published_schema_version_id !== $schemaVersionId
+        ) {
+            throw new SurveyNotAvailableException('問卷已更新，請重新整理後再填答。', Response::HTTP_CONFLICT);
+        }
+
         // Validate against visible fields only
         $this->validateSubmission->execute($survey, $payload->visibleAnswers, $payload->tokenContext);
 
-        return DB::transaction(function () use ($survey, $payload, $ip, $userAgent, $qualityContext, $collector) {
+        return DB::transaction(function () use ($survey, $payload, $ip, $userAgent, $qualityContext, $collector, $schemaVersionId) {
+            $currentPublishedVersionId = Survey::query()
+                ->whereKey($survey->id)
+                ->value('published_schema_version_id');
+
+            if ($schemaVersionId !== null && (int) $currentPublishedVersionId !== $schemaVersionId) {
+                throw new SurveyNotAvailableException('問卷已更新，請重新整理後再填答。', Response::HTTP_CONFLICT);
+            }
+
             // 僅在有額度上限時序列化提交：用 advisory lock 取代 surveys 列鎖，
             // 既避免超賣，又不阻塞後台對該問卷的編輯。無上限的問卷完全免鎖。
             if ($survey->max_responses !== null) {
@@ -110,6 +130,7 @@ class SubmitSurveyResponseAction
                 'survey_recipient_id' => $recipient?->id,
                 'survey_token_id' => $lockedToken?->id,
                 'survey_collector_id' => $collector?->id,
+                'schema_version_id' => $schemaVersionId,
                 'submitted_at' => now(),
                 'ip' => $ip,
                 'user_agent' => $userAgent,
@@ -138,6 +159,15 @@ class SubmitSurveyResponseAction
                     'answer_text' => $isArray ? null : ($value !== null ? (string) $value : null),
                     // insert() 繞過 cast，需手動編碼（與 Eloquent 'array' cast 預設一致）。
                     'answer_json' => $isArray ? json_encode($value) : null,
+                    'snapshot_field_key' => $field->field_key,
+                    'snapshot_field_label' => $field->label,
+                    'snapshot_field_type' => $field->type->value,
+                    'snapshot_options_json' => $field->options_json === null
+                        ? null
+                        : json_encode($field->options_json, JSON_THROW_ON_ERROR),
+                    'snapshot_settings_json' => $field->settings_json === null
+                        ? null
+                        : json_encode($field->settings_json, JSON_THROW_ON_ERROR),
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];

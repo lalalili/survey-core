@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Lalalili\SurveyCore\Actions\SaveSurveyDraftSchemaAction;
+use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Contracts\PersonalizationResolver;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyPageKind;
@@ -21,7 +22,7 @@ beforeEach(function (): void {
 it('saves calculations, score deltas, matrix settings, show_if groups, and page jump rules from builder schema', function (): void {
     $survey = Survey::create(['title' => 'Builder', 'status' => SurveyStatus::Draft]);
 
-    app(SaveSurveyDraftSchemaAction::class)->execute($survey, [
+    $saved = app(SaveSurveyDraftSchemaAction::class)->execute($survey, [
         'title' => 'Builder',
         'settings' => ['progress' => ['mode' => 'bar', 'show_estimated_time' => true]],
         'calculations' => [[
@@ -66,7 +67,7 @@ it('saves calculations, score deltas, matrix settings, show_if groups, and page 
         ]],
     ]);
 
-    $survey->refresh()->load('calculations', 'fields', 'pages');
+    $survey = app(PublishSurveyAction::class)->execute($saved)->load('calculations', 'fields', 'pages');
 
     expect($survey->calculations)->toHaveCount(1)
         ->and($survey->fields->firstWhere('field_key', 'choice')->options_json[0]['score_delta_json']['score'])->toBe(5)
@@ -254,7 +255,7 @@ it('keeps response number interpolation working with calculation token handling'
 it('saves raw calculation tokens without creating autolink markup', function (): void {
     $survey = Survey::create(['title' => 'Raw Token', 'status' => SurveyStatus::Draft]);
 
-    app(SaveSurveyDraftSchemaAction::class)->execute($survey, [
+    $saved = app(SaveSurveyDraftSchemaAction::class)->execute($survey, [
         'title' => 'Raw Token',
         'settings' => [],
         'calculations' => [[
@@ -275,7 +276,7 @@ it('saves raw calculation tokens without creating autolink markup', function ():
         ]],
     ]);
 
-    $survey->refresh()->load('pages');
+    $survey = app(PublishSurveyAction::class)->execute($saved)->load('pages');
     $message = $survey->pages->firstWhere('page_key', 'thanks')?->settings_json['thank_you']['message'] ?? '';
 
     expect($message)->toContain('{{ calc.total_score }}')

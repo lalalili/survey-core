@@ -16,6 +16,7 @@ use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyPage;
 use Lalalili\SurveyCore\Models\SurveyResponse;
+use Lalalili\SurveyCore\Models\SurveySchemaVersion;
 use Lalalili\SurveyCore\Services\DefaultPersonalizationResolver;
 use Lalalili\SurveyCore\Support\JumpLogicResolver;
 
@@ -325,9 +326,18 @@ it('uploads files through media library and stores returned media metadata as an
         'field_key' => 'resume',
         'settings_json' => ['max_size_mb' => 1, 'allowed_mimes' => ['pdf']],
     ]);
+    $schemaVersion = SurveySchemaVersion::create([
+        'survey_id' => $survey->id,
+        'version' => 1,
+        'schema_json' => ['pages' => []],
+        'source' => 'test',
+        'published_at' => now(),
+    ]);
+    $survey->update(['published_schema_version_id' => $schemaVersion->id]);
 
     $upload = $this->post('/survey-test/'.$survey->public_key.'/upload', [
         'field_key' => 'resume',
+        'schema_version_id' => $schemaVersion->id,
         'file' => UploadedFile::fake()->create('resume.pdf', 12, 'application/pdf'),
     ]);
 
@@ -336,6 +346,7 @@ it('uploads files through media library and stores returned media metadata as an
 
     // 上傳時建立的 Partial 暫存草稿
     $draft = SurveyResponse::where('completion_status', SurveyResponseCompletionStatus::Partial->value)->sole();
+    expect($draft->schema_version_id)->toBe($schemaVersion->id);
 
     $response = app(SubmitSurveyResponseAction::class)->execute(
         $survey->refresh()->load('fields'),

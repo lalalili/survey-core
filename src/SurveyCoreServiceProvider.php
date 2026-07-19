@@ -86,6 +86,12 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 '2026_06_28_000002_add_google_drive_to_surveys_table',
                 '2026_06_29_000001_create_media_table',
                 '2026_07_02_000001_add_field_index_to_survey_answers_table',
+                '2026_07_19_035606_create_survey_schema_versions_table',
+                '2026_07_19_035608_create_survey_field_versions_table',
+                '2026_07_19_035609_add_schema_version_columns_to_surveys_and_responses',
+                '2026_07_19_035611_add_snapshot_columns_to_survey_answers',
+                '2026_07_19_035612_add_retired_at_to_survey_fields_table',
+                '2026_07_19_035614_backfill_survey_schema_versions',
             ])
             ->runsMigrations()
             ->hasRoutes(['web']);

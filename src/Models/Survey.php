@@ -13,6 +13,7 @@ use Lalalili\SurveyCore\Data\SurveySettings;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Enums\SurveyUniquenessMode;
+use LogicException;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 /**
@@ -40,6 +41,7 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
  * @property array<string, mixed>|null $draft_schema
  * @property array<string, mixed>|null $published_schema
  * @property Carbon|null $published_at
+ * @property int|null $published_schema_version_id
  * @property-read Collection<int, SurveyPage> $pages
  * @property-read Collection<int, SurveyField> $fields
  * @property-read Collection<int, SurveyRecipient> $recipients
@@ -50,6 +52,8 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
  * @property-read SurveyTheme|null $theme
  * @property-read Collection<int, SurveyCalculation> $calculations
  * @property-read Collection<int, SurveyTriggerRule> $triggerRules
+ * @property-read Collection<int, SurveySchemaVersion> $schemaVersions
+ * @property-read SurveySchemaVersion|null $publishedSchemaVersion
  */
 class Survey extends Model
 {
@@ -80,6 +84,7 @@ class Survey extends Model
         'draft_schema',
         'published_schema',
         'published_at',
+        'published_schema_version_id',
     ];
 
     protected function casts(): array
@@ -101,6 +106,19 @@ class Survey extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::forceDeleting(function (self $survey): void {
+            if ($survey->responses()->exists() || $survey->schemaVersions()->exists()) {
+                throw new LogicException('已有回覆或發布版本的問卷不可永久刪除，請保留軟刪除資料。');
+            }
+
+            if ($survey->published_schema_version_id !== null) {
+                $survey->updateQuietly(['published_schema_version_id' => null]);
+            }
+        });
+    }
+
     /**
      * @return HasMany<SurveyPage, $this>
      */
@@ -115,6 +133,16 @@ class Survey extends Model
     public function fields(): HasMany
     {
         return $this->hasMany(SurveyField::class)->orderBy('sort_order');
+    }
+
+    /**
+     * @return HasMany<SurveyField, $this>
+     */
+    public function activeFields(): HasMany
+    {
+        return $this->hasMany(SurveyField::class)
+            ->whereNull('retired_at')
+            ->orderBy('sort_order');
     }
 
     /**
@@ -163,6 +191,18 @@ class Survey extends Model
     public function responses(): HasMany
     {
         return $this->hasMany(SurveyResponse::class);
+    }
+
+    /** @return HasMany<SurveySchemaVersion, $this> */
+    public function schemaVersions(): HasMany
+    {
+        return $this->hasMany(SurveySchemaVersion::class)->orderByDesc('version');
+    }
+
+    /** @return BelongsTo<SurveySchemaVersion, $this> */
+    public function publishedSchemaVersion(): BelongsTo
+    {
+        return $this->belongsTo(SurveySchemaVersion::class, 'published_schema_version_id');
     }
 
     /**

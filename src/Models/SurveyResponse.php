@@ -2,6 +2,7 @@
 
 namespace Lalalili\SurveyCore\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int|null $survey_recipient_id
  * @property int|null $survey_token_id
  * @property int|null $survey_collector_id
+ * @property int|null $schema_version_id
  * @property Carbon|null $submitted_at
  * @property string|null $ip
  * @property string|null $user_agent
@@ -35,6 +37,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property-read SurveyRecipient|null $recipient
  * @property-read SurveyToken|null $token
  * @property-read SurveyCollector|null $collector
+ * @property-read SurveySchemaVersion|null $schemaVersion
  * @property-read Collection<int, SurveyAnswer> $answers
  * @property-read Collection<int, SurveyTag> $tags
  * @property-read Collection<int, SurveyResponseEvent> $events
@@ -51,6 +54,7 @@ class SurveyResponse extends Model implements HasMedia
         'survey_recipient_id',
         'survey_token_id',
         'survey_collector_id',
+        'schema_version_id',
         'submitted_at',
         'ip',
         'user_agent',
@@ -72,6 +76,18 @@ class SurveyResponse extends Model implements HasMedia
             'submitted_at' => 'datetime',
             'is_test' => 'boolean',
         ];
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     * @return Builder<self>
+     */
+    public function scopeReportable(Builder $query): Builder
+    {
+        return $query
+            ->where('is_test', false)
+            ->whereNotNull('submitted_at')
+            ->where('quality_status', SurveyResponseQualityStatus::Accepted);
     }
 
     /**
@@ -106,6 +122,12 @@ class SurveyResponse extends Model implements HasMedia
         return $this->belongsTo(SurveyCollector::class, 'survey_collector_id');
     }
 
+    /** @return BelongsTo<SurveySchemaVersion, $this> */
+    public function schemaVersion(): BelongsTo
+    {
+        return $this->belongsTo(SurveySchemaVersion::class, 'schema_version_id');
+    }
+
     protected static function booted(): void
     {
         // sqlsrv 上 events.survey_response_id FK 為 NO ACTION（multiple cascade paths 限制），
@@ -121,6 +143,16 @@ class SurveyResponse extends Model implements HasMedia
     public function answers(): HasMany
     {
         return $this->hasMany(SurveyAnswer::class);
+    }
+
+    /** @return array<string, mixed> */
+    public function answerMapByFieldKey(): array
+    {
+        $this->loadMissing('answers.field');
+
+        return $this->answers
+            ->mapWithKeys(fn (SurveyAnswer $answer): array => [$answer->fieldKey() => $answer->getValue()])
+            ->all();
     }
 
     /**

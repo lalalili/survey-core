@@ -7,6 +7,7 @@ use Lalalili\SurveyCore\Enums\SurveyResponseQualityStatus;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyField;
+use Spatie\Activitylog\Models\Activity;
 
 require __DIR__.'/Phase3TestSupport.php';
 
@@ -37,7 +38,8 @@ it('flags too fast submissions', function () {
     );
 
     expect($response->fresh()->quality_status)->toBe(SurveyResponseQualityStatus::Flagged)
-        ->and($response->fresh()->quality_flags_json)->toContain('too_fast');
+        ->and($response->fresh()->quality_flags_json)->toContain('too_fast')
+        ->and(Activity::query()->inLog('survey_response_review')->sole()->properties->get('source'))->toBe('automatic');
 });
 
 it('quarantines honeypot hits', function () {
@@ -47,7 +49,8 @@ it('quarantines honeypot hits', function () {
         qualityContext: ['honeypot_hit' => true],
     );
 
-    expect($response->fresh()->quality_status)->toBe(SurveyResponseQualityStatus::Quarantined);
+    expect($response->fresh()->quality_status)->toBe(SurveyResponseQualityStatus::Quarantined)
+        ->and(Activity::query()->inLog('survey_response_review')->sole()->properties->get('source'))->toBe('automatic');
 });
 
 it('flags all same choice answers', function () {
@@ -69,7 +72,8 @@ it('accepts normal submissions', function () {
     );
 
     expect($response->fresh()->quality_status)->toBe(SurveyResponseQualityStatus::Accepted)
-        ->and($response->fresh()->quality_flags_json)->toBeNull();
+        ->and($response->fresh()->quality_flags_json)->toBeNull()
+        ->and(Activity::query()->inLog('survey_response_review')->count())->toBe(0);
 });
 
 it('flags blacklisted ips', function () {

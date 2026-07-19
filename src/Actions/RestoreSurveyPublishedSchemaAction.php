@@ -2,7 +2,6 @@
 
 namespace Lalalili\SurveyCore\Actions;
 
-use Illuminate\Support\Facades\DB;
 use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Support\SurveyBuilderSurveySettings;
@@ -13,7 +12,7 @@ class RestoreSurveyPublishedSchemaAction
     public function __construct(
         private readonly ValidateSurveyBuilderSchemaAction $validateSchema,
         private readonly SanitizeSurveyBuilderSchemaAction $sanitizeSchema,
-        private readonly SyncSurveyBuilderSchemaToFieldsAction $syncSchemaToFields,
+        private readonly SyncSurveyResultContextFieldsAction $syncResultContextFields,
         private readonly SurveyBuilderSurveySettings $surveySettings,
     ) {}
 
@@ -29,24 +28,14 @@ class RestoreSurveyPublishedSchemaAction
         $survey->disableLogging();
 
         try {
-            return DB::transaction(function () use ($survey): Survey {
-                $schema = $this->validateSchema->execute($survey->published_schema);
-                $schema = $this->sanitizeSchema->execute($schema);
-                $schema = $this->surveySettings->normalizeSchema($schema);
+            $schema = $this->validateSchema->execute($survey->published_schema);
+            $schema = $this->sanitizeSchema->execute($schema);
+            $schema = $this->surveySettings->normalizeSchema($schema);
+            $schema = $this->syncResultContextFields->execute($schema);
 
-                $survey->update([
-                    ...$this->surveySettings->surveyAttributesFromSchema($schema),
-                    'settings_json' => $this->surveySettings->settingsJsonFromSchema($schema, $survey->settings_json),
-                    'theme_id' => $schema['theme_id'] ?? null,
-                    'theme_overrides_json' => $schema['theme_overrides'] ?? null,
-                    'draft_schema' => $schema,
-                ]);
+            $survey->update(['draft_schema' => $schema]);
 
-                $refreshed = $survey->refresh();
-                $this->syncSchemaToFields->execute($refreshed, $schema);
-
-                return $refreshed->refresh();
-            });
+            return $survey->refresh();
         } finally {
             $survey->enableLogging();
         }

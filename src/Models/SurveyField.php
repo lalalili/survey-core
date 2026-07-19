@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Support\ConditionGroupEvaluator;
 use Lalalili\SurveyCore\Support\FieldKeyGenerator;
@@ -30,9 +31,11 @@ use Lalalili\SurveyCore\Support\FieldKeyGenerator;
  * @property string|null $show_if_field_key
  * @property string|null $show_if_value
  * @property int|null $survey_page_id
+ * @property Carbon|null $retired_at
  * @property-read Survey $survey
  * @property-read SurveyPage|null $surveyPage
  * @property-read Collection<int, SurveyAnswer> $answers
+ * @property-read Collection<int, SurveyFieldVersion> $versions
  */
 class SurveyField extends Model
 {
@@ -55,6 +58,7 @@ class SurveyField extends Model
         'show_if_field_key',
         'show_if_value',
         'survey_page_id',
+        'retired_at',
     ];
 
     protected function casts(): array
@@ -69,6 +73,7 @@ class SurveyField extends Model
             'options_json' => 'array',
             'sort_order' => 'integer',
             'survey_page_id' => 'integer',
+            'retired_at' => 'datetime',
         ];
     }
 
@@ -103,6 +108,12 @@ class SurveyField extends Model
     public function answers(): HasMany
     {
         return $this->hasMany(SurveyAnswer::class);
+    }
+
+    /** @return HasMany<SurveyFieldVersion, $this> */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(SurveyFieldVersion::class);
     }
 
     /**

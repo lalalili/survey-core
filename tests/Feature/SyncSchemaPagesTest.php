@@ -3,8 +3,10 @@
 use Lalalili\SurveyCore\Actions\SyncSurveyBuilderSchemaToFieldsAction;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Models\Survey;
+use Lalalili\SurveyCore\Models\SurveyAnswer;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyPage;
+use Lalalili\SurveyCore\Models\SurveyResponse;
 
 function syncSchema(): array
 {
@@ -95,6 +97,75 @@ it('deletes pages removed from schema', function () {
 
     expect(SurveyPage::where('survey_id', $survey->id)->count())->toBe(1);
     expect(SurveyPage::where('survey_id', $survey->id)->first()->page_key)->toBe('page_a');
+    expect($survey->fields()->where('field_key', 'comment')->exists())->toBeFalse();
+});
+
+it('preserves hidden personalized fields and answers when deleting their former page', function () {
+    $survey = Survey::create(['title' => 'Test', 'status' => SurveyStatus::Draft]);
+    $schema = syncSchema();
+    $schema['pages'][1]['elements'] = [[
+        'id' => 'el_plate',
+        'type' => 'short_text',
+        'field_key' => 'plate_number',
+        'label' => 'Plate number',
+        'description' => '',
+        'required' => false,
+        'placeholder' => null,
+        'is_hidden' => true,
+        'personalized_key' => 'regono',
+        'options' => [],
+        'settings' => [],
+    ]];
+
+    app(SyncSurveyBuilderSchemaToFieldsAction::class)->execute($survey, $schema);
+
+    $field = $survey->fields()->where('field_key', 'plate_number')->firstOrFail();
+    $response = SurveyResponse::create([
+        'survey_id' => $survey->id,
+        'submitted_at' => now(),
+        'completion_status' => 'complete',
+    ]);
+    $answer = SurveyAnswer::create([
+        'survey_response_id' => $response->id,
+        'survey_field_id' => $field->id,
+        'answer_text' => 'ABC-1234',
+    ]);
+
+    unset($schema['pages'][1]);
+    $schema['pages'] = array_values($schema['pages']);
+
+    app(SyncSurveyBuilderSchemaToFieldsAction::class)->execute($survey->refresh(), $schema);
+
+    expect($field->refresh()->survey_page_id)->toBeNull()
+        ->and($survey->fields()->whereKey($field->id)->exists())->toBeTrue()
+        ->and(SurveyAnswer::query()->whereKey($answer->id)->exists())->toBeTrue()
+        ->and($survey->pages()->where('page_key', 'page_b')->exists())->toBeFalse();
+});
+
+it('preserves legacy hidden fields when deleting their former page', function () {
+    $survey = Survey::create(['title' => 'Test', 'status' => SurveyStatus::Draft]);
+
+    app(SyncSurveyBuilderSchemaToFieldsAction::class)->execute($survey, syncSchema());
+
+    $stalePage = $survey->pages()->where('page_key', 'page_b')->firstOrFail();
+    $legacyField = SurveyField::create([
+        'survey_id' => $survey->id,
+        'survey_page_id' => $stalePage->id,
+        'type' => 'hidden',
+        'label' => 'Campaign',
+        'field_key' => 'campaign_id',
+        'is_hidden' => true,
+        'sort_order' => 99,
+    ]);
+    $schema = syncSchema();
+    unset($schema['pages'][1]);
+    $schema['pages'] = array_values($schema['pages']);
+
+    app(SyncSurveyBuilderSchemaToFieldsAction::class)->execute($survey->refresh(), $schema);
+
+    expect($legacyField->refresh()->survey_page_id)->toBeNull()
+        ->and($survey->fields()->whereKey($legacyField->id)->exists())->toBeTrue()
+        ->and($survey->pages()->where('page_key', 'page_b')->exists())->toBeFalse();
 });
 
 // ── Field-to-page assignment ──────────────────────────────────────────────────

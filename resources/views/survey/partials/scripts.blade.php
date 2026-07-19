@@ -51,6 +51,7 @@
     var DRAFT_STORAGE_KEY = [
         'lalalili-survey-draft',
         @json($survey->public_key),
+        @json($survey->published_schema_version_id),
         SURVEY_QUERY.t || 'anonymous',
         SURVEY_QUERY.collector || 'direct',
     ].join(':');
@@ -58,6 +59,7 @@
     var SUBMIT_URL = @json(route('survey.submit', $survey->public_key));
     var UPLOAD_URL = @json(route('survey.upload', $survey->public_key));
     var EVENTS_URL = @json(route('survey.events', $survey->public_key));
+    var SCHEMA_VERSION_ID = @json($survey->published_schema_version_id);
 
     // ─── Access controls ──────────────────────────────────────────────────────
     var HAS_PASSWORD_GATE = {{ $hasPassword ? 'true' : 'false' }};
@@ -889,6 +891,7 @@
         var token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         var body = new FormData();
         body.append('field_key', fieldKey);
+        body.append('schema_version_id', SCHEMA_VERSION_ID || '');
         body.append('file', file);
 
         if (elements.zone) { elements.zone.classList.remove('is-uploaded'); }
@@ -1096,6 +1099,7 @@
                 },
                 body: JSON.stringify({
                     answers: collectAnswers(),
+                    schema_version_id: SCHEMA_VERSION_ID,
                     _elapsed_ms: Date.now() - STARTED_AT,
                     _hp: (document.querySelector('[name="_hp"]') || {}).value || '',
                     _turnstile_token: turnstileToken,
