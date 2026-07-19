@@ -63,7 +63,6 @@ class PublishSurveyAction
                     'settings_json' => $this->surveySettings->settingsJsonFromSchema($schema, $survey->settings_json),
                     'theme_id' => $schema['theme_id'] ?? null,
                     'theme_overrides_json' => $schema['theme_overrides'] ?? null,
-                    'status' => SurveyStatus::Published,
                     'version' => ((int) $survey->version) + 1,
                     'draft_schema' => $schema,
                     'published_schema' => $schema,
@@ -74,7 +73,13 @@ class PublishSurveyAction
 
                 $survey->refresh();
                 $schemaVersion = $this->createSchemaVersion->execute($survey, $schema);
-                $survey->update(['published_schema_version_id' => $schemaVersion->id]);
+
+                // status 與 published_schema_version_id 一併寫入：問卷不會出現
+                // 「已發佈但沒有已發佈 schema 版本」的中間狀態（資料庫層對此有 CHECK 約束）。
+                $survey->update([
+                    'status' => SurveyStatus::Published,
+                    'published_schema_version_id' => $schemaVersion->id,
+                ]);
                 $this->reportCacheRevision->bump();
 
                 return $survey->refresh();
