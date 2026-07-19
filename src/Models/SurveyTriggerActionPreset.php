@@ -3,6 +3,7 @@
 namespace Lalalili\SurveyCore\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Lalalili\AudienceCore\Concerns\LogsModelActivity;
 
 /**
  * 系統管理員預先設定的觸發動作（具名的 http_post 定義），
@@ -17,6 +18,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class SurveyTriggerActionPreset extends Model
 {
+    use LogsModelActivity;
+
     protected $fillable = [
         'key',
         'name',

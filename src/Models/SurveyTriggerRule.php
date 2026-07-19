@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Lalalili\AudienceCore\Concerns\LogsModelActivity;
 
 /**
  * @property int $id
@@ -27,6 +28,8 @@ use Illuminate\Support\Carbon;
  */
 class SurveyTriggerRule extends Model
 {
+    use LogsModelActivity;
+
     protected $fillable = [
         'survey_id',
         'name',

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Lalalili\AudienceCore\Concerns\LogsModelActivity;
 
 /**
  * @property int $id
@@ -26,6 +27,8 @@ use Illuminate\Support\Str;
  */
 class SurveyCollector extends Model
 {
+    use LogsModelActivity;
+
     protected $fillable = [
         'survey_id',
         'type',

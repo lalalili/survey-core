@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Lalalili\AudienceCore\Concerns\LogsModelActivity;
 use Lalalili\SurveyCore\Enums\SurveyRecipientStatus;
 
 /**
@@ -27,6 +28,8 @@ use Lalalili\SurveyCore\Enums\SurveyRecipientStatus;
  */
 class SurveyRecipient extends Model
 {
+    use LogsModelActivity;
+
     protected $fillable = [
         'survey_id',
         'audience_list_row_id',

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Lalalili\AudienceCore\Concerns\LogsModelActivity;
 use Lalalili\SurveyCore\Enums\SurveyResponseCompletionStatus;
 use Lalalili\SurveyCore\Enums\SurveyResponseQualityStatus;
 use Spatie\MediaLibrary\HasMedia;
@@ -46,7 +47,11 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 class SurveyResponse extends Model implements HasMedia
 {
     use InteractsWithMedia;
+    use LogsModelActivity;
     use SoftDeletes;
+
+    /** @var list<string> 填答為公開行為，僅記錄管理者刪除操作 */
+    protected static array $recordEvents = ['deleted'];
 
     protected $fillable = [
         'survey_id',

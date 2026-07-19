@@ -3,6 +3,7 @@
 namespace Lalalili\SurveyCore\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Lalalili\AudienceCore\Concerns\LogsModelActivity;
 
 /**
  * @property int $id
@@ -11,5 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class SurveyTriggerAllowedHost extends Model
 {
+    use LogsModelActivity;
+
     protected $fillable = ['host', 'description'];
 }

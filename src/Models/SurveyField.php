@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Lalalili\AudienceCore\Concerns\LogsModelActivity;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Support\ConditionGroupEvaluator;
 use Lalalili\SurveyCore\Support\FieldKeyGenerator;
@@ -39,6 +40,8 @@ use Lalalili\SurveyCore\Support\FieldKeyGenerator;
  */
 class SurveyField extends Model
 {
+    use LogsModelActivity;
+
     protected $fillable = [
         'survey_id',
         'type',
@@ -239,7 +242,7 @@ class SurveyField extends Model
         }
 
         if ((bool) ($this->settings_json['randomize_option_groups'] ?? false)) {
-            $result = $this->seededShuffle($result, $seed !== null ? $seed ^ 0x5f3759df : null);
+            $result = $this->seededShuffle($result, $seed !== null ? $seed ^ 0x5F3759DF : null);
         }
 
         return $result;

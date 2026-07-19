@@ -9,12 +9,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Lalalili\AudienceCore\Concerns\LogsModelActivity;
 use Lalalili\SurveyCore\Data\SurveySettings;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Enums\SurveyUniquenessMode;
 use LogicException;
-use Spatie\Activitylog\Models\Concerns\LogsActivity;
 
 /**
  * @property int $id
@@ -57,7 +57,7 @@ use Spatie\Activitylog\Models\Concerns\LogsActivity;
  */
 class Survey extends Model
 {
-    use LogsActivity;
+    use LogsModelActivity;
     use SoftDeletes;
 
     protected $fillable = [
