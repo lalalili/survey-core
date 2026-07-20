@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Lalalili\AudienceCore\Concerns\LogsModelActivity;
+use Lalalili\AudienceCore\Models\AudienceListRow;
 use Lalalili\SurveyCore\Enums\SurveyRecipientStatus;
 
 /**
