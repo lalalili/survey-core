@@ -129,9 +129,12 @@ class SurveyBuilderTemplateRegistry
                     'allow_back' => true,
                     'language' => 'zh-TW',
                     'uniqueness_mode' => 'none',
+                    // detect_duplicate 預設不開：cookie 判重在共用裝置（據點平板、家用電腦）
+                    // 上誤判率高，而被標記的回覆會落在 scopeReportable() 之外、無聲地從
+                    // 滿意度報表中消失。擋重複請改用可設定的 uniqueness_mode（硬擋）。
                     'anomaly' => [
                         'min_seconds' => null,
-                        'detect_duplicate' => 'cookie',
+                        'detect_duplicate' => 'none',
                         'turnstile' => false,
                     ],
                 ],
