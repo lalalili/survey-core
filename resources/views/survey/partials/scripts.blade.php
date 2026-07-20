@@ -301,7 +301,14 @@
         var pageRules = PAGE_JUMP_MAP[fromPageKey] || [];
         for (var i = 0; i < pageRules.length; i += 1) {
             var rule = pageRules[i];
-            if (!conditionGroupPasses(rule.condition || {})) { continue; }
+            var ruleCondition = rule.condition || {};
+
+            // 沒有任何條件的跳轉規則一律略過，與後端 JumpLogicResolver 一致。
+            // conditionGroupPasses 對空的 conditions 回傳 true（顯示條件的語意是
+            // 「沒設條件就顯示」），沿用會讓還沒設定條件的規則無條件改變流程。
+            if (!Array.isArray(ruleCondition.conditions) || ruleCondition.conditions.length === 0) { continue; }
+
+            if (!conditionGroupPasses(ruleCondition)) { continue; }
 
             if (rule.action && rule.action.type === 'end_survey') { return 'END_SURVEY'; }
             if (rule.action && rule.action.type === 'go_to_page') { return nextRenderablePageKey(rule.action.target_page_id || null); }

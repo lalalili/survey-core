@@ -192,3 +192,66 @@ it('follows go_to_page jump action on a select field', function () {
 
     expect($visited)->toBe([$page1->id, $page3->id]);
 });
+
+/**
+ * 空的 condition 不可觸發跳轉。ConditionGroupEvaluator 對空的 conditions
+ * 回傳 true（顯示條件語意是「沒設條件就顯示」），若頁面跳轉規則沿用該語意，
+ * 一條還沒設定條件的規則就會無條件改變問卷流程。
+ */
+function makePageJumpSurvey(array $jumpRules): array
+{
+    $survey = Survey::create(['title' => 'Page Jump', 'status' => SurveyStatus::Published]);
+
+    $page1 = SurveyPage::create([
+        'survey_id' => $survey->id,
+        'page_key' => 'jp1',
+        'title' => 'P1',
+        'sort_order' => 1,
+        'settings_json' => ['jump_rules' => $jumpRules],
+    ]);
+    $page2 = SurveyPage::create(['survey_id' => $survey->id, 'page_key' => 'jp2', 'title' => 'P2', 'sort_order' => 2]);
+    $page3 = SurveyPage::create(['survey_id' => $survey->id, 'page_key' => 'jp3', 'title' => 'P3', 'sort_order' => 3]);
+
+    foreach ([[$page1, 'jq1'], [$page2, 'jq2'], [$page3, 'jq3']] as [$page, $key]) {
+        SurveyField::create([
+            'survey_id' => $survey->id,
+            'survey_page_id' => $page->id,
+            'type' => SurveyFieldType::ShortText,
+            'label' => $key,
+            'field_key' => $key,
+            'is_required' => false,
+            'sort_order' => 1,
+        ]);
+    }
+
+    return [$survey, $page1, $page2, $page3];
+}
+
+it('ignores a page jump rule that carries no conditions', function (mixed $condition): void {
+    [$survey, $page1, $page2, $page3] = makePageJumpSurvey([
+        ['condition' => $condition, 'action' => ['type' => 'go_to_page', 'target_page_id' => 'jp3']],
+    ]);
+
+    $visited = JumpLogicResolver::resolveVisitedPages($survey->load('pages', 'fields'), []);
+
+    // 規則被略過 → 走預設的下一頁，而不是跳到 P3
+    expect($visited)->toBe([$page1->id, $page2->id, $page3->id]);
+})->with([
+    'empty array' => [[]],
+    'empty conditions' => [['logic' => 'and', 'conditions' => []]],
+    'missing conditions' => [['logic' => 'and']],
+]);
+
+it('still applies a page jump rule that has real conditions', function (): void {
+    [$survey, $page1, $page2, $page3] = makePageJumpSurvey([
+        [
+            'condition' => ['logic' => 'and', 'conditions' => [['field_key' => 'jq1', 'op' => 'equals', 'value' => 'skip']]],
+            'action' => ['type' => 'go_to_page', 'target_page_id' => 'jp3'],
+        ],
+    ]);
+
+    $loaded = $survey->load('pages', 'fields');
+
+    expect(JumpLogicResolver::resolveVisitedPages($loaded, ['jq1' => 'skip']))->toBe([$page1->id, $page3->id])
+        ->and(JumpLogicResolver::resolveVisitedPages($loaded, ['jq1' => 'stay']))->toBe([$page1->id, $page2->id, $page3->id]);
+});

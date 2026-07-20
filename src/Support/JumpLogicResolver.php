@@ -102,7 +102,18 @@ final class JumpLogicResolver
                 $condition = $rule['condition'] ?? [];
                 $action = $rule['action'] ?? [];
 
-                if (! is_array($condition) || ! is_array($action) || ! ConditionGroupEvaluator::passes($condition, $answers)) {
+                if (! is_array($condition) || ! is_array($action)) {
+                    continue;
+                }
+
+                // 沒有任何條件的跳轉規則一律略過。ConditionGroupEvaluator 對空的
+                // conditions 回傳 true（顯示條件的語意是「沒設條件就顯示」），
+                // 若直接沿用，一條還沒設定條件的規則就會無條件改變問卷流程。
+                if (! is_array($condition['conditions'] ?? null) || $condition['conditions'] === []) {
+                    continue;
+                }
+
+                if (! ConditionGroupEvaluator::passes($condition, $answers)) {
                     continue;
                 }
 
