@@ -244,7 +244,15 @@
         }
 
         var inp = document.querySelector('[name="answers[' + fieldKey + ']"]');
-        return inp ? inp.value : null;
+        if (!inp) { return null; }
+
+        // radio / checkbox 沒有任何 :checked 就是「未作答」，必須回傳 null。
+        // 這裡若沿用下面的 inp.value fallback，會取到 DOM 中第一個選項的 value——
+        // 使用者還沒選，顯示條件（equals 第一個選項）就已成立，被條件控制的題目
+        // 一載入就顯示；頁面跳轉規則也會誤用第一個選項的跳轉目標。
+        if (inp.type === 'radio' || inp.type === 'checkbox') { return null; }
+
+        return inp.value;
     }
 
     // ─── Jump logic ───────────────────────────────────────────────────────────
