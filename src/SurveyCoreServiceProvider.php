@@ -16,7 +16,6 @@ use Lalalili\SurveyCore\Actions\ValidateSurveySubmissionAction;
 use Lalalili\SurveyCore\Console\Commands\CheckTurnstileConfigCommand;
 use Lalalili\SurveyCore\Console\Commands\PrunePartialDraftsCommand;
 use Lalalili\SurveyCore\Console\Commands\RunTriggerRulesCommand;
-use Lalalili\SurveyCore\Console\Commands\SeedSurveyDemoCommand;
 use Lalalili\SurveyCore\Console\Commands\SurveyScheduleCommand;
 use Lalalili\SurveyCore\Contracts\PersonalizationResolver;
 use Lalalili\SurveyCore\Events\SurveySubmitted;
@@ -132,7 +131,6 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 SurveyScheduleCommand::class,
-                SeedSurveyDemoCommand::class,
                 PrunePartialDraftsCommand::class,
                 RunTriggerRulesCommand::class,
                 CheckTurnstileConfigCommand::class,
