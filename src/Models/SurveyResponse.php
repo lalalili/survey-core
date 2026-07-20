@@ -136,8 +136,13 @@ class SurveyResponse extends Model implements HasMedia
     protected static function booted(): void
     {
         // sqlsrv 上 events.survey_response_id FK 為 NO ACTION（multiple cascade paths 限制），
-        // 刪回覆前先把事件參照設 null；其他 driver 有 DB SET NULL，重複更新無害。
+        // 真正刪除回覆前先把事件參照設 null；其他 driver 有 DB SET NULL，重複更新無害。
+        // 軟刪除不能斷鏈：斷掉後還原回來的回覆就永遠找不回事件歷程。
         static::deleting(function (self $response): void {
+            if (! $response->isForceDeleting()) {
+                return;
+            }
+
             $response->events()->update(['survey_response_id' => null]);
         });
     }
