@@ -460,10 +460,23 @@
         return current === expected;
     }
 
+    function isUnanswered(value) {
+        return value === null || value === '' || (Array.isArray(value) && value.length === 0);
+    }
+
     function conditionPasses(condition) {
         var current = getAnswerValue(condition.field_key || '');
         var expected = condition.value;
         var op = condition.op || 'equals';
+
+        if (op === 'is_empty') { return isUnanswered(current); }
+        if (op === 'is_not_empty') { return !isUnanswered(current); }
+
+        // 目標題目未作答時，除了 is_empty / is_not_empty 之外一律不成立，
+        // 與後端 ConditionGroupEvaluator 保持一致。少了這道守衛，
+        // not_equals / not_contains 會在未作答時成立，而 less_than 會因為
+        // Number(null) === 0 而誤判「評分小於 N」成立。
+        if (isUnanswered(current)) { return false; }
 
         if (op === 'not_equals') { return !valueMatches(current, expected); }
         if (op === 'contains') { return valueMatches(current, expected) || String(current || '').includes(String(expected || '')); }
@@ -475,9 +488,6 @@
             var max = Array.isArray(expected) ? expected[1] : expected?.max;
             return Number(current) >= Number(min) && Number(current) <= Number(max);
         }
-        if (op === 'is_empty') { return current === null || current === '' || (Array.isArray(current) && current.length === 0); }
-        if (op === 'is_not_empty') { return !(current === null || current === '' || (Array.isArray(current) && current.length === 0)); }
-
         return valueMatches(current, expected);
     }
 

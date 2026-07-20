@@ -70,3 +70,16 @@ it('treats an unanswered choice group as unanswered instead of falling back to t
     // 不可沿用讀取第一個元素 .value 的 fallback。
     expect($html)->toContain("if (inp.type === 'radio' || inp.type === 'checkbox') { return null; }");
 });
+
+it('guards the front-end condition evaluator against unanswered questions', function () {
+    $survey = makeBranchingSurvey();
+
+    $html = $this->get("/survey/{$survey->public_key}")
+        ->assertSuccessful()
+        ->getContent();
+
+    // 與後端 ConditionGroupEvaluator 一致：未作答時除 is_empty / is_not_empty
+    // 外一律不成立。少了這道守衛，not_equals / not_contains 會在未作答時成立，
+    // less_than 也會因為 Number(null) === 0 而誤判。
+    expect($html)->toContain('if (isUnanswered(current)) { return false; }');
+});

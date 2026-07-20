@@ -63,6 +63,22 @@ final class ConditionGroupEvaluator
         $expected = $condition['value'] ?? null;
         $current = $answers[$fieldKey] ?? null;
 
+        if ($op === 'is_empty') {
+            return blank($current);
+        }
+
+        if ($op === 'is_not_empty') {
+            return filled($current);
+        }
+
+        // 目標題目未作答時，除了 is_empty / is_not_empty 之外一律不成立。
+        // 否則否定運算子（not_equals、not_contains）會在使用者還沒作答時就成立，
+        // 讓被條件控制的題目或頁面跳轉提前觸發。注意 blank() 不會把 0 / '0'
+        // 視為空值，評分 0 分仍是有效答案。
+        if (blank($current)) {
+            return false;
+        }
+
         return match ($op) {
             'not_equals' => ! self::equals($current, $expected),
             'contains' => self::contains($current, $expected),
@@ -72,8 +88,6 @@ final class ConditionGroupEvaluator
             'less_than', '<' => is_numeric($current) && is_numeric($expected) && (float) $current < (float) $expected,
             'less_than_or_equal', '<=' => is_numeric($current) && is_numeric($expected) && (float) $current <= (float) $expected,
             'between' => self::between($current, $expected),
-            'is_empty' => blank($current),
-            'is_not_empty' => filled($current),
             default => self::equals($current, $expected),
         };
     }
