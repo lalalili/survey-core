@@ -161,8 +161,20 @@ class SurveyHtmlSanitizer
             'iframe' => $this->sanitizeIframeAttributes($element),
             'div' => $this->sanitizeDivAttributes($element),
             'span' => $this->sanitizeSpanAttributes($element),
+            'p', 'h2', 'h3', 'h4' => $this->sanitizeTextAlignmentAttributes($element),
             default => $this->stripAllAttributes($element),
         };
+    }
+
+    private function sanitizeTextAlignmentAttributes(DOMElement $element): void
+    {
+        $alignment = $this->allowedStyleValue($element->getAttribute('style'), 'text-align', '/^(left|center|right)$/i');
+
+        $this->stripAllAttributes($element);
+
+        if ($alignment !== null) {
+            $element->setAttribute('style', 'text-align: '.strtolower($alignment));
+        }
     }
 
     private function sanitizeAnchorAttributes(DOMElement $element): void
@@ -249,9 +261,14 @@ class SurveyHtmlSanitizer
         $class = trim($element->getAttribute('class'));
         $token = html_entity_decode(trim($element->getAttribute('data-variable-token')), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $label = trim($element->getAttribute('data-variable-label'));
+        $color = $this->allowedStyleValue($element->getAttribute('style'), 'color', '/^#[0-9a-f]{6}$/i');
 
         foreach (iterator_to_array($element->attributes) as $attribute) {
             $element->removeAttribute($attribute->name);
+        }
+
+        if ($color !== null) {
+            $element->setAttribute('style', 'color: '.strtolower($color));
         }
 
         if ($class !== 'survey-variable-token' || preg_match('/^\{\{\s*calc\.[A-Za-z0-9_\-]+\s*\}\}$/', $token) !== 1) {
@@ -264,6 +281,27 @@ class SurveyHtmlSanitizer
         if ($label !== '') {
             $element->setAttribute('data-variable-label', mb_substr($label, 0, 80));
         }
+    }
+
+    private function allowedStyleValue(string $style, string $property, string $valuePattern): ?string
+    {
+        $allowedValue = null;
+
+        foreach (explode(';', $style) as $declaration) {
+            $parts = explode(':', $declaration, 2);
+
+            if (count($parts) !== 2 || strtolower(trim($parts[0])) !== $property) {
+                continue;
+            }
+
+            $value = trim($parts[1]);
+
+            if (preg_match($valuePattern, $value) === 1) {
+                $allowedValue = $value;
+            }
+        }
+
+        return $allowedValue;
     }
 
     private function stripAllAttributes(DOMElement $element): void

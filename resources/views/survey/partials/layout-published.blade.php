@@ -23,8 +23,28 @@
     <div id="after-gate" class="survey-hidden">
     @endif
 
+    @if($hasWelcomePage && $welcomePage)
+    <div id="welcome-screen" class="survey-field-card">
+        @if(!empty($welcomeSettings['content']))
+            <div class="survey-rich-content">{!! $sanitizeHtml($welcomeSettings['content']) !!}</div>
+        @endif
+        @if($showEstimatedTime && (int) ($welcomeSettings['estimated_time_minutes'] ?? 0) > 0)
+            <p class="survey-field-description">預估填寫時間：約 {{ (int) $welcomeSettings['estimated_time_minutes'] }} 分鐘</p>
+        @endif
+        <button type="button" id="btn-start" class="survey-btn survey-btn--primary">
+            {{ $welcomeSettings['cta_label'] ?? '開始填寫' }}
+        </button>
+    </div>
+    @endif
+
     <div id="success-message" class="survey-banner survey-banner--success survey-hidden">
-        <p id="success-text">{{ $survey->submit_success_message ?? '感謝您的填寫！' }}</p>
+        <div id="success-text" class="survey-rich-content">
+            @if($hasThankYouPage && !empty($thankYouSettings['message']))
+                {!! $sanitizeHtml($thankYouSettings['message']) !!}
+            @else
+                {{ $survey->submit_success_message ?? '感謝您的填寫！' }}
+            @endif
+        </div>
     </div>
 
     <div id="error-banner" role="alert" aria-live="assertive" class="survey-banner survey-banner--error survey-hidden">
@@ -32,12 +52,12 @@
     </div>
 
     @if($isMultiPage)
-    <p id="page-indicator" role="status" aria-live="polite" class="survey-page-indicator">
+    <p id="page-indicator" role="status" aria-live="polite" class="survey-page-indicator{{ $hasWelcomePage ? ' survey-hidden' : '' }}">
         第 <span id="current-page-label">1</span> 頁，共 {{ $pageCount }} 頁
     </p>
     @endif
 
-    <form id="survey-form" novalidate>
+    <form id="survey-form" class="{{ $hasWelcomePage ? 'survey-hidden' : '' }}" novalidate>
         <input type="hidden" name="schema_version_id" value="{{ $survey->published_schema_version_id }}">
         <input type="text" name="_hp" autocomplete="off" tabindex="-1" aria-hidden="true" class="survey-hidden" style="display:none">
 

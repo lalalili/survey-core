@@ -616,7 +616,7 @@ it('sanitizes rich html in builder schema before saving and publishing', functio
     config()->set('survey-core.security.sanitize_html', true);
 
     $survey = Survey::create(['title' => 'Unsafe HTML', 'status' => SurveyStatus::Draft, 'version' => 1]);
-    $unsafeHtml = '<p>Hello <strong>safe</strong><script>bad()</script><a href="javascript:alert(1)" onclick="bad()">bad link</a><a href="https://example.com" target="_blank">safe link</a><img src="http://54.249.44.62:8443/storage/survey-builder/welcome.jpg" alt="welcome"></p>';
+    $unsafeHtml = '<h2 style="text-align: center; background-image: url(javascript:bad)">Hello <span style="color: #EF4444; font-size: 99px">styled</span> <strong>safe</strong><script>bad()</script><a href="javascript:alert(1)" onclick="bad()">bad link</a><a href="https://example.com" target="_blank">safe link</a><img src="http://54.249.44.62:8443/storage/survey-builder/welcome.jpg" alt="welcome"></h2>';
 
     $schema = builderSchema([
         'settings' => [
@@ -658,6 +658,19 @@ it('sanitizes rich html in builder schema before saving and publishing', functio
     ];
 
     $saved = app(SaveSurveyDraftSchemaAction::class)->execute($survey, $schema);
+
+    expect($saved->draft_schema['pages'][0]['welcome_settings']['content'])
+        ->toContain('<h2 style="text-align: center">')
+        ->toContain('<span style="color: #ef4444">styled</span>')
+        ->not->toContain('background-image')
+        ->not->toContain('font-size');
+
+    expect($saved->draft_schema['pages'][2]['thank_you_settings']['message'])
+        ->toContain('<h2 style="text-align: center">')
+        ->toContain('<span style="color: #ef4444">styled</span>')
+        ->not->toContain('background-image')
+        ->not->toContain('font-size');
+
     $published = app(PublishSurveyAction::class)->execute($saved->refresh());
 
     $combined = implode("\n", [
@@ -669,13 +682,25 @@ it('sanitizes rich html in builder schema before saving and publishing', functio
     ]);
 
     expect($combined)
+        ->toContain('<h2 style="text-align: center">')
+        ->toContain('<span style="color: #ef4444">styled</span>')
         ->toContain('<strong>safe</strong>')
         ->toContain('href="https://example.com"')
         ->toContain('src="http://54.249.44.62:8443/storage/survey-builder/welcome.jpg"')
         ->toContain('rel="noopener noreferrer"')
         ->not->toContain('<script>')
         ->not->toContain('javascript:')
+        ->not->toContain('background-image')
+        ->not->toContain('font-size')
         ->not->toContain('onclick=');
+
+    expect($published->draft_schema['pages'][0]['welcome_settings']['content'])
+        ->toContain('<h2 style="text-align: center">')
+        ->toContain('<span style="color: #ef4444">styled</span>');
+
+    expect($published->pages()->where('page_key', 'thanks')->first()->settings_json['thank_you']['message'])
+        ->toContain('<h2 style="text-align: center">')
+        ->toContain('<span style="color: #ef4444">styled</span>');
 });
 
 it('creates a blank survey that opens directly in the builder', function () {

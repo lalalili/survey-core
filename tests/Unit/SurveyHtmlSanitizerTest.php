@@ -31,6 +31,51 @@ it('removes javascript href', function () {
         ->not->toContain('href=');
 });
 
+it('keeps supported text alignment on paragraphs and headings', function () {
+    expect(sanitize('<p style="text-align: center">Centered</p><h2 style="TEXT-ALIGN:RIGHT">Right</h2><h4 style="text-align:left">Left</h4>'))
+        ->toBe('<p style="text-align: center">Centered</p><h2 style="text-align: right">Right</h2><h4 style="text-align: left">Left</h4>');
+});
+
+it('keeps six digit hex colors on spans', function () {
+    expect(sanitize('<span style="color: #EF4444">Red</span>'))
+        ->toBe('<span style="color: #ef4444">Red</span>');
+});
+
+it('removes unsupported css while retaining independently valid declarations', function () {
+    $result = sanitize('<p class="x" onclick="bad()" style="background:url(javascript:bad); text-align:center; color:red">Text</p><span title="x" style="font-size:99px;color:#3B82F6;--x:expression(bad)">Blue</span>');
+
+    expect($result)
+        ->toBe('<p style="text-align: center">Text</p><span style="color: #3b82f6">Blue</span>')
+        ->not->toContain('javascript:')
+        ->not->toContain('expression')
+        ->not->toContain('class=')
+        ->not->toContain('onclick=');
+});
+
+it('rejects unsupported alignment and color values', function (string $html) {
+    expect(sanitize($html))->not->toContain('style=');
+})->with([
+    'justify alignment' => '<p style="text-align: justify">Text</p>',
+    'alignment expression' => '<h3 style="text-align: expression(alert(1))">Text</h3>',
+    'named color' => '<span style="color: red">Text</span>',
+    'rgb color' => '<span style="color: rgb(255, 0, 0)">Text</span>',
+    'short hex color' => '<span style="color: #fff">Text</span>',
+    'css variable color' => '<span style="color: var(--danger)">Text</span>',
+]);
+
+it('keeps variable token attributes and a valid color while removing other attributes', function () {
+    $result = sanitize('<span class="survey-variable-token" data-variable-token="{{ calc.score }}" data-variable-label="Score" contenteditable="false" onclick="bad()" style="color:#8B5CF6;background:url(evil)">Score<code>calc.score</code></span>');
+
+    expect($result)
+        ->toContain('class="survey-variable-token"')
+        ->toContain('data-variable-token="{{ calc.score }}"')
+        ->toContain('data-variable-label="Score"')
+        ->toContain('style="color: #8b5cf6"')
+        ->not->toContain('contenteditable')
+        ->not->toContain('onclick')
+        ->not->toContain('background');
+});
+
 // ── image support ───────────────────────────────────────────────────────────
 
 it('allows img with https src', function () {

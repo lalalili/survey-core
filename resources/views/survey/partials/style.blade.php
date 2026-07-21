@@ -469,6 +469,20 @@
             display: block;
         }
 
+        .survey-rich-content h2 {
+            margin: 0.75rem 0 0.375rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        .survey-rich-content h3 {
+            margin: 0.625rem 0 0.25rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+            line-height: 1.35;
+        }
+
         .survey-rich-content .survey-video {
             position: relative;
             width: 100%;
