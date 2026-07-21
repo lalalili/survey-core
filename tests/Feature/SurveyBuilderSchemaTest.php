@@ -7,6 +7,7 @@ use Lalalili\SurveyCore\Actions\ExportSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Actions\ImportSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Actions\SaveSurveyDraftSchemaAction;
+use Lalalili\SurveyCore\Actions\SyncSurveyBuilderSchemaToFieldsAction;
 use Lalalili\SurveyCore\Actions\ValidateSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyPageKind;
@@ -364,6 +365,41 @@ it('allows show-if empty checks without a condition value', function () {
     ]));
 
     expect(data_get($validated, 'pages.0.elements.1.show_if.conditions.0.op'))->toBe('is_empty');
+});
+
+it('preserves required validation for fields with a simple display condition', function () {
+    $schema = builderSchema();
+    $schema['pages'][0]['elements'][] = [
+        'id' => 'q_issue_details',
+        'type' => 'long_text',
+        'field_key' => 'issue_details',
+        'label' => 'Issue details',
+        'description' => '',
+        'required' => true,
+        'placeholder' => null,
+        'options' => [],
+        'settings' => [],
+        'show_if' => [
+            'logic' => 'and',
+            'conditions' => [[
+                'field_key' => 'purchase_status',
+                'op' => 'equals',
+                'value' => 'yes',
+            ]],
+        ],
+    ];
+
+    $survey = Survey::create(['title' => 'Conditional Required', 'status' => SurveyStatus::Draft]);
+    app(SyncSurveyBuilderSchemaToFieldsAction::class)->execute(
+        $survey,
+        app(ValidateSurveyBuilderSchemaAction::class)->execute($schema),
+    );
+
+    $field = $survey->fields()->where('field_key', 'issue_details')->firstOrFail();
+
+    expect($field->is_required)->toBeTrue()
+        ->and($field->show_if_field_key)->toBe('purchase_status')
+        ->and($field->show_if_value)->toBe('yes');
 });
 
 it('does not merge live hidden fields into an authoritative draft schema', function () {

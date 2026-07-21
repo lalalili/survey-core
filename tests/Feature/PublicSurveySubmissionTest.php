@@ -110,6 +110,60 @@ it('rejects submission when a required field is missing', function () {
     );
 })->throws(SurveyValidationException::class);
 
+it('requires a conditional field only when its display condition is met', function () {
+    $survey = Survey::create(['title' => 'Conditional Required', 'status' => SurveyStatus::Published]);
+
+    SurveyField::create([
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::SingleChoice,
+        'label' => 'Has an issue?',
+        'field_key' => 'has_issue',
+        'options_json' => [
+            ['label' => 'Yes', 'value' => 'yes'],
+            ['label' => 'No', 'value' => 'no'],
+        ],
+        'sort_order' => 1,
+    ]);
+
+    SurveyField::create([
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::LongText,
+        'label' => 'Issue details',
+        'field_key' => 'issue_details',
+        'is_required' => true,
+        'show_if_field_key' => 'has_issue',
+        'show_if_value' => 'yes',
+        'sort_order' => 2,
+    ]);
+
+    $survey->load('fields');
+
+    $response = app(SubmitSurveyResponseAction::class)->execute(
+        $survey,
+        new SubmissionPayload(['has_issue' => 'no']),
+    );
+
+    expect($response->answers)->toHaveCount(1);
+
+    expect(fn () => app(SubmitSurveyResponseAction::class)->execute(
+        $survey,
+        new SubmissionPayload(['has_issue' => 'yes']),
+    ))->toThrow(SurveyValidationException::class);
+
+    $response = app(SubmitSurveyResponseAction::class)->execute(
+        $survey,
+        new SubmissionPayload([
+            'has_issue' => 'yes',
+            'issue_details' => 'The product stopped working.',
+        ]),
+    );
+
+    expect($response->answers->pluck('answer_text', 'snapshot_field_key')->all())->toMatchArray([
+        'has_issue' => 'yes',
+        'issue_details' => 'The product stopped working.',
+    ]);
+});
+
 // ── Choice option validation ───────────────────────────────────────────────────
 
 it('rejects an invalid single_choice value', function () {

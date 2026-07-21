@@ -118,7 +118,7 @@ class SyncSurveyBuilderSchemaToFieldsAction
                 }
 
                 $legacyShowIf = $this->legacyShowIf($element);
-                $isRequired = (bool) $element['required'] && $legacyShowIf['field_key'] === null;
+                $isRequired = (bool) $element['required'];
                 $fieldKey = $this->fieldKey($element);
 
                 SurveyField::updateOrCreate(
