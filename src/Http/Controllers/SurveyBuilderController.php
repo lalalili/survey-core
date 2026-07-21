@@ -41,6 +41,8 @@ class SurveyBuilderController extends Controller
                 'status' => $survey->status->value,
                 'version' => $survey->version,
                 'published_at' => $survey->published_at?->toIso8601String(),
+                'has_unpublished_changes' => $survey->published_schema === null
+                    || $survey->draft_schema !== $survey->published_schema,
                 'google_drive' => [
                     'connected' => $survey->google_drive_account_id !== null,
                     'email' => $survey->googleDriveAccount?->email,
