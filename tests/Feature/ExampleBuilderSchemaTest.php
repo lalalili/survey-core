@@ -125,7 +125,7 @@ it('syncs jump logic and conditional issue notes from the example schema', funct
     $issueNoteFields->each(function ($field): void {
         $expectedTriggerKey = str_replace('_issue_note', '_has_issue', $field->field_key);
 
-        expect($field->is_required)->toBeFalse()
+        expect($field->is_required)->toBeTrue()
             ->and($field->show_if_field_key)->toBe($expectedTriggerKey)
             ->and($field->show_if_value)->toBe('yes');
     });
