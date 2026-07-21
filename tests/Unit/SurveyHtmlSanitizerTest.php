@@ -41,6 +41,11 @@ it('keeps six digit hex colors on spans', function () {
         ->toBe('<span style="color: #ef4444">Red</span>');
 });
 
+it('normalizes browser rgb colors to six digit hex colors', function () {
+    expect(sanitize('<span style="color: rgb(249, 115, 22)">Orange</span>'))
+        ->toBe('<span style="color: #f97316">Orange</span>');
+});
+
 it('removes unsupported css while retaining independently valid declarations', function () {
     $result = sanitize('<p class="x" onclick="bad()" style="background:url(javascript:bad); text-align:center; color:red">Text</p><span title="x" style="font-size:99px;color:#3B82F6;--x:expression(bad)">Blue</span>');
 
@@ -58,7 +63,9 @@ it('rejects unsupported alignment and color values', function (string $html) {
     'justify alignment' => '<p style="text-align: justify">Text</p>',
     'alignment expression' => '<h3 style="text-align: expression(alert(1))">Text</h3>',
     'named color' => '<span style="color: red">Text</span>',
-    'rgb color' => '<span style="color: rgb(255, 0, 0)">Text</span>',
+    'out of range rgb color' => '<span style="color: rgb(256, 0, 0)">Text</span>',
+    'percentage rgb color' => '<span style="color: rgb(100%, 0%, 0%)">Text</span>',
+    'rgb color with alpha' => '<span style="color: rgba(255, 0, 0, 0.5)">Text</span>',
     'short hex color' => '<span style="color: #fff">Text</span>',
     'css variable color' => '<span style="color: var(--danger)">Text</span>',
 ]);

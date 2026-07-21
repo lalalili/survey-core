@@ -261,7 +261,7 @@ class SurveyHtmlSanitizer
         $class = trim($element->getAttribute('class'));
         $token = html_entity_decode(trim($element->getAttribute('data-variable-token')), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $label = trim($element->getAttribute('data-variable-label'));
-        $color = $this->allowedStyleValue($element->getAttribute('style'), 'color', '/^#[0-9a-f]{6}$/i');
+        $color = $this->allowedColorStyleValue($element->getAttribute('style'));
 
         foreach (iterator_to_array($element->attributes) as $attribute) {
             $element->removeAttribute($attribute->name);
@@ -302,6 +302,31 @@ class SurveyHtmlSanitizer
         }
 
         return $allowedValue;
+    }
+
+    private function allowedColorStyleValue(string $style): ?string
+    {
+        $color = $this->allowedStyleValue(
+            $style,
+            'color',
+            '/^(#[0-9a-f]{6}|rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\))$/i',
+        );
+
+        if ($color === null || str_starts_with($color, '#')) {
+            return $color;
+        }
+
+        if (preg_match('/^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i', $color, $matches) !== 1) {
+            return null;
+        }
+
+        $channels = array_map('intval', array_slice($matches, 1));
+
+        if (max($channels) > 255) {
+            return null;
+        }
+
+        return sprintf('#%02x%02x%02x', ...$channels);
     }
 
     private function stripAllAttributes(DOMElement $element): void
