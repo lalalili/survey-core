@@ -410,7 +410,7 @@
 
         <div class="survey-nav">
             <button type="button" id="btn-prev"
-                class="survey-btn survey-btn--secondary survey-hidden">
+                class="survey-btn survey-btn--secondary survey-themed-accent-outline survey-hidden">
                 上一頁
             </button>
             <div id="nav-right" class="survey-nav-right">

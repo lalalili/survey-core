@@ -121,3 +121,13 @@ it('applies the accent token to secondary actions', function () {
         ->assertSuccessful()
         ->assertSee('survey-themed-accent-outline', false);
 });
+
+it('applies the accent token to filled rating stars', function () {
+    $survey = Survey::create(['title' => 'Accent Stars', 'status' => SurveyStatus::Published, 'allow_anonymous' => true]);
+    app(SaveSurveyDraftSchemaAction::class)->execute($survey, pageKindSchema([kindQuestionPage('page_1')]));
+    app(PublishSurveyAction::class)->execute($survey);
+
+    $this->get(route('survey.show', $survey->public_key))
+        ->assertSuccessful()
+        ->assertSee('.survey-rating-star-label.filled .survey-rating-star-icon {'.PHP_EOL.'            color: var(--survey-accent);', false);
+});

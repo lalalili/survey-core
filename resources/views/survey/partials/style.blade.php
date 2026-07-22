@@ -220,16 +220,16 @@
         }
 
         .survey-rating-star-label.filled .survey-rating-star-icon {
-            color: #f59e0b;
+            color: var(--survey-accent);
         }
 
         .survey-rating-star-label.hovered .survey-rating-star-icon {
-            color: #fbbf24;
+            color: color-mix(in srgb, var(--survey-accent) 78%, #fff);
         }
 
         .survey-rating-star-label.filled .survey-rating-star-number,
         .survey-rating-star-label.hovered .survey-rating-star-number {
-            color: #d97706;
+            color: var(--survey-accent);
         }
 
         /* thumb 為原生彩色 emoji，color 對其無效，改用 grayscale + opacity 區分未選中狀態 */
