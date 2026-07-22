@@ -6,8 +6,10 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Lalalili\AudienceCore\Concerns\LogsModelActivity;
+use LogicException;
 
 /**
  * @property int $id
@@ -22,6 +24,7 @@ use Lalalili\AudienceCore\Concerns\LogsModelActivity;
  * @property Carbon|null $last_scheduled_run_at
  * @property Carbon|null $last_triggered_at
  * @property int $triggered_count
+ * @property Carbon|null $deleted_at
  * @property-read Survey $survey
  * @property-read Collection<int, SurveyTriggerDispatch> $dispatches
  * @property-read Collection<int, SurveyTriggerRuleRun> $runs
@@ -29,6 +32,7 @@ use Lalalili\AudienceCore\Concerns\LogsModelActivity;
 class SurveyTriggerRule extends Model
 {
     use LogsModelActivity;
+    use SoftDeletes;
 
     protected $fillable = [
         'survey_id',
@@ -68,9 +72,23 @@ class SurveyTriggerRule extends Model
 
     protected static function booted(): void
     {
-        // sqlsrv 上 dispatches.survey_trigger_rule_id FK 為 NO ACTION（multiple cascade paths 限制），
-        // 刪規則前先清派送紀錄；其他 driver 有 DB cascade，重複刪除無害。
         static::deleting(function (self $rule): void {
+            if ($rule->isForceDeleting()) {
+                return;
+            }
+
+            if ($rule->is_active || $rule->schedule_enabled) {
+                throw new LogicException('啟用中或仍開啟排程的發送設定不可刪除，請先停用規則與排程。');
+            }
+        });
+
+        // sqlsrv 上 dispatches.survey_trigger_rule_id FK 為 NO ACTION（multiple cascade paths 限制），
+        // 永久刪除規則前先清派送紀錄；軟刪除則保留派送歷程供還原與稽核。
+        static::deleting(function (self $rule): void {
+            if (! $rule->isForceDeleting()) {
+                return;
+            }
+
             $rule->dispatches()->delete();
         });
     }

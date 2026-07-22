@@ -109,7 +109,7 @@ it('logs created/updated/deleted for SurveyTriggerRule', function (): void {
     $rule = SurveyTriggerRule::create([
         'survey_id' => $survey->id,
         'name' => '規則',
-        'is_active' => true,
+        'is_active' => false,
         'rule_tree_json' => ['op' => 'AND', 'children' => []],
         'actions_json' => [],
     ]);

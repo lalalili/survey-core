@@ -92,6 +92,7 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 '2026_07_19_035612_add_retired_at_to_survey_fields_table',
                 '2026_07_19_035614_backfill_survey_schema_versions',
                 '2026_07_19_210000_add_published_requires_schema_version_check',
+                '2026_07_23_004016_add_soft_deletes_to_survey_trigger_rules',
             ])
             ->runsMigrations()
             ->hasRoutes(['web']);
