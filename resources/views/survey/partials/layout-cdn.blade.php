@@ -236,9 +236,9 @@
                             max="{{ $field->settings_json['max'] ?? '' }}"
                             step="{{ $field->settings_json['step'] ?? '1' }}"
                             @if($field->is_required) required @endif
-                            class="w-full rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                            class="min-w-0 flex-1 rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
                         @if(!empty($field->settings_json['unit']))
-                            <span class="text-sm text-gray-500">{{ $field->settings_json['unit'] }}</span>
+                            <span class="shrink-0 whitespace-nowrap text-sm text-gray-500">{{ $field->settings_json['unit'] }}</span>
                         @endif
                     </div>
                 @elseif($type === 'linear_scale')
@@ -273,9 +273,9 @@
                                     name="answers[{{ $fk }}][{{ $option['value'] }}]"
                                     step="any"
                                     @if($field->is_required) required @endif
-                                    class="w-28 rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                                    class="w-28 shrink-0 rounded-md border-gray-300 shadow-sm text-sm px-3 py-2 border focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
                                 @if(!empty($field->settings_json['unit']))
-                                    <span class="text-sm text-gray-500">{{ $field->settings_json['unit'] }}</span>
+                                    <span class="shrink-0 whitespace-nowrap text-sm text-gray-500">{{ $field->settings_json['unit'] }}</span>
                                 @endif
                             </label>
                         @endforeach
