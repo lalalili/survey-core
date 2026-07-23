@@ -203,7 +203,7 @@
                         $ratingIcon  = $ratingIcons[$ratingShape] ?? '★';
                         $ratingId    = 'rating_' . $fk;
                     @endphp
-                    <div class="survey-rating-stars mt-1" data-rating-id="{{ $ratingId }}">
+                    <div class="survey-rating-stars mt-1" data-rating-id="{{ $ratingId }}" style="--rating-count: {{ $ratingCount }};">
                         @foreach(range(1, $ratingCount) as $star)
                             <label class="survey-rating-star-label shape-{{ $ratingShape }}" title="{{ $star }} 分">
                                 <input type="radio" name="answers[{{ $fk }}]" value="{{ $star }}"
