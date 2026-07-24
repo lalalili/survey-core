@@ -179,7 +179,7 @@ it('computes totals, collector performance, daily trend, and question distributi
                 'granularity' => 'day',
                 'label' => '每日',
                 'rows' => [
-                    ['label' => now()->format('Y/m/d'), 'score' => 50.0, 'respondents' => 2],
+                    ['label' => now()->format('Y/m/d'), 'score' => 50.0, 'respondents' => 2, 'margin_of_error' => 69.3, 'is_low_sample' => true],
                 ],
             ],
         ])
@@ -305,6 +305,9 @@ it('computes NPS groups, zero score distribution, and an adaptive trend from val
         ->and($question['nps'])->toMatchArray([
             'score' => 0.0,
             'respondents' => 5,
+            'margin_of_error' => 78.4,
+            'is_low_sample' => true,
+            'low_sample_threshold' => 30,
             'promoters' => ['count' => 2, 'percentage' => 40.0],
             'passives' => ['count' => 1, 'percentage' => 20.0],
             'detractors' => ['count' => 2, 'percentage' => 40.0],
@@ -312,10 +315,43 @@ it('computes NPS groups, zero score distribution, and an adaptive trend from val
                 'granularity' => 'day',
                 'label' => '每日',
                 'rows' => [
-                    ['label' => now()->subDay()->format('Y/m/d'), 'score' => 100.0, 'respondents' => 2],
-                    ['label' => now()->format('Y/m/d'), 'score' => -66.7, 'respondents' => 3],
+                    ['label' => now()->subDay()->format('Y/m/d'), 'score' => 100.0, 'respondents' => 2, 'margin_of_error' => 0.0, 'is_low_sample' => true],
+                    ['label' => now()->format('Y/m/d'), 'score' => -66.7, 'respondents' => 3, 'margin_of_error' => 53.3, 'is_low_sample' => true],
                 ],
             ],
+        ]);
+});
+
+it('reports the NPS margin of error and clears the low sample flag once the threshold is reached', function (): void {
+    $survey = publishedAnalyticsNpsSurvey('Large sample NPS analytics');
+    $nps = $survey->fields()->where('field_key', 'nps')->sole();
+
+    foreach (array_merge(array_fill(0, 15, 10), array_fill(0, 15, 0)) as $score) {
+        $response = SurveyResponse::create([
+            'survey_id' => $survey->id,
+            'submitted_at' => now()->startOfDay(),
+            'completion_status' => SurveyResponseCompletionStatus::Complete,
+        ]);
+        SurveyAnswer::create([
+            'survey_response_id' => $response->id,
+            'survey_field_id' => $nps->id,
+            'answer_text' => (string) $score,
+        ]);
+    }
+
+    $question = app(ComputeSurveyAnalyticsAction::class)->execute($survey)['questions'][0];
+
+    expect($question['nps'])->toMatchArray([
+        'score' => 0.0,
+        'respondents' => 30,
+        'margin_of_error' => 35.8,
+        'is_low_sample' => false,
+        'low_sample_threshold' => 30,
+    ])
+        ->and($question['nps']['trend']['rows'][0])->toMatchArray([
+            'respondents' => 30,
+            'margin_of_error' => 35.8,
+            'is_low_sample' => false,
         ]);
 });
 
@@ -328,6 +364,9 @@ it('returns an empty NPS summary without valid answers', function (): void {
         ->and($question['nps'])->toBe([
             'score' => null,
             'respondents' => 0,
+            'margin_of_error' => null,
+            'is_low_sample' => true,
+            'low_sample_threshold' => 30,
             'promoters' => ['count' => 0, 'percentage' => 0.0],
             'passives' => ['count' => 0, 'percentage' => 0.0],
             'detractors' => ['count' => 0, 'percentage' => 0.0],

@@ -16,6 +16,12 @@ use Lalalili\SurveyCore\Models\SurveyResponseEvent;
 class ComputeSurveyAnalyticsAction
 {
     /**
+     * Below this many valid respondents an NPS score swings too much to be
+     * read as a signal, so it is flagged as low sample in the report.
+     */
+    private const LOW_SAMPLE_THRESHOLD = 30;
+
+    /**
      * @return array{
      *     totals: array{responses: int, started: int, submitted: int, completion_rate: float},
      *     daily: list<array{date: string, started: int, submitted: int}>,
@@ -396,10 +402,13 @@ class ComputeSurveyAnalyticsAction
      * @return array{
      *     score: float|null,
      *     respondents: int,
+     *     margin_of_error: float|null,
+     *     is_low_sample: bool,
+     *     low_sample_threshold: int,
      *     promoters: array{count: int, percentage: float},
      *     passives: array{count: int, percentage: float},
      *     detractors: array{count: int, percentage: float},
-     *     trend: array{granularity: 'day'|'week'|'month', label: string, rows: list<array{label: string, score: float, respondents: int}>}
+     *     trend: array{granularity: 'day'|'week'|'month', label: string, rows: list<array{label: string, score: float, respondents: int, margin_of_error: float|null, is_low_sample: bool}>}
      * }
      */
     private function npsStats(Collection $answers): array
@@ -411,6 +420,9 @@ class ComputeSurveyAnalyticsAction
             return [
                 'score' => null,
                 'respondents' => 0,
+                'margin_of_error' => null,
+                'is_low_sample' => true,
+                'low_sample_threshold' => self::LOW_SAMPLE_THRESHOLD,
                 'promoters' => ['count' => 0, 'percentage' => 0.0],
                 'passives' => ['count' => 0, 'percentage' => 0.0],
                 'detractors' => ['count' => 0, 'percentage' => 0.0],
@@ -425,6 +437,9 @@ class ComputeSurveyAnalyticsAction
         return [
             'score' => $this->npsScore($promoters, $detractors, $respondents),
             'respondents' => $respondents,
+            'margin_of_error' => $this->npsMarginOfError($promoters, $detractors, $respondents),
+            'is_low_sample' => $respondents < self::LOW_SAMPLE_THRESHOLD,
+            'low_sample_threshold' => self::LOW_SAMPLE_THRESHOLD,
             'promoters' => $this->npsGroup($promoters, $respondents),
             'passives' => $this->npsGroup($passives, $respondents),
             'detractors' => $this->npsGroup($detractors, $respondents),
@@ -434,7 +449,7 @@ class ComputeSurveyAnalyticsAction
 
     /**
      * @param  Collection<int, array{score: int, date: string}>  $answers
-     * @return array{granularity: 'day'|'week'|'month', label: string, rows: list<array{label: string, score: float, respondents: int}>}
+     * @return array{granularity: 'day'|'week'|'month', label: string, rows: list<array{label: string, score: float, respondents: int, margin_of_error: float|null, is_low_sample: bool}>}
      */
     private function summarizeNpsTrend(Collection $answers): array
     {
@@ -472,6 +487,8 @@ class ComputeSurveyAnalyticsAction
                 'label' => $period['label'],
                 'score' => $this->npsScore($period['promoters'], $period['detractors'], $period['respondents']),
                 'respondents' => $period['respondents'],
+                'margin_of_error' => $this->npsMarginOfError($period['promoters'], $period['detractors'], $period['respondents']),
+                'is_low_sample' => $period['respondents'] < self::LOW_SAMPLE_THRESHOLD,
             ],
             $periods,
         ));
@@ -484,7 +501,7 @@ class ComputeSurveyAnalyticsAction
     }
 
     /**
-     * @return array{granularity: 'day', label: string, rows: list<array{label: string, score: float, respondents: int}>}
+     * @return array{granularity: 'day', label: string, rows: list<array{label: string, score: float, respondents: int, margin_of_error: float|null, is_low_sample: bool}>}
      */
     private function emptyNpsTrend(): array
     {
@@ -536,6 +553,24 @@ class ComputeSurveyAnalyticsAction
     private function npsScore(int $promoters, int $detractors, int $respondents): float
     {
         return round((($promoters - $detractors) / $respondents) * 100, 1);
+    }
+
+    /**
+     * Half-width of the 95% confidence interval around the NPS score, in NPS
+     * points. NPS is a difference of two proportions, so its variance is
+     * `p_promoters + p_detractors - (p_promoters - p_detractors)^2`.
+     */
+    private function npsMarginOfError(int $promoters, int $detractors, int $respondents): ?float
+    {
+        if ($respondents === 0) {
+            return null;
+        }
+
+        $promoterShare = $promoters / $respondents;
+        $detractorShare = $detractors / $respondents;
+        $variance = $promoterShare + $detractorShare - (($promoterShare - $detractorShare) ** 2);
+
+        return round(1.96 * sqrt(max($variance, 0.0) / $respondents) * 100, 1);
     }
 
     /**
