@@ -85,6 +85,13 @@ it('computes totals, collector performance, daily trend, and question distributi
         'sort_order' => 3,
     ]);
 
+    $viewOnlyAt = now()->subDays(2);
+    SurveyResponseEvent::create([
+        'survey_id' => $survey->id,
+        'survey_collector_id' => $collector->id,
+        'event' => 'page_viewed',
+        'occurred_at' => $viewOnlyAt,
+    ]);
     SurveyResponseEvent::create([
         'survey_id' => $survey->id,
         'survey_collector_id' => $collector->id,
@@ -117,6 +124,7 @@ it('computes totals, collector performance, daily trend, and question distributi
     SurveyAnswer::create(['survey_response_id' => $second->id, 'survey_field_id' => $nps->id, 'answer_text' => '7']);
     SurveyAnswer::create(['survey_response_id' => $first->id, 'survey_field_id' => $linearScale->id, 'answer_text' => '0']);
 
+    $viewOnlyDate = $viewOnlyAt->toDateString();
     $yesterday = now()->subDay()->toDateString();
     $today = now()->toDateString();
 
@@ -137,6 +145,7 @@ it('computes totals, collector performance, daily trend, and question distributi
             'completion_rate' => 100.0,
         ])
         ->and($analytics['daily'])->toBe([
+            ['date' => $viewOnlyDate, 'started' => 0, 'submitted' => 0],
             ['date' => $yesterday, 'started' => 1, 'submitted' => 0],
             ['date' => $today, 'started' => 1, 'submitted' => 2],
         ])
@@ -166,8 +175,12 @@ it('computes totals, collector performance, daily trend, and question distributi
             'promoters' => ['count' => 1, 'percentage' => 50.0],
             'passives' => ['count' => 1, 'percentage' => 50.0],
             'detractors' => ['count' => 0, 'percentage' => 0.0],
-            'daily' => [
-                ['date' => $today, 'score' => 50.0, 'respondents' => 2],
+            'trend' => [
+                'granularity' => 'day',
+                'label' => '每日',
+                'rows' => [
+                    ['label' => now()->format('Y/m/d'), 'score' => 50.0, 'respondents' => 2],
+                ],
             ],
         ])
         ->and($analytics['questions'][2]['distribution'])->toBe([
@@ -249,7 +262,7 @@ it('filters totals, daily trend, and question stats by collector', function (): 
         ->and($unfiltered['questions'][0]['nps']['score'])->toBe(0.0);
 });
 
-it('computes NPS groups, zero score distribution, and daily trend from valid answers', function (): void {
+it('computes NPS groups, zero score distribution, and an adaptive trend from valid answers', function (): void {
     $survey = publishedAnalyticsNpsSurvey();
     $nps = $survey->fields()->where('field_key', 'nps')->sole();
     $scoresByDate = [
@@ -295,9 +308,13 @@ it('computes NPS groups, zero score distribution, and daily trend from valid ans
             'promoters' => ['count' => 2, 'percentage' => 40.0],
             'passives' => ['count' => 1, 'percentage' => 20.0],
             'detractors' => ['count' => 2, 'percentage' => 40.0],
-            'daily' => [
-                ['date' => now()->subDay()->toDateString(), 'score' => 100.0, 'respondents' => 2],
-                ['date' => now()->toDateString(), 'score' => -66.7, 'respondents' => 3],
+            'trend' => [
+                'granularity' => 'day',
+                'label' => '每日',
+                'rows' => [
+                    ['label' => now()->subDay()->format('Y/m/d'), 'score' => 100.0, 'respondents' => 2],
+                    ['label' => now()->format('Y/m/d'), 'score' => -66.7, 'respondents' => 3],
+                ],
             ],
         ]);
 });
@@ -314,7 +331,126 @@ it('returns an empty NPS summary without valid answers', function (): void {
             'promoters' => ['count' => 0, 'percentage' => 0.0],
             'passives' => ['count' => 0, 'percentage' => 0.0],
             'detractors' => ['count' => 0, 'percentage' => 0.0],
-            'daily' => [],
+            'trend' => [
+                'granularity' => 'day',
+                'label' => '每日',
+                'rows' => [],
+            ],
+        ]);
+});
+
+it('adapts long response trends to weekly and monthly periods', function (): void {
+    $weeklySurvey = Survey::create([
+        'title' => 'Weekly analytics',
+        'status' => SurveyStatus::Published,
+    ]);
+
+    SurveyResponseEvent::create([
+        'survey_id' => $weeklySurvey->id,
+        'event' => 'started',
+        'occurred_at' => now()->subDays(32)->startOfDay(),
+    ]);
+    SurveyResponseEvent::create([
+        'survey_id' => $weeklySurvey->id,
+        'event' => 'started',
+        'occurred_at' => now()->startOfDay(),
+    ]);
+
+    $weeklyAnalytics = app(ComputeSurveyAnalyticsAction::class)->execute($weeklySurvey);
+
+    expect($weeklyAnalytics['trend']['granularity'])->toBe('week')
+        ->and($weeklyAnalytics['trend']['label'])->toBe('每週')
+        ->and(collect($weeklyAnalytics['trend']['rows'])->sum('started'))->toBe(2);
+
+    $monthlySurvey = Survey::create([
+        'title' => 'Monthly analytics',
+        'status' => SurveyStatus::Published,
+    ]);
+
+    SurveyResponseEvent::create([
+        'survey_id' => $monthlySurvey->id,
+        'event' => 'started',
+        'occurred_at' => now()->subDays(181)->startOfDay(),
+    ]);
+    SurveyResponseEvent::create([
+        'survey_id' => $monthlySurvey->id,
+        'event' => 'started',
+        'occurred_at' => now()->startOfDay(),
+    ]);
+
+    $monthlyAnalytics = app(ComputeSurveyAnalyticsAction::class)->execute($monthlySurvey);
+
+    expect($monthlyAnalytics['trend']['granularity'])->toBe('month')
+        ->and($monthlyAnalytics['trend']['label'])->toBe('每月')
+        ->and(collect($monthlyAnalytics['trend']['rows'])->sum('started'))->toBe(2);
+});
+
+it('previews the latest text responses and preserves zero numeric bounds', function (): void {
+    $survey = Survey::create([
+        'title' => 'Input analytics',
+        'status' => SurveyStatus::Published,
+    ]);
+    $textField = SurveyField::create([
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::LongText,
+        'label' => '改善建議',
+        'field_key' => 'improvement_note',
+        'sort_order' => 1,
+    ]);
+    $numberField = SurveyField::create([
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::Number,
+        'label' => '同行人數',
+        'field_key' => 'party_size',
+        'sort_order' => 2,
+    ]);
+    $submittedAt = now()->startOfMinute();
+
+    foreach (range(1, 6) as $sequence) {
+        $response = SurveyResponse::create([
+            'survey_id' => $survey->id,
+            'response_number' => 'R-'.$sequence,
+            'submitted_at' => $submittedAt->copy()->subMinutes(6 - $sequence),
+        ]);
+
+        SurveyAnswer::create([
+            'survey_response_id' => $response->id,
+            'survey_field_id' => $textField->id,
+            'answer_text' => "第 {$sequence} 則\n保留換行",
+        ]);
+    }
+
+    foreach ([0, 4] as $value) {
+        $response = SurveyResponse::create([
+            'survey_id' => $survey->id,
+            'submitted_at' => $submittedAt,
+        ]);
+
+        SurveyAnswer::create([
+            'survey_response_id' => $response->id,
+            'survey_field_id' => $numberField->id,
+            'answer_text' => (string) $value,
+        ]);
+    }
+
+    $questions = collect(app(ComputeSurveyAnalyticsAction::class)->execute($survey)['questions'])->keyBy('field_key');
+    $textQuestion = $questions->get('improvement_note');
+    $numberQuestion = $questions->get('party_size');
+
+    expect($textQuestion)->toMatchArray([
+        'type_label' => '多行文字',
+        'answered' => 6,
+    ])
+        ->and($textQuestion['text_responses'])->toHaveCount(5)
+        ->and($textQuestion['text_responses'][0])->toBe([
+            'response_number' => 'R-6',
+            'submitted_at' => $submittedAt->format('Y/m/d H:i'),
+            'text' => "第 6 則\n保留換行",
+        ])
+        ->and($numberQuestion)->toMatchArray([
+            'average' => 2.0,
+            'min' => 0.0,
+            'max' => 4.0,
         ]);
 });
 

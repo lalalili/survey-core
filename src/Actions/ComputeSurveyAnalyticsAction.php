@@ -2,6 +2,7 @@
 
 namespace Lalalili\SurveyCore\Actions;
 
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Models\Survey;
@@ -18,6 +19,7 @@ class ComputeSurveyAnalyticsAction
      * @return array{
      *     totals: array{responses: int, started: int, submitted: int, completion_rate: float},
      *     daily: list<array{date: string, started: int, submitted: int}>,
+     *     trend: array{granularity: 'day'|'week'|'month', label: string, rows: list<array{label: string, started: int, submitted: int}>},
      *     collectors: list<array{collector_id: int, name: string, type: string, slug: string, started: int, submitted: int, completion_rate: float}>,
      *     questions: list<array<string, mixed>>
      * }
@@ -49,6 +51,8 @@ class ComputeSurveyAnalyticsAction
         $startedCount = $events->where('event', 'started')->count();
         $submittedCount = $submittedResponses->count();
 
+        $daily = $this->dailyTrend($events, $submittedResponses);
+
         return [
             'totals' => [
                 'responses' => $submittedCount,
@@ -56,7 +60,8 @@ class ComputeSurveyAnalyticsAction
                 'submitted' => $submittedCount,
                 'completion_rate' => $this->rate($submittedCount, max($startedCount, $submittedCount)),
             ],
-            'daily' => $this->dailyTrend($events, $submittedResponses),
+            'daily' => $daily,
+            'trend' => $this->summarizeResponseTrend($daily),
             'collectors' => $this->collectorPerformance($survey->collectors, $events, $submittedResponses),
             'questions' => $this->questionStats(
                 $this->analyticsFields($survey->activeFields, $submittedResponses),
@@ -106,27 +111,66 @@ class ComputeSurveyAnalyticsAction
     private function dailyTrend(Collection $events, Collection $responses): array
     {
         $eventDates = $events
-            ->map(fn (SurveyResponseEvent $event): string => $event->occurred_at->toDateString())
-            ->all();
-        $responseDates = $responses
+            ->toBase()
+            ->map(fn (SurveyResponseEvent $event): string => $event->occurred_at->toDateString());
+        $startedByDate = $events
+            ->where('event', 'started')
+            ->groupBy(fn (SurveyResponseEvent $event): string => $event->occurred_at->toDateString())
+            ->map(fn (Collection $dailyEvents): int => $dailyEvents->count());
+        $submittedByDate = $responses
             ->map(fn (SurveyResponse $response): ?string => $this->responseDateString($response))
             ->filter(fn (?string $date): bool => $date !== null)
-            ->values()
-            ->all();
+            ->countBy();
 
-        $dates = collect($eventDates)
-            ->merge($responseDates)
+        $dates = $eventDates
+            ->merge($submittedByDate->keys())
             ->unique()
             ->sort()
             ->values();
 
         return array_values($dates
-            ->map(fn (string $date): array => [
-                'date' => $date,
-                'started' => $events->filter(fn (SurveyResponseEvent $event): bool => $event->event === 'started' && $event->occurred_at->toDateString() === $date)->count(),
-                'submitted' => $responses->filter(fn (SurveyResponse $response): bool => $this->responseDateString($response) === $date)->count(),
-            ])
+            ->map(function (int|string $date) use ($startedByDate, $submittedByDate): array {
+                $date = (string) $date;
+
+                return [
+                    'date' => $date,
+                    'started' => (int) $startedByDate->get($date, 0),
+                    'submitted' => (int) $submittedByDate->get($date, 0),
+                ];
+            })
             ->all());
+    }
+
+    /**
+     * @param  list<array{date: string, started: int, submitted: int}>  $daily
+     * @return array{granularity: 'day'|'week'|'month', label: string, rows: list<array{label: string, started: int, submitted: int}>}
+     */
+    private function summarizeResponseTrend(array $daily): array
+    {
+        $granularity = $this->trendGranularity(collect($daily)->pluck('date'));
+        /** @var array<string, array{label: string, started: int, submitted: int}> $rows */
+        $rows = [];
+
+        foreach ($daily as $day) {
+            $period = $this->trendPeriod($day['date'], $granularity);
+
+            if (! isset($rows[$period['key']])) {
+                $rows[$period['key']] = [
+                    'label' => $period['label'],
+                    'started' => 0,
+                    'submitted' => 0,
+                ];
+            }
+
+            $rows[$period['key']]['started'] += $day['started'];
+            $rows[$period['key']]['submitted'] += $day['submitted'];
+        }
+
+        return [
+            'granularity' => $granularity,
+            'label' => $this->trendGranularityLabel($granularity),
+            'rows' => array_values($rows),
+        ];
     }
 
     /**
@@ -168,30 +212,38 @@ class ComputeSurveyAnalyticsAction
      */
     private function questionStats(Collection $fields, Collection $responses): array
     {
+        $answersByFieldKey = $responses
+            ->flatMap->answers
+            ->groupBy(fn (SurveyAnswer $answer): string => $answer->fieldKey());
+
         return array_values($fields
             ->reject(fn (SurveyField $field): bool => $field->is_hidden || $field->type->isContentBlock())
-            ->map(fn (SurveyField $field): array => $this->fieldStats($field, $responses, $fields))
+            ->map(function (SurveyField $field) use ($answersByFieldKey, $fields): array {
+                $answers = $answersByFieldKey->get($field->field_key);
+
+                return $this->fieldStats(
+                    $field,
+                    $answers instanceof Collection ? $answers : collect(),
+                    $fields,
+                );
+            })
             ->values()
             ->all());
     }
 
     /**
-     * @param  Collection<int, SurveyResponse>  $responses
+     * @param  Collection<int, SurveyAnswer>  $answers
      * @param  Collection<int, SurveyField>  $fields
      * @return array<string, mixed>
      */
-    private function fieldStats(SurveyField $field, Collection $responses, Collection $fields): array
+    private function fieldStats(SurveyField $field, Collection $answers, Collection $fields): array
     {
-        $answers = $responses
-            ->flatMap->answers
-            ->filter(fn (SurveyAnswer $answer): bool => $answer->fieldKey() === $field->field_key)
-            ->values();
-
         $base = [
             'field_id' => $field->id,
             'field_key' => $field->field_key,
             'label' => $field->label,
             'type' => $field->type->value,
+            'type_label' => $field->type->label(),
             'answered' => $answers->count(),
         ];
 
@@ -234,8 +286,10 @@ class ComputeSurveyAnalyticsAction
                 'constant_sum' => $this->constantSumStats($field, $answers),
             ]),
             SurveyFieldType::ShortText,
-            SurveyFieldType::LongText => array_merge($base, [
-                'sample' => $this->textSample($answers),
+            SurveyFieldType::LongText,
+            SurveyFieldType::Date,
+            SurveyFieldType::Time => array_merge($base, [
+                'text_responses' => $this->textResponsePreviews($answers),
             ]),
             default => $base,
         };
@@ -345,7 +399,7 @@ class ComputeSurveyAnalyticsAction
      *     promoters: array{count: int, percentage: float},
      *     passives: array{count: int, percentage: float},
      *     detractors: array{count: int, percentage: float},
-     *     daily: list<array{date: string, score: float, respondents: int}>
+     *     trend: array{granularity: 'day'|'week'|'month', label: string, rows: list<array{label: string, score: float, respondents: int}>}
      * }
      */
     private function npsStats(Collection $answers): array
@@ -360,7 +414,7 @@ class ComputeSurveyAnalyticsAction
                 'promoters' => ['count' => 0, 'percentage' => 0.0],
                 'passives' => ['count' => 0, 'percentage' => 0.0],
                 'detractors' => ['count' => 0, 'percentage' => 0.0],
-                'daily' => [],
+                'trend' => $this->emptyNpsTrend(),
             ];
         }
 
@@ -374,24 +428,70 @@ class ComputeSurveyAnalyticsAction
             'promoters' => $this->npsGroup($promoters, $respondents),
             'passives' => $this->npsGroup($passives, $respondents),
             'detractors' => $this->npsGroup($detractors, $respondents),
-            'daily' => array_values($validAnswers
-                ->groupBy('date')
-                ->sortKeys()
-                ->map(function (Collection $dailyAnswers, string $date): array {
-                    $dailyRespondents = $dailyAnswers->count();
+            'trend' => $this->summarizeNpsTrend($validAnswers),
+        ];
+    }
 
-                    return [
-                        'date' => $date,
-                        'score' => $this->npsScore(
-                            $dailyAnswers->where('score', '>=', 9)->count(),
-                            $dailyAnswers->where('score', '<=', 6)->count(),
-                            $dailyRespondents,
-                        ),
-                        'respondents' => $dailyRespondents,
-                    ];
-                })
-                ->values()
-                ->all()),
+    /**
+     * @param  Collection<int, array{score: int, date: string}>  $answers
+     * @return array{granularity: 'day'|'week'|'month', label: string, rows: list<array{label: string, score: float, respondents: int}>}
+     */
+    private function summarizeNpsTrend(Collection $answers): array
+    {
+        $granularity = $this->trendGranularity($answers->pluck('date'));
+        /** @var array<string, array{label: string, respondents: int, promoters: int, detractors: int}> $periods */
+        $periods = [];
+
+        foreach ($answers as $answer) {
+            $period = $this->trendPeriod($answer['date'], $granularity);
+
+            if (! isset($periods[$period['key']])) {
+                $periods[$period['key']] = [
+                    'label' => $period['label'],
+                    'respondents' => 0,
+                    'promoters' => 0,
+                    'detractors' => 0,
+                ];
+            }
+
+            $periods[$period['key']]['respondents']++;
+
+            if ($answer['score'] >= 9) {
+                $periods[$period['key']]['promoters']++;
+            }
+
+            if ($answer['score'] <= 6) {
+                $periods[$period['key']]['detractors']++;
+            }
+        }
+
+        ksort($periods);
+
+        $rows = array_values(array_map(
+            fn (array $period): array => [
+                'label' => $period['label'],
+                'score' => $this->npsScore($period['promoters'], $period['detractors'], $period['respondents']),
+                'respondents' => $period['respondents'],
+            ],
+            $periods,
+        ));
+
+        return [
+            'granularity' => $granularity,
+            'label' => $this->trendGranularityLabel($granularity),
+            'rows' => $rows,
+        ];
+    }
+
+    /**
+     * @return array{granularity: 'day', label: string, rows: list<array{label: string, score: float, respondents: int}>}
+     */
+    private function emptyNpsTrend(): array
+    {
+        return [
+            'granularity' => 'day',
+            'label' => $this->trendGranularityLabel('day'),
+            'rows' => [],
         ];
     }
 
@@ -484,7 +584,7 @@ class ComputeSurveyAnalyticsAction
     {
         $values = $answers
             ->map(fn (SurveyAnswer $a): ?float => is_numeric($a->answer_text) ? (float) $a->answer_text : null)
-            ->filter()
+            ->filter(fn (?float $value): bool => $value !== null)
             ->values();
 
         return $values->isEmpty() ? null : round((float) $values->min(), 2);
@@ -497,7 +597,7 @@ class ComputeSurveyAnalyticsAction
     {
         $values = $answers
             ->map(fn (SurveyAnswer $a): ?float => is_numeric($a->answer_text) ? (float) $a->answer_text : null)
-            ->filter()
+            ->filter(fn (?float $value): bool => $value !== null)
             ->values();
 
         return $values->isEmpty() ? null : round((float) $values->max(), 2);
@@ -626,17 +726,30 @@ class ComputeSurveyAnalyticsAction
     }
 
     /**
-     * 文字題：回傳最多 10 筆非空樣本答案。
-     *
      * @param  Collection<int, SurveyAnswer>  $answers
-     * @return list<string>
+     * @return list<array{response_number: string|null, submitted_at: string|null, text: string}>
      */
-    private function textSample(Collection $answers): array
+    private function textResponsePreviews(Collection $answers): array
     {
         return array_values($answers
-            ->map(fn (SurveyAnswer $a): ?string => filled($a->answer_text) ? (string) $a->answer_text : null)
-            ->filter()
-            ->take(10)
+            ->filter(fn (SurveyAnswer $answer): bool => filled($answer->answer_text))
+            ->sort(function (SurveyAnswer $left, SurveyAnswer $right): int {
+                return [
+                    $this->responseTimestamp($right->response),
+                    $right->id,
+                ] <=> [
+                    $this->responseTimestamp($left->response),
+                    $left->id,
+                ];
+            })
+            ->take(5)
+            ->map(fn (SurveyAnswer $answer): array => [
+                'response_number' => filled($answer->response->response_number)
+                    ? (string) $answer->response->response_number
+                    : null,
+                'submitted_at' => $this->responseDateTimeString($answer->response),
+                'text' => (string) $answer->answer_text,
+            ])
             ->values()
             ->all());
     }
@@ -654,6 +767,86 @@ class ComputeSurveyAnalyticsAction
     {
         return $response->submitted_at?->toDateString()
             ?? $response->created_at?->toDateString();
+    }
+
+    private function responseDateTimeString(SurveyResponse $response): ?string
+    {
+        return $response->submitted_at?->format('Y/m/d H:i')
+            ?? $response->created_at?->format('Y/m/d H:i');
+    }
+
+    private function responseTimestamp(SurveyResponse $response): int
+    {
+        return $response->submitted_at?->getTimestamp()
+            ?? $response->created_at?->getTimestamp()
+            ?? 0;
+    }
+
+    /**
+     * @param  Collection<int, string>  $dates
+     * @return 'day'|'week'|'month'
+     */
+    private function trendGranularity(Collection $dates): string
+    {
+        $dates = $dates
+            ->filter(fn (string $date): bool => $date !== '')
+            ->sort()
+            ->values();
+
+        if ($dates->count() < 2) {
+            return 'day';
+        }
+
+        $firstDate = Carbon::parse((string) $dates->first());
+        $lastDate = Carbon::parse((string) $dates->last());
+        $spanInDays = $firstDate->diffInDays($lastDate) + 1;
+
+        return match (true) {
+            $spanInDays <= 31 => 'day',
+            $spanInDays <= 180 => 'week',
+            default => 'month',
+        };
+    }
+
+    /**
+     * @param  'day'|'week'|'month'  $granularity
+     * @return array{key: string, label: string}
+     */
+    private function trendPeriod(string $date, string $granularity): array
+    {
+        $periodDate = Carbon::parse($date);
+
+        if ($granularity === 'week') {
+            $weekStart = $periodDate->copy()->startOfWeek(Carbon::MONDAY);
+            $weekEnd = $weekStart->copy()->endOfWeek(Carbon::SUNDAY);
+
+            return [
+                'key' => $weekStart->toDateString(),
+                'label' => $weekStart->format('Y/m/d').'–'.$weekEnd->format('m/d'),
+            ];
+        }
+
+        if ($granularity === 'month') {
+            return [
+                'key' => $periodDate->format('Y-m'),
+                'label' => $periodDate->format('Y 年 n 月'),
+            ];
+        }
+
+        return [
+            'key' => $periodDate->toDateString(),
+            'label' => $periodDate->format('Y/m/d'),
+        ];
+    }
+
+    /** @param 'day'|'week'|'month' $granularity */
+    private function trendGranularityLabel(string $granularity): string
+    {
+        return match ($granularity) {
+            'week' => '每週',
+            'month' => '每月',
+            default => '每日',
+        };
     }
 
     /**
