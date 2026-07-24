@@ -81,6 +81,10 @@ class SurveyAnswer extends Model
     /** @return list<array{id: string|null, label: string, value: string, capacity: int|null, is_hidden: bool, group: string|null}> */
     public function normalizedSnapshotOptions(): array
     {
+        if ($this->fieldType() === 'nps') {
+            return SurveyField::canonicalNpsOptions();
+        }
+
         if ($this->snapshot_options_json === null) {
             return $this->field->normalizedOptions();
         }

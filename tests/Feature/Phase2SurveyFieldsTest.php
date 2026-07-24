@@ -3,6 +3,7 @@
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
 use Lalalili\SurveyCore\Contracts\PersonalizationResolver;
 use Lalalili\SurveyCore\Data\SubmissionPayload;
@@ -42,26 +43,106 @@ function phase2Field(Survey $survey, SurveyFieldType $type, array $attributes = 
     ], $attributes));
 }
 
-it('validates number and nps ranges', function (): void {
+function publishedNpsSurvey(): Survey
+{
+    return app(PublishSurveyAction::class)->execute(Survey::create([
+        'title' => 'NPS validation',
+        'status' => SurveyStatus::Draft,
+        'draft_schema' => [
+            'id' => 'nps-validation',
+            'title' => 'NPS validation',
+            'status' => 'draft',
+            'version' => 1,
+            'pages' => [[
+                'id' => 'page_1',
+                'title' => 'NPS',
+                'elements' => [[
+                    'id' => 'nps_question',
+                    'type' => 'nps',
+                    'field_key' => 'nps',
+                    'label' => 'NPS',
+                    'description' => '',
+                    'required' => true,
+                    'placeholder' => null,
+                    'options' => [],
+                    'settings' => [],
+                ]],
+            ]],
+        ],
+    ]));
+}
+
+it('validates number ranges', function (): void {
     $survey = phase2Survey();
     phase2Field($survey, SurveyFieldType::Number, [
         'field_key' => 'amount',
         'settings_json' => ['min' => 0, 'max' => 10],
     ]);
-    phase2Field($survey, SurveyFieldType::Nps, ['field_key' => 'nps', 'sort_order' => 2]);
 
     $response = app(SubmitSurveyResponseAction::class)->execute(
         $survey->load('fields'),
-        new SubmissionPayload(['amount' => 5, 'nps' => 10]),
+        new SubmissionPayload(['amount' => 5]),
     );
 
-    expect($response->answers)->toHaveCount(2);
+    expect($response->answers)->toHaveCount(1);
 
     app(SubmitSurveyResponseAction::class)->execute(
         $survey->refresh()->load('fields'),
-        new SubmissionPayload(['amount' => 11, 'nps' => 11]),
+        new SubmissionPayload(['amount' => 11]),
     );
 })->throws(SurveyValidationException::class);
+
+it('accepts NPS boundary scores', function (int $score): void {
+    $survey = publishedNpsSurvey();
+
+    $response = app(SubmitSurveyResponseAction::class)->execute(
+        $survey,
+        new SubmissionPayload(['nps' => $score]),
+    );
+
+    expect($response->answers)->toHaveCount(1)
+        ->and($response->answers->sole()->answer_text)->toBe((string) $score);
+})->with([0, 10]);
+
+it('rejects NPS scores outside zero to ten', function (int $score): void {
+    $survey = publishedNpsSurvey();
+
+    app(SubmitSurveyResponseAction::class)->execute(
+        $survey,
+        new SubmissionPayload(['nps' => $score]),
+    );
+})->with([-1, 11])->throws(SurveyValidationException::class);
+
+it('normalizes legacy NPS options to the canonical zero-to-ten scale', function (): void {
+    $survey = phase2Survey();
+    $legacyOptions = array_map(
+        fn (int $score): array => [
+            'id' => 'score_'.$score,
+            'label' => (string) $score,
+            'value' => (string) $score,
+        ],
+        range(1, 10),
+    );
+    $field = phase2Field($survey, SurveyFieldType::Nps, [
+        'field_key' => 'legacy_nps',
+        'options_json' => $legacyOptions,
+    ]);
+    $response = SurveyResponse::create([
+        'survey_id' => $survey->id,
+        'submitted_at' => now(),
+    ]);
+    $answer = $response->answers()->create([
+        'survey_field_id' => $field->id,
+        'answer_text' => '0',
+        'snapshot_field_type' => 'nps',
+        'snapshot_options_json' => $legacyOptions,
+    ]);
+
+    expect($field->optionValues())->toBe(array_map('strval', range(0, 10)))
+        ->and(array_keys($field->optionsForDisplay()))->toBe(range(0, 10))
+        ->and(collect($field->normalizedOptions())->pluck('value')->all())->toBe(array_map('strval', range(0, 10)))
+        ->and(collect($answer->normalizedSnapshotOptions())->pluck('value')->all())->toBe(array_map('strval', range(0, 10)));
+});
 
 it('validates rating answers against configured count', function (): void {
     $survey = phase2Survey();

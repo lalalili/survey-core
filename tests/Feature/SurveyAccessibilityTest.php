@@ -1,5 +1,6 @@
 <?php
 
+use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Models\Survey;
@@ -107,26 +108,45 @@ it('labels the password gate input', function () {
 it('labels rating/nps custom controls and exposes keyboard focus styles', function () {
     config(['survey-core.frontend.css' => 'cdn']);
 
-    $survey = Survey::create([
+    $survey = app(PublishSurveyAction::class)->execute(Survey::create([
         'title' => 'Scales',
-        'status' => SurveyStatus::Published,
+        'status' => SurveyStatus::Draft,
         'allow_anonymous' => true,
-    ]);
-    SurveyField::create([
-        'survey_id' => $survey->id,
-        'type' => SurveyFieldType::Rating,
-        'label' => '服務評分',
-        'field_key' => 'rate',
-        'settings_json' => ['count' => 5, 'shape' => 'star'],
-        'sort_order' => 1,
-    ]);
-    SurveyField::create([
-        'survey_id' => $survey->id,
-        'type' => SurveyFieldType::Nps,
-        'label' => '推薦意願',
-        'field_key' => 'nps',
-        'sort_order' => 2,
-    ]);
+        'draft_schema' => [
+            'id' => 'accessible-scales',
+            'title' => 'Scales',
+            'status' => 'draft',
+            'version' => 1,
+            'pages' => [[
+                'id' => 'page_1',
+                'title' => 'Scales',
+                'elements' => [
+                    [
+                        'id' => 'rating_question',
+                        'type' => 'rating',
+                        'field_key' => 'rate',
+                        'label' => '服務評分',
+                        'description' => '',
+                        'required' => false,
+                        'placeholder' => null,
+                        'options' => [],
+                        'settings' => ['count' => 5, 'shape' => 'star'],
+                    ],
+                    [
+                        'id' => 'nps_question',
+                        'type' => 'nps',
+                        'field_key' => 'nps',
+                        'label' => '推薦意願',
+                        'description' => '',
+                        'required' => false,
+                        'placeholder' => null,
+                        'options' => [],
+                        'settings' => [],
+                    ],
+                ],
+            ]],
+        ],
+    ]));
 
     $this->get(route('survey.show', $survey->public_key))
         ->assertSuccessful()
@@ -135,9 +155,27 @@ it('labels rating/nps custom controls and exposes keyboard focus styles', functi
         ->assertSee('aria-label="0 分"', false)
         // 鍵盤焦點在可見的 pip/label 上呈現
         ->assertSee('.survey-nps-radio:focus-visible) .survey-nps-pip', false)
+        ->assertSee('grid-template-columns: repeat(11, minmax(0, 1fr))', false)
+        ->assertSee('min-width: 24px', false)
+        ->assertSee('min-height: 36px', false)
         ->assertSee('.survey-rating-star-label:has(.survey-rating-radio:focus-visible)', false)
         // NPS 端點文字對比達標的較深色
         ->assertSee('color: #4b5563', false);
+
+    config(['survey-core.frontend.css' => 'published']);
+
+    $this->get(route('survey.show', $survey->public_key))
+        ->assertSuccessful()
+        ->assertSee('value="0"', false)
+        ->assertSee('value="10"', false)
+        ->assertSee('grid-template-columns: repeat(11, minmax(0, 1fr))', false);
+
+    $publishedCss = file_get_contents(dirname(__DIR__, 2).'/resources/dist/survey.css');
+
+    expect($publishedCss)->toContain('grid-template-columns: repeat(11, minmax(0, 1fr))')
+        ->toContain('min-width: 24px')
+        ->toContain('min-height: 36px')
+        ->not->toContain('.survey-nps-row  { display: flex');
 });
 
 it('renders accessibility landmarks on the published variant', function () {

@@ -202,10 +202,15 @@ class ComputeSurveyAnalyticsAction
                 'distribution' => $this->optionDistribution($field, $answers),
             ]),
             SurveyFieldType::Rating,
-            SurveyFieldType::Nps,
             SurveyFieldType::LinearScale => array_merge($base, [
                 'average' => $this->average($answers),
                 'distribution' => $this->numericDistribution($answers),
+            ]),
+            SurveyFieldType::Nps => array_merge($base, [
+                'answered' => $this->validNpsAnswers($answers)->count(),
+                'average' => $this->npsAverage($answers),
+                'distribution' => $this->npsDistribution($answers),
+                'nps' => $this->npsStats($answers),
             ]),
             SurveyFieldType::Number => array_merge($base, [
                 'average' => $this->average($answers),
@@ -305,12 +310,142 @@ class ComputeSurveyAnalyticsAction
     {
         return array_values($answers
             ->map(fn (SurveyAnswer $answer): ?string => $answer->answer_text !== null ? (string) $answer->answer_text : null)
-            ->filter()
+            ->filter(fn (?string $value): bool => $value !== null && $value !== '')
             ->countBy()
             ->sortKeys()
             ->map(fn (int $count, string $value): array => ['value' => $value, 'count' => $count])
             ->values()
             ->all());
+    }
+
+    /**
+     * @param  Collection<int, SurveyAnswer>  $answers
+     * @return list<array{value: string, count: int}>
+     */
+    private function npsDistribution(Collection $answers): array
+    {
+        $counts = $this->validNpsAnswers($answers)
+            ->pluck('score')
+            ->countBy();
+
+        return array_map(
+            fn (int $score): array => [
+                'value' => (string) $score,
+                'count' => $counts->get($score, 0),
+            ],
+            range(0, 10),
+        );
+    }
+
+    /**
+     * @param  Collection<int, SurveyAnswer>  $answers
+     * @return array{
+     *     score: float|null,
+     *     respondents: int,
+     *     promoters: array{count: int, percentage: float},
+     *     passives: array{count: int, percentage: float},
+     *     detractors: array{count: int, percentage: float},
+     *     daily: list<array{date: string, score: float, respondents: int}>
+     * }
+     */
+    private function npsStats(Collection $answers): array
+    {
+        $validAnswers = $this->validNpsAnswers($answers);
+        $respondents = $validAnswers->count();
+
+        if ($respondents === 0) {
+            return [
+                'score' => null,
+                'respondents' => 0,
+                'promoters' => ['count' => 0, 'percentage' => 0.0],
+                'passives' => ['count' => 0, 'percentage' => 0.0],
+                'detractors' => ['count' => 0, 'percentage' => 0.0],
+                'daily' => [],
+            ];
+        }
+
+        $promoters = $validAnswers->where('score', '>=', 9)->count();
+        $passives = $validAnswers->whereBetween('score', [7, 8])->count();
+        $detractors = $validAnswers->where('score', '<=', 6)->count();
+
+        return [
+            'score' => $this->npsScore($promoters, $detractors, $respondents),
+            'respondents' => $respondents,
+            'promoters' => $this->npsGroup($promoters, $respondents),
+            'passives' => $this->npsGroup($passives, $respondents),
+            'detractors' => $this->npsGroup($detractors, $respondents),
+            'daily' => array_values($validAnswers
+                ->groupBy('date')
+                ->sortKeys()
+                ->map(function (Collection $dailyAnswers, string $date): array {
+                    $dailyRespondents = $dailyAnswers->count();
+
+                    return [
+                        'date' => $date,
+                        'score' => $this->npsScore(
+                            $dailyAnswers->where('score', '>=', 9)->count(),
+                            $dailyAnswers->where('score', '<=', 6)->count(),
+                            $dailyRespondents,
+                        ),
+                        'respondents' => $dailyRespondents,
+                    ];
+                })
+                ->values()
+                ->all()),
+        ];
+    }
+
+    /**
+     * @param  Collection<int, SurveyAnswer>  $answers
+     * @return Collection<int, array{score: int, date: string}>
+     */
+    private function validNpsAnswers(Collection $answers): Collection
+    {
+        return $answers
+            ->map(function (SurveyAnswer $answer): ?array {
+                if (! is_numeric($answer->answer_text)) {
+                    return null;
+                }
+
+                $numericScore = (float) $answer->answer_text;
+                $score = (int) $numericScore;
+                $date = $answer->response->submitted_at?->toDateString()
+                    ?? $answer->response->created_at?->toDateString();
+
+                if ($numericScore !== (float) $score || $score < 0 || $score > 10 || $date === null) {
+                    return null;
+                }
+
+                return ['score' => $score, 'date' => $date];
+            })
+            ->filter(fn (?array $answer): bool => $answer !== null)
+            ->values();
+    }
+
+    /**
+     * @return array{count: int, percentage: float}
+     */
+    private function npsGroup(int $count, int $respondents): array
+    {
+        return [
+            'count' => $count,
+            'percentage' => round(($count / $respondents) * 100, 1),
+        ];
+    }
+
+    private function npsScore(int $promoters, int $detractors, int $respondents): float
+    {
+        return round((($promoters - $detractors) / $respondents) * 100, 1);
+    }
+
+    /**
+     * @param  Collection<int, SurveyAnswer>  $answers
+     */
+    private function npsAverage(Collection $answers): ?float
+    {
+        $scores = $this->validNpsAnswers($answers)->pluck('score');
+
+        return $scores->isEmpty() ? null : round((float) $scores->avg(), 2);
     }
 
     /**

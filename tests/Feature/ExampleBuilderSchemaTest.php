@@ -1,6 +1,6 @@
 <?php
 
-use Lalalili\SurveyCore\Actions\SyncSurveyBuilderSchemaToFieldsAction;
+use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Actions\ValidateSurveyBuilderSchemaAction;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Models\Survey;
@@ -94,9 +94,11 @@ it('uses description as the canonical content for content blocks', function (): 
 
 it('syncs jump logic and conditional issue notes from the example schema', function (): void {
     $schema = app(ValidateSurveyBuilderSchemaAction::class)->execute(abcVehicleOwnerSurveySchema());
-    $survey = Survey::create(['title' => 'ABC Example', 'status' => SurveyStatus::Draft]);
-
-    app(SyncSurveyBuilderSchemaToFieldsAction::class)->execute($survey, $schema);
+    $survey = app(PublishSurveyAction::class)->execute(Survey::create([
+        'title' => 'ABC Example',
+        'status' => SurveyStatus::Draft,
+        'draft_schema' => $schema,
+    ]));
 
     $testDriveField = $survey->fields()->where('field_key', 'sales_test_drive_experience')->firstOrFail();
     $issueNoteFields = $survey->fields()
@@ -136,8 +138,9 @@ it('syncs jump logic and conditional issue notes from the example schema', funct
             'high_label' => '10 分',
             'color_bands' => true,
         ])
-            ->and($field->options_json)->toHaveCount(10)
+            ->and($field->options_json)->toHaveCount(11)
             ->and(collect($field->options_json)->pluck('value')->all())->toBe([
+                '0',
                 '1',
                 '2',
                 '3',
@@ -150,4 +153,11 @@ it('syncs jump logic and conditional issue notes from the example schema', funct
                 '10',
             ]);
     });
+
+    $survey->publishedSchemaVersion->fieldVersions
+        ->where('type', 'nps')
+        ->each(function ($fieldVersion): void {
+            expect($fieldVersion->options_json)->toHaveCount(11)
+                ->and(collect($fieldVersion->options_json)->pluck('value')->all())->toBe(array_map('strval', range(0, 10)));
+        });
 });

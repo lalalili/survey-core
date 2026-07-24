@@ -1,6 +1,7 @@
 <?php
 
 use Lalalili\SurveyCore\Actions\ComputeSurveyAnalyticsAction;
+use Lalalili\SurveyCore\Actions\PublishSurveyAction;
 use Lalalili\SurveyCore\Enums\SurveyFieldType;
 use Lalalili\SurveyCore\Enums\SurveyResponseCompletionStatus;
 use Lalalili\SurveyCore\Enums\SurveyResponseQualityStatus;
@@ -12,6 +13,35 @@ use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyPage;
 use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Models\SurveyResponseEvent;
+
+function publishedAnalyticsNpsSurvey(string $title = 'NPS analytics'): Survey
+{
+    return app(PublishSurveyAction::class)->execute(Survey::create([
+        'title' => $title,
+        'status' => SurveyStatus::Draft,
+        'draft_schema' => [
+            'id' => 'nps-analytics',
+            'title' => $title,
+            'status' => 'draft',
+            'version' => 1,
+            'pages' => [[
+                'id' => 'page_1',
+                'title' => 'NPS',
+                'elements' => [[
+                    'id' => 'nps_question',
+                    'type' => 'nps',
+                    'field_key' => 'nps',
+                    'label' => 'NPS',
+                    'description' => '',
+                    'required' => false,
+                    'placeholder' => null,
+                    'options' => [],
+                    'settings' => [],
+                ]],
+            ]],
+        ],
+    ]));
+}
 
 it('computes totals, collector performance, daily trend, and question distributions', function (): void {
     $survey = Survey::create([
@@ -47,6 +77,14 @@ it('computes totals, collector performance, daily trend, and question distributi
         'sort_order' => 2,
     ]);
 
+    $linearScale = SurveyField::create([
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::LinearScale,
+        'label' => 'Effort',
+        'field_key' => 'effort',
+        'sort_order' => 3,
+    ]);
+
     SurveyResponseEvent::create([
         'survey_id' => $survey->id,
         'survey_collector_id' => $collector->id,
@@ -77,6 +115,7 @@ it('computes totals, collector performance, daily trend, and question distributi
     SurveyAnswer::create(['survey_response_id' => $second->id, 'survey_field_id' => $choice->id, 'answer_text' => 'pro']);
     SurveyAnswer::create(['survey_response_id' => $first->id, 'survey_field_id' => $nps->id, 'answer_text' => '9']);
     SurveyAnswer::create(['survey_response_id' => $second->id, 'survey_field_id' => $nps->id, 'answer_text' => '7']);
+    SurveyAnswer::create(['survey_response_id' => $first->id, 'survey_field_id' => $linearScale->id, 'answer_text' => '0']);
 
     $yesterday = now()->subDay()->toDateString();
     $today = now()->toDateString();
@@ -109,8 +148,30 @@ it('computes totals, collector performance, daily trend, and question distributi
         ->and($analytics['questions'][1]['average'])->toBe(8.0)
         ->and($analytics['questions'][1]['distribution'])
         ->toBe([
+            ['value' => '0', 'count' => 0],
+            ['value' => '1', 'count' => 0],
+            ['value' => '2', 'count' => 0],
+            ['value' => '3', 'count' => 0],
+            ['value' => '4', 'count' => 0],
+            ['value' => '5', 'count' => 0],
+            ['value' => '6', 'count' => 0],
             ['value' => '7', 'count' => 1],
+            ['value' => '8', 'count' => 0],
             ['value' => '9', 'count' => 1],
+            ['value' => '10', 'count' => 0],
+        ])
+        ->and($analytics['questions'][1]['nps'])->toMatchArray([
+            'score' => 50.0,
+            'respondents' => 2,
+            'promoters' => ['count' => 1, 'percentage' => 50.0],
+            'passives' => ['count' => 1, 'percentage' => 50.0],
+            'detractors' => ['count' => 0, 'percentage' => 0.0],
+            'daily' => [
+                ['date' => $today, 'score' => 50.0, 'respondents' => 2],
+            ],
+        ])
+        ->and($analytics['questions'][2]['distribution'])->toBe([
+            ['value' => '0', 'count' => 1],
         ]);
 });
 
@@ -175,12 +236,86 @@ it('filters totals, daily trend, and question stats by collector', function (): 
             ['date' => now()->toDateString(), 'started' => 1, 'submitted' => 1],
         ])
         ->and($filtered['questions'][0]['answered'])->toBe(1)
-        ->and($filtered['questions'][0]['average'])->toBe(10.0);
+        ->and($filtered['questions'][0]['average'])->toBe(10.0)
+        ->and($filtered['questions'][0]['nps']['score'])->toBe(100.0);
+
+    $emailFiltered = app(ComputeSurveyAnalyticsAction::class)->execute($survey, $emailInvite->id);
 
     $unfiltered = app(ComputeSurveyAnalyticsAction::class)->execute($survey);
 
-    expect($unfiltered['totals']['submitted'])->toBe(2)
-        ->and($unfiltered['questions'][0]['average'])->toBe(6.0);
+    expect($emailFiltered['questions'][0]['nps']['score'])->toBe(-100.0)
+        ->and($unfiltered['totals']['submitted'])->toBe(2)
+        ->and($unfiltered['questions'][0]['average'])->toBe(6.0)
+        ->and($unfiltered['questions'][0]['nps']['score'])->toBe(0.0);
+});
+
+it('computes NPS groups, zero score distribution, and daily trend from valid answers', function (): void {
+    $survey = publishedAnalyticsNpsSurvey();
+    $nps = $survey->fields()->where('field_key', 'nps')->sole();
+    $scoresByDate = [
+        [now()->subDay()->startOfDay(), [9, 10]],
+        [now()->startOfDay(), [0, 6, 8]],
+    ];
+
+    foreach ($scoresByDate as [$submittedAt, $scores]) {
+        foreach ($scores as $score) {
+            $response = SurveyResponse::create([
+                'survey_id' => $survey->id,
+                'submitted_at' => $submittedAt,
+                'completion_status' => SurveyResponseCompletionStatus::Complete,
+            ]);
+            SurveyAnswer::create([
+                'survey_response_id' => $response->id,
+                'survey_field_id' => $nps->id,
+                'answer_text' => (string) $score,
+            ]);
+        }
+    }
+
+    $invalidResponse = SurveyResponse::create([
+        'survey_id' => $survey->id,
+        'submitted_at' => now(),
+        'completion_status' => SurveyResponseCompletionStatus::Complete,
+    ]);
+    SurveyAnswer::create([
+        'survey_response_id' => $invalidResponse->id,
+        'survey_field_id' => $nps->id,
+        'answer_text' => '11',
+    ]);
+
+    $question = app(ComputeSurveyAnalyticsAction::class)->execute($survey)['questions'][0];
+
+    expect($question['answered'])->toBe(5)
+        ->and($question['average'])->toBe(6.6)
+        ->and($question['distribution'][0])->toBe(['value' => '0', 'count' => 1])
+        ->and($question['distribution'])->toHaveCount(11)
+        ->and($question['nps'])->toMatchArray([
+            'score' => 0.0,
+            'respondents' => 5,
+            'promoters' => ['count' => 2, 'percentage' => 40.0],
+            'passives' => ['count' => 1, 'percentage' => 20.0],
+            'detractors' => ['count' => 2, 'percentage' => 40.0],
+            'daily' => [
+                ['date' => now()->subDay()->toDateString(), 'score' => 100.0, 'respondents' => 2],
+                ['date' => now()->toDateString(), 'score' => -66.7, 'respondents' => 3],
+            ],
+        ]);
+});
+
+it('returns an empty NPS summary without valid answers', function (): void {
+    $survey = publishedAnalyticsNpsSurvey('Empty NPS analytics');
+    $question = app(ComputeSurveyAnalyticsAction::class)->execute($survey)['questions'][0];
+
+    expect($question['distribution'])->toHaveCount(11)
+        ->and(collect($question['distribution'])->sum('count'))->toBe(0)
+        ->and($question['nps'])->toBe([
+            'score' => null,
+            'respondents' => 0,
+            'promoters' => ['count' => 0, 'percentage' => 0.0],
+            'passives' => ['count' => 0, 'percentage' => 0.0],
+            'detractors' => ['count' => 0, 'percentage' => 0.0],
+            'daily' => [],
+        ]);
 });
 
 it('excludes test, flagged, and quarantined responses from analytics', function (): void {
@@ -198,6 +333,13 @@ it('excludes test, flagged, and quarantined responses from analytics', function 
             ['label' => 'Excluded', 'value' => 'excluded'],
         ],
         'sort_order' => 1,
+    ]);
+    $nps = SurveyField::create([
+        'survey_id' => $survey->id,
+        'type' => SurveyFieldType::Nps,
+        'label' => 'NPS',
+        'field_key' => 'nps',
+        'sort_order' => 2,
     ]);
 
     $responses = collect([
@@ -233,6 +375,11 @@ it('excludes test, flagged, and quarantined responses from analytics', function 
             'survey_field_id' => $field->id,
             'answer_text' => $index === 0 ? 'included' : 'excluded',
         ]);
+        SurveyAnswer::create([
+            'survey_response_id' => $response->id,
+            'survey_field_id' => $nps->id,
+            'answer_text' => $index === 0 ? '9' : '0',
+        ]);
     }
 
     $analytics = app(ComputeSurveyAnalyticsAction::class)->execute($survey);
@@ -242,7 +389,10 @@ it('excludes test, flagged, and quarantined responses from analytics', function 
         ->and($analytics['questions'][0]['distribution'])->toBe([
             ['value' => 'included', 'label' => 'Included', 'count' => 1],
             ['value' => 'excluded', 'label' => 'Excluded', 'count' => 0],
-        ]);
+        ])
+        ->and($analytics['questions'][1]['nps']['respondents'])->toBe(1)
+        ->and($analytics['questions'][1]['nps']['score'])->toBe(100.0)
+        ->and($analytics['questions'][1]['distribution'][0])->toBe(['value' => '0', 'count' => 0]);
 });
 
 it('builds a per-page drop-off funnel from page_viewed events', function (): void {

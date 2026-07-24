@@ -128,6 +128,10 @@ class SurveyField extends Model
      */
     public function optionsForDisplay(): array
     {
+        if ($this->type === SurveyFieldType::Nps) {
+            return collect(self::canonicalNpsOptions())->pluck('label', 'value')->all();
+        }
+
         if (empty($this->options_json)) {
             return [];
         }
@@ -156,6 +160,10 @@ class SurveyField extends Model
      */
     public function optionValues(): array
     {
+        if ($this->type === SurveyFieldType::Nps) {
+            return array_column(self::canonicalNpsOptions(), 'value');
+        }
+
         if (empty($this->options_json)) {
             return [];
         }
@@ -177,6 +185,10 @@ class SurveyField extends Model
      */
     public function normalizedOptions(): array
     {
+        if ($this->type === SurveyFieldType::Nps) {
+            return self::canonicalNpsOptions();
+        }
+
         if (empty($this->options_json)) {
             return [];
         }
@@ -209,6 +221,24 @@ class SurveyField extends Model
             ])
             ->values()
             ->all());
+    }
+
+    /**
+     * @return list<array{id: string, label: string, value: string, capacity: null, is_hidden: false, group: null}>
+     */
+    public static function canonicalNpsOptions(): array
+    {
+        return array_map(
+            fn (int $score): array => [
+                'id' => 'score_'.$score,
+                'label' => (string) $score,
+                'value' => (string) $score,
+                'capacity' => null,
+                'is_hidden' => false,
+                'group' => null,
+            ],
+            range(0, 10),
+        );
     }
 
     /**

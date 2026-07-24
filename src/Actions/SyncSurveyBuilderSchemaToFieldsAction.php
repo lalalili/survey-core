@@ -179,14 +179,7 @@ class SyncSurveyBuilderSchemaToFieldsAction
     private function builderOptionsToFieldOptions(array $element): array
     {
         if (SurveyFieldType::from($element['type']) === SurveyFieldType::Nps) {
-            return array_map(
-                fn (int $score): array => [
-                    'id' => 'score_'.$score,
-                    'label' => (string) $score,
-                    'value' => (string) $score,
-                ],
-                range(1, 10),
-            );
+            return SurveyField::canonicalNpsOptions();
         }
 
         $options = [];

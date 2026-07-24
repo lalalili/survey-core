@@ -258,19 +258,20 @@
         }
 
         .survey-nps-row {
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(11, minmax(0, 1fr));
             gap: 0.3rem;
-            flex-wrap: wrap;
         }
 
         .survey-nps-label {
-            flex: 1;
-            min-width: 2.25rem;
+            min-width: 0;
             cursor: pointer;
         }
 
         .survey-nps-pip {
             display: block;
+            min-width: 24px;
+            min-height: 36px;
             text-align: center;
             padding: 0.5rem 0;
             border: 1.5px solid #d1d5db;
@@ -308,6 +309,20 @@
             justify-content: space-between;
             font-size: 0.75rem;
             color: #4b5563;
+        }
+
+        @media (max-width: 420px) {
+            .survey-nps-wrap {
+                margin-inline: -1.25rem;
+            }
+
+            .survey-nps-row {
+                gap: 0.125rem;
+            }
+
+            .survey-nps-pip {
+                font-size: 0.75rem;
+            }
         }
 
         #progress-bar {
