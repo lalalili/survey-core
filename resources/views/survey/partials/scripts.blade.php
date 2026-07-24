@@ -1133,9 +1133,27 @@
                 }),
             });
 
-            var data = await res.json();
+            var data = null;
+            try {
+                data = await res.json();
+            } catch {
+                data = null;
+            }
 
-            if (res.ok) {
+            var restoreSubmitButton = function () {
+                if (submitBtn) { submitBtn.disabled = false; }
+                if (spinner) { spinner.style.display = 'none'; }
+                if (label) { label.textContent = '送出問卷'; }
+            };
+
+            var showErrorBanner = function (message) {
+                var errorBanner = document.getElementById('error-banner');
+                var errorText   = document.getElementById('error-text');
+                if (errorText) { errorText.textContent = message; }
+                if (errorBanner) { show(errorBanner); }
+            };
+
+            if (res.ok && data) {
                 clearDraft();
                 hide(document.getElementById('survey-form'));
                 hide(document.getElementById('page-indicator'));
@@ -1147,19 +1165,20 @@
                     successText.innerHTML = msg;
                 }
                 applyThankYouRedirect();
-            } else if (res.status === 422 && data.errors) {
+            } else if (res.status === 422 && data && data.errors) {
                 showFieldErrorsOnFirstErrorPage(data.errors);
-                if (submitBtn) { submitBtn.disabled = false; }
-                if (spinner) { spinner.style.display = 'none'; }
-                if (label) { label.textContent = '送出問卷'; }
+                restoreSubmitButton();
+            } else if (res.status === 419) {
+                // CSRF token 逾時（填答頁開啟過久）：伺服器回傳非 JSON 的逾時頁面。
+                showErrorBanner('頁面已閒置過久，請重新整理頁面後再送出（已填內容會保留）。');
+                restoreSubmitButton();
+            } else if (data && data.message) {
+                showErrorBanner(data.message);
+                restoreSubmitButton();
             } else {
-                var errorBanner = document.getElementById('error-banner');
-                var errorText   = document.getElementById('error-text');
-                if (errorText) { errorText.textContent = data.message ?? '送出失敗，請稍後再試。'; }
-                if (errorBanner) { show(errorBanner); }
-                if (submitBtn) { submitBtn.disabled = false; }
-                if (spinner) { spinner.style.display = 'none'; }
-                if (label) { label.textContent = '送出問卷'; }
+                // 非預期的非 JSON 回應（例如 500）：避免誤導成「網路錯誤」。
+                showErrorBanner('伺服器忙碌中，請稍後再試。');
+                restoreSubmitButton();
             }
         } catch {
             var errorBanner = document.getElementById('error-banner');
