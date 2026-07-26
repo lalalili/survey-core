@@ -91,10 +91,10 @@ abstract class TestCase extends PackageTestCase
             $table->timestamps();
         });
 
-        $this->loadMigrationsFrom(__DIR__.'/../../audience-core/database/migrations');
+        $this->loadMigrationsFrom(__DIR__.'/../vendor/lalalili/audience-core/database/migrations');
 
         if (class_exists(EmailCampaignServiceProvider::class)) {
-            $this->loadMigrationsFrom(__DIR__.'/../../email-campaign/database/migrations');
+            $this->loadMigrationsFrom(__DIR__.'/../vendor/lalalili/email-campaign/database/migrations');
         }
 
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
