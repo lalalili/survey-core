@@ -46,6 +46,9 @@
             "providers": [
                 "Lalalili\\SurveyCore\\SurveyCoreServiceProvider"
             ]
+        },
+        "branch-alias": {
+            "dev-main": "0.2.x-dev"
         }
     },
     "suggest": {
@@ -53,31 +56,16 @@
     },
     "repositories": [
         {
-            "type": "path",
-            "url": "../audience-core",
-            "options": {
-                "symlink": true,
-                "versions": {
-                    "lalalili/audience-core": "0.1.1"
-                }
-            }
+            "type": "vcs",
+            "url": "https://github.com/lalalili/audience-core.git"
         },
         {
-            "type": "path",
-            "url": "../email-campaign",
-            "options": {
-                "symlink": true,
-                "versions": {
-                    "lalalili/email-campaign": "0.1.1"
-                }
-            }
+            "type": "vcs",
+            "url": "https://github.com/lalalili/email-campaign.git"
         },
         {
-            "type": "path",
-            "url": "../package-testing-support",
-            "options": {
-                "symlink": false
-            }
+            "type": "vcs",
+            "url": "https://github.com/lalalili/package-testing-support.git"
         }
     ],
     "config": {
@@ -87,8 +75,6 @@
             "phpstan/extension-installer": true
         }
     },
-    "minimum-stability": "dev",
-    "prefer-stable": true,
     "scripts": {
         "test": "pest",
         "analyse": "phpstan analyse --configuration=phpstan.neon.dist --no-progress",
