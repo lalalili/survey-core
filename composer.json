@@ -13,7 +13,7 @@
         "illuminate/events": "^11.0|^12.0|^13.0",
         "illuminate/console": "^11.0|^12.0|^13.0",
         "google/apiclient": "^2.15",
-        "lalalili/audience-core": "^0.1.1",
+        "lalalili/audience-core": "^1.0",
         "laravel-at/laravel-image-sanitize": "^5.0",
         "masbug/flysystem-google-drive-ext": "^2.5",
         "openspout/openspout": "^4.0",
@@ -22,14 +22,14 @@
         "spatie/laravel-package-tools": "^1.16"
     },
     "require-dev": {
-        "lalalili/email-campaign": "^0.1.1",
+        "lalalili/email-campaign": "^1.0",
         "orchestra/testbench": "^9.0|^10.0|^11.0",
         "pestphp/pest": "^3.0|^4.0",
         "pestphp/pest-plugin-laravel": "^3.0|^4.0",
         "laravel/pint": "^1.0",
         "larastan/larastan": "^3.0",
         "phpstan/phpstan": "~2.2.0",
-        "lalalili/package-testing-support": "*"
+        "lalalili/package-testing-support": "^1.0"
     },
     "autoload": {
         "psr-4": {
@@ -48,7 +48,7 @@
             ]
         },
         "branch-alias": {
-            "dev-main": "0.2.x-dev"
+            "dev-main": "1.0.x-dev"
         }
     },
     "suggest": {
