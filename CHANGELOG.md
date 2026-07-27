@@ -2,6 +2,21 @@
 
 All notable changes to `lalalili/survey-core` will be documented in this file.
 
+## [1.0.1] - 2026-07-27
+
+### Fixed
+
+- `php` 約束由 `^8.2` 更正為 `^8.4`。相依鏈上的
+  `spatie/laravel-activitylog ^5.0` 硬性要求 php `^8.4`,原本的宣告與
+  現實不符,在 8.2/8.3 上根本無法安裝。
+- `phpstan.neon.dist` 的 `tmpDir` 由 `../../storage/...` 改為套件內的
+  `build/phpstan`,不再假設套件位於宿主 `packages/` 底下。
+
+### Added
+
+- 掛上 `lalalili/.github` 的共用 CI 與 Release workflow。此套件先前因為
+  相依私有 repo 而無法在 CI 解析依賴,長期沒有自動化測試。
+
 ## [1.0.0] - 2026-07-27
 
 ### Changed
