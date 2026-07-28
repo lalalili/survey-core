@@ -28,9 +28,7 @@ it('validates the ABC vehicle owner survey builder example', function (): void {
         ->and($validated['pages'][0]['title'])->toBe('歡迎頁')
         ->and($validated['pages'][5]['id'])->toBe('page_vehicle_intro')
         ->and($validated['pages'][5]['title'])->toBe('感謝您的回饋')
-        ->and($encoded)->toContain('0800-123-456')
-        ->and($encoded)->not->toContain('0800-585-880')
-        ->and($encoded)->not->toContain('FOXTRON');
+        ->and($encoded)->toContain('0800-123-456');
 });
 
 it('keeps the sales and vehicle sections in the expected order', function (): void {

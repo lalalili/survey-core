@@ -2,6 +2,12 @@
 
 All notable changes to `lalalili/survey-core` will be documented in this file.
 
+## [1.1.1] - 2026-07-28
+
+### Changed
+
+- 將範例問卷測試 fixture 的驗證去識別化，保留中性內容與結構契約。
+
 ## [1.1.0] - 2026-07-28
 
 ### Added
