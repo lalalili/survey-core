@@ -552,6 +552,18 @@ class ValidateSurveySubmissionAction
             $validator->errors()->add($field->field_key, (string) ($rules['pattern_label'] ?? "「{$field->label}」至少需輸入 {$rules['min_length']} 個字。"));
         }
 
+        $minimumChineseLength = (int) ($rules['min_chinese_length'] ?? 0);
+        $chineseCharacterCount = preg_match_all('/\p{Han}/u', $value);
+
+        if (
+            in_array($field->type, [SurveyFieldType::ShortText, SurveyFieldType::LongText], true)
+            && $minimumChineseLength > 0
+            && $chineseCharacterCount !== false
+            && $chineseCharacterCount < $minimumChineseLength
+        ) {
+            $validator->errors()->add($field->field_key, "「{$field->label}」至少需輸入 {$minimumChineseLength} 個中文字。");
+        }
+
         if (isset($rules['max_length']) && mb_strlen($value) > (int) $rules['max_length']) {
             $validator->errors()->add($field->field_key, "「{$field->label}」最多只能輸入 {$rules['max_length']} 個字。");
         }

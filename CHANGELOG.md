@@ -2,6 +2,12 @@
 
 All notable changes to `lalalili/survey-core` will be documented in this file.
 
+## [1.1.0] - 2026-07-28
+
+### Added
+
+- 單行與多行文字題新增最少中文字數驗證，使用 Unicode Han 字元計數。
+
 ## [1.0.1] - 2026-07-27
 
 ### Fixed

@@ -127,6 +127,7 @@ class ValidateSurveyBuilderSchemaAction
             'pages.*.elements.*.cascade_levels.*.label' => ['required_with:pages.*.elements.*.cascade_levels', 'string', 'max:255'],
             'pages.*.elements.*.cascade_data' => ['nullable', 'array'],
             'pages.*.elements.*.validation_rules' => ['nullable', 'array'],
+            'pages.*.elements.*.validation_rules.min_chinese_length' => ['nullable', 'integer', 'min:0'],
             'pages.*.elements.*.show_if' => ['nullable', 'array'],
             'pages.*.elements.*.show_if_field_key' => ['nullable', 'string', 'max:100'],
             'pages.*.elements.*.show_if_value' => ['nullable', 'string', 'max:255'],
