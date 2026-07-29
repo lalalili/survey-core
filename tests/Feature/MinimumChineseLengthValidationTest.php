@@ -181,6 +181,23 @@ it('allows zero or omitted minimum Chinese length without restricting text', fun
     'omitted' => [[]],
 ]);
 
+it('preserves total text length limits in validated builder schemas', function () {
+    $schema = minimumChineseLengthSchema(3);
+    $schema['pages'][0]['elements'][0]['validation_rules'] = [
+        'min_length' => 5,
+        'min_chinese_length' => 3,
+        'max_length' => 100,
+    ];
+
+    $validated = app(ValidateSurveyBuilderSchemaAction::class)->execute($schema);
+
+    expect($validated['pages'][0]['elements'][0]['validation_rules'])->toBe([
+        'min_length' => 5,
+        'min_chinese_length' => 3,
+        'max_length' => 100,
+    ]);
+});
+
 it('rejects invalid minimum Chinese lengths in builder schemas', function (mixed $minimumChineseLength) {
     try {
         app(ValidateSurveyBuilderSchemaAction::class)->execute(
