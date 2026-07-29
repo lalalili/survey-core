@@ -418,12 +418,63 @@
             }
         });
 
+        pageEl.querySelectorAll('[data-field-type="short_text"], [data-field-type="long_text"]').forEach(function (fieldEl) {
+            var message = validateTextField(fieldEl);
+            if (message) {
+                errors[fieldEl.getAttribute('data-field-key')] = [message];
+                valid = false;
+            }
+        });
+
         if (Object.keys(errors).length > 0) {
             showFieldErrors(errors);
             focusFirstError(errors);
         }
 
         return valid;
+    }
+
+    var hanCharacterPattern = null;
+
+    try {
+        hanCharacterPattern = new RegExp('\\p{Script=Han}', 'gu');
+    } catch (error) {
+        // Older browsers defer this rule to the server-side validation boundary.
+    }
+
+    function validateTextField(fieldEl) {
+        var input = fieldEl.querySelector('input:not(:disabled), textarea:not(:disabled)');
+        if (!input || input.value === '') { return null; }
+
+        var fieldLabel = fieldEl.getAttribute('data-field-label') || '此題';
+        var characterCount = Array.from(input.value).length;
+        var minimumLength = fieldEl.hasAttribute('data-min-length')
+            ? Number(fieldEl.getAttribute('data-min-length'))
+            : null;
+        var minimumChineseLength = fieldEl.hasAttribute('data-min-chinese-length')
+            ? Number(fieldEl.getAttribute('data-min-chinese-length'))
+            : null;
+        var maximumLength = fieldEl.hasAttribute('data-max-length')
+            ? Number(fieldEl.getAttribute('data-max-length'))
+            : null;
+
+        if (Number.isFinite(minimumLength) && characterCount < minimumLength) {
+            return fieldEl.getAttribute('data-min-length-message')
+                || '「' + fieldLabel + '」至少需輸入 ' + minimumLength + ' 個字。';
+        }
+
+        if (Number.isFinite(minimumChineseLength) && minimumChineseLength > 0 && hanCharacterPattern) {
+            var chineseCharacterCount = (input.value.match(hanCharacterPattern) || []).length;
+            if (chineseCharacterCount < minimumChineseLength) {
+                return '「' + fieldLabel + '」至少需輸入 ' + minimumChineseLength + ' 個中文字。';
+            }
+        }
+
+        if (Number.isFinite(maximumLength) && characterCount > maximumLength) {
+            return '「' + fieldLabel + '」最多只能輸入 ' + maximumLength + ' 個字。';
+        }
+
+        return null;
     }
 
     function validateConstantSumField(fieldEl) {
@@ -545,6 +596,12 @@
             el.textContent = '';
             if (isCdnMode()) { el.classList.add('hidden'); }
             else { el.classList.remove('visible'); }
+            var fieldEl = findFieldElement(el.getAttribute('data-field'));
+            if (fieldEl) {
+                fieldEl.querySelectorAll('input, textarea, select').forEach(function (input) {
+                    input.removeAttribute('aria-invalid');
+                });
+            }
         });
         var banner = document.getElementById('error-banner');
         if (banner) { hide(banner); }
@@ -559,6 +616,12 @@
             el.textContent = Array.isArray(messages) ? messages[0] : messages;
             if (isCdnMode()) { el.classList.remove('hidden'); }
             else { el.classList.add('visible'); }
+            var fieldEl = findFieldElement(field);
+            if (fieldEl) {
+                fieldEl.querySelectorAll('input:not(:disabled), textarea:not(:disabled), select:not(:disabled)').forEach(function (input) {
+                    input.setAttribute('aria-invalid', 'true');
+                });
+            }
         });
     }
 
@@ -1319,6 +1382,7 @@
 
     document.getElementById('survey-form').addEventListener('submit', function (e) {
         e.preventDefault();
+        if (!validatePage(currentPageKey)) { return; }
         doSubmit();
     });
 
@@ -1390,11 +1454,34 @@
             el.textContent = '';
             if (isCdnMode()) { el.classList.add('hidden'); }
             else { el.classList.remove('visible'); }
+            var fieldEl = findFieldElement(fieldKey);
+            if (fieldEl) {
+                fieldEl.querySelectorAll('input, textarea, select').forEach(function (input) {
+                    input.removeAttribute('aria-invalid');
+                });
+            }
+        }
+
+        function validateInteractedTextField(fieldEl) {
+            var fieldKey = fieldEl.getAttribute('data-field-key');
+            var input = fieldEl.querySelector('input:not(:disabled), textarea:not(:disabled)');
+            var message = input && !input.checkValidity()
+                ? input.validationMessage
+                : validateTextField(fieldEl);
+
+            if (message) {
+                showFieldErrors({ [fieldKey]: [message] });
+            } else {
+                clearFieldError(fieldKey);
+            }
         }
 
         document.addEventListener('focusout', function (event) {
             var target = event.target;
             if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) {
+                return;
+            }
+            if (event.relatedTarget instanceof HTMLElement && event.relatedTarget.matches('#btn-next, #submit-btn')) {
                 return;
             }
             if (target.disabled || target.type === 'file' || target.type === 'radio' || target.type === 'checkbox') {
@@ -1404,6 +1491,12 @@
             var fieldEl = target.closest('[data-field-key]');
             if (!fieldEl) { return; }
             var fieldKey = fieldEl.getAttribute('data-field-key');
+
+            if (fieldEl.matches('[data-field-type="short_text"], [data-field-type="long_text"]')) {
+                fieldEl.setAttribute('data-text-validation-interacted', 'true');
+                validateInteractedTextField(fieldEl);
+                return;
+            }
 
             if (fieldEl.getAttribute('data-field-type') === 'constant_sum') {
                 var msg = validateConstantSumField(fieldEl);
@@ -1416,6 +1509,25 @@
                 showFieldErrors({ [fieldKey]: [target.validationMessage] });
             } else {
                 clearFieldError(fieldKey);
+            }
+        });
+
+        document.addEventListener('input', function (event) {
+            var target = event.target;
+            if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) || target.disabled) {
+                return;
+            }
+
+            var fieldEl = target.closest('[data-field-type="short_text"], [data-field-type="long_text"]');
+            if (!fieldEl) { return; }
+
+            var fieldKey = fieldEl.getAttribute('data-field-key');
+            var errorEl = document.querySelector('.field-error[data-field="' + selectorEscape(fieldKey) + '"]');
+            var hasError = errorEl && errorEl.textContent !== '';
+            var hasBeenInteractedWith = fieldEl.getAttribute('data-text-validation-interacted') === 'true';
+
+            if (hasError || hasBeenInteractedWith) {
+                validateInteractedTextField(fieldEl);
             }
         });
     }());

@@ -27,7 +27,7 @@ it('does not render hidden options on the public page', function () {
     $this->get("/survey/{$survey->public_key}")
         ->assertSuccessful()
         ->assertSee('Visible')
-        ->assertDontSee('Old');
+        ->assertDontSee('>Old<', false);
 });
 
 it('keeps historical answers for hidden option values readable', function () {

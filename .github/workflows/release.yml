@@ -1,15 +1,28 @@
 name: Release
 
 on:
-  push:
-    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '要發布的 semver tag，例如 v1.1.3'
+        required: true
+        type: string
+      sha:
+        description: '要發布的完整 40 字元 main commit SHA'
+        required: true
+        type: string
 
-# caller 的權限是 reusable workflow 的上限。repo 預設是 read,
-# 不在這裡宣告 write 的話,被呼叫的 workflow 會直接 startup_failure。
 permissions:
   contents: write
 
 jobs:
   release:
-    uses: lalalili/.github/.github/workflows/php-package-release.yml@main
-    secrets: inherit
+    uses: lalalili/.github/.github/workflows/php-package-validated-release.yml@main
+    secrets:
+      satis-dispatch-token: ${{ secrets.SATIS_DISPATCH_TOKEN }}
+    with:
+      version: ${{ inputs.version }}
+      sha: ${{ inputs.sha }}
+      php-extensions: 'dom, mbstring, pdo_sqlite, sockets, zip'
+      run-browser: true
+      run-validate: false

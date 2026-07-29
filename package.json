@@ -1,0 +1,10 @@
+{
+    "name": "@lalalili/survey-core-browser-tests",
+    "private": true,
+    "scripts": {
+        "playwright:install": "playwright install chromium"
+    },
+    "devDependencies": {
+        "playwright": "1.55.0"
+    }
+}

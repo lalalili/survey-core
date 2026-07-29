@@ -93,6 +93,16 @@
                  data-field-key="{{ $fk }}"
                  data-field-type="{{ $type }}"
                  data-field-label="{{ $field->label }}"
+                 @if(in_array($type, ['short_text', 'long_text'], true) && isset($field->validation_rules['min_length']))
+                 data-min-length="{{ $field->validation_rules['min_length'] }}"
+                 @if(!empty($field->validation_rules['pattern_label'])) data-min-length-message="{{ $field->validation_rules['pattern_label'] }}" @endif
+                 @endif
+                 @if(in_array($type, ['short_text', 'long_text'], true) && isset($field->validation_rules['min_chinese_length']))
+                 data-min-chinese-length="{{ $field->validation_rules['min_chinese_length'] }}"
+                 @endif
+                 @if(in_array($type, ['short_text', 'long_text'], true) && isset($field->validation_rules['max_length']))
+                 data-max-length="{{ $field->validation_rules['max_length'] }}"
+                 @endif
                  @if($field->is_required)
                  data-field-required="true"
                  aria-required="true"
@@ -124,6 +134,7 @@
                         type="{{ $isEmailInput ? 'email' : ($isMobileInput ? 'tel' : 'text') }}"
                         name="answers[{{ $fk }}]"
                         aria-labelledby="q-label-{{ $fk }}"
+                        @if($type === 'short_text') aria-describedby="field-error-{{ $fk }}" @endif
                         placeholder="{{ $field->placeholder ?? '' }}"
                         value="{{ $field->default_value ?? '' }}"
                         @if($isMobileInput) inputmode="numeric" minlength="10" maxlength="10" pattern="09[0-9]{8}" @endif
@@ -132,7 +143,7 @@
                     >
 
                 @elseif($type === 'long_text')
-                    <textarea name="answers[{{ $fk }}]" aria-labelledby="q-label-{{ $fk }}" rows="4"
+                    <textarea name="answers[{{ $fk }}]" aria-labelledby="q-label-{{ $fk }}" aria-describedby="field-error-{{ $fk }}" rows="4"
                         placeholder="{{ $field->placeholder ?? '' }}"
                         @if($field->is_required) required @endif
                         class="survey-textarea">{{ $field->default_value ?? '' }}</textarea>
@@ -385,7 +396,7 @@
                     </div>
                 @endif
 
-                <p class="survey-field-error field-error" data-field="{{ $fk }}" role="alert" aria-live="assertive"></p>
+                <p id="field-error-{{ $fk }}" class="survey-field-error field-error" data-field="{{ $fk }}" role="status" aria-live="polite"></p>
             </div>
             @endif
             @endforeach

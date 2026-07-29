@@ -56,6 +56,15 @@ abstract class TestCase extends PackageTestCase
         ]);
     }
 
+    protected function defineRoutes($router): void
+    {
+        $router->get('/vendor/survey-core/survey.css', fn () => response(
+            file_get_contents(__DIR__.'/../resources/dist/survey.css'),
+            200,
+            ['Content-Type' => 'text/css'],
+        ));
+    }
+
     protected function tearDown(): void
     {
         $root = $this->mediaTestRoot();

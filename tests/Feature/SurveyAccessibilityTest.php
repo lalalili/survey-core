@@ -58,7 +58,7 @@ it('renders accessibility landmarks on the cdn variant', function () {
         ->assertSuccessful()
         // 錯誤容器讓螢幕報讀器即時播報
         ->assertSee('id="error-banner" role="alert" aria-live="assertive"', false)
-        ->assertSee('class="text-xs text-red-500 mt-1 hidden field-error" data-field="mtx" role="alert"', false)
+        ->assertSee('class="text-xs text-red-500 mt-1 hidden field-error" data-field="mtx" role="status" aria-live="polite"', false)
         // 進度資訊
         ->assertSee('role="status" aria-live="polite"', false)
         ->assertSee('aria-label="填答進度"', false)

@@ -8,4 +8,6 @@ jobs:
     secrets: inherit
     with:
       php-versions: "['8.4']"
+      php-extensions: 'dom, mbstring, pdo_sqlite, sockets, zip'
+      run-browser: true
       run-validate: false
