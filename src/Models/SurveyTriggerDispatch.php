@@ -2,8 +2,10 @@
 
 namespace Lalalili\SurveyCore\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Lalalili\SurveyCore\Enums\TriggerDispatchStatus;
 
@@ -11,6 +13,7 @@ use Lalalili\SurveyCore\Enums\TriggerDispatchStatus;
  * @property int $id
  * @property int $survey_trigger_rule_id
  * @property int $survey_response_id
+ * @property string $action_key
  * @property TriggerDispatchStatus $status
  * @property array<string, mixed>|null $payload_json
  * @property array<string, mixed>|null $response_json
@@ -19,12 +22,14 @@ use Lalalili\SurveyCore\Enums\TriggerDispatchStatus;
  * @property Carbon|null $dispatched_at
  * @property-read SurveyTriggerRule $rule
  * @property-read SurveyResponse $response
+ * @property-read Collection<int, SurveyTriggerActionAttempt> $actionAttempts
  */
 class SurveyTriggerDispatch extends Model
 {
     protected $fillable = [
         'survey_trigger_rule_id',
         'survey_response_id',
+        'action_key',
         'status',
         'payload_json',
         'response_json',
@@ -58,5 +63,13 @@ class SurveyTriggerDispatch extends Model
     public function response(): BelongsTo
     {
         return $this->belongsTo(SurveyResponse::class, 'survey_response_id');
+    }
+
+    /**
+     * @return HasMany<SurveyTriggerActionAttempt, $this>
+     */
+    public function actionAttempts(): HasMany
+    {
+        return $this->hasMany(SurveyTriggerActionAttempt::class, 'survey_trigger_dispatch_id');
     }
 }

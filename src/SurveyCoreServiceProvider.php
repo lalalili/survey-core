@@ -15,6 +15,7 @@ use Lalalili\SurveyCore\Actions\SubmitSurveyResponseAction;
 use Lalalili\SurveyCore\Actions\ValidateSurveySubmissionAction;
 use Lalalili\SurveyCore\Console\Commands\CheckTurnstileConfigCommand;
 use Lalalili\SurveyCore\Console\Commands\PrunePartialDraftsCommand;
+use Lalalili\SurveyCore\Console\Commands\PruneSurveyTriggerActionAttemptsCommand;
 use Lalalili\SurveyCore\Console\Commands\RunTriggerRulesCommand;
 use Lalalili\SurveyCore\Console\Commands\SurveyScheduleCommand;
 use Lalalili\SurveyCore\Contracts\PersonalizationResolver;
@@ -93,6 +94,9 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
                 '2026_07_19_035614_backfill_survey_schema_versions',
                 '2026_07_19_210000_add_published_requires_schema_version_check',
                 '2026_07_23_004016_add_soft_deletes_to_survey_trigger_rules',
+                '2026_07_31_000001_add_action_key_to_survey_trigger_dispatches_table',
+                '2026_07_31_000002_create_survey_trigger_action_attempts_table',
+                '2026_07_31_000003_create_survey_trigger_dms_ticket_sequences_table',
             ])
             ->runsMigrations()
             ->hasRoutes(['web']);
@@ -133,6 +137,7 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
             $this->commands([
                 SurveyScheduleCommand::class,
                 PrunePartialDraftsCommand::class,
+                PruneSurveyTriggerActionAttemptsCommand::class,
                 RunTriggerRulesCommand::class,
                 CheckTurnstileConfigCommand::class,
             ]);

@@ -4,6 +4,8 @@
     "type": "library",
     "license": "MIT",
     "require": {
+        "ext-dom": "*",
+        "ext-xmlwriter": "*",
         "php": "^8.4",
         "illuminate/support": "^11.0|^12.0|^13.0",
         "illuminate/database": "^11.0|^12.0|^13.0",

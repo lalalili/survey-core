@@ -53,6 +53,8 @@ class ExpandPresetsAction
 
             $definition = is_array($preset->action_json) ? $preset->action_json : [];
             $definition['name'] = $definition['name'] ?? $preset->name;
+            $definition['_preset_id'] = (int) $preset->getKey();
+            $definition['_action_key'] = 'preset:'.$preset->getKey();
 
             $expanded[] = $definition;
         }

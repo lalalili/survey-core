@@ -219,6 +219,31 @@ return [
             'trim',
             explode(',', (string) env('SURVEY_TRIGGER_HEADER_ENV_KEYS', '')),
         ))),
+        'dms' => [
+            'profile' => env('SURVEY_DMS_PROFILE', 'qa'),
+            'manual_test_enabled' => (bool) env('SURVEY_DMS_MANUAL_TEST_ENABLED', false),
+            'attempt_retention_days' => (int) env('SURVEY_DMS_ATTEMPT_RETENTION_DAYS', 90),
+            'connect_timeout' => (int) env('SURVEY_DMS_CONNECT_TIMEOUT', 5),
+            'timeout' => (int) env('SURVEY_DMS_TIMEOUT', 15),
+            'success_error_codes' => array_values(array_filter(array_map(
+                'trim',
+                explode(',', (string) env('SURVEY_DMS_SUCCESS_ERROR_CODES', '')),
+            ))),
+            'profiles' => [
+                'qa' => [
+                    'endpoint' => env('DMS_QA_ENDPOINT'),
+                    'wsdl' => env('DMS_QA_WSDL'),
+                    'key' => env('DMS_QA_KEY'),
+                    'soap_action' => env('DMS_QA_SOAP_ACTION', 'urn:ws_CRMTicket#ws_setTicket'),
+                ],
+                'production' => [
+                    'endpoint' => env('DMS_PRODUCTION_ENDPOINT'),
+                    'wsdl' => env('DMS_PRODUCTION_WSDL'),
+                    'key' => env('DMS_PRODUCTION_KEY'),
+                    'soap_action' => env('DMS_PRODUCTION_SOAP_ACTION', 'urn:ws_CRMTicket#ws_setTicket'),
+                ],
+            ],
+        ],
     ],
 
     /*

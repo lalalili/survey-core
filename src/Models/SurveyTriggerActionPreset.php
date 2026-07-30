@@ -2,7 +2,9 @@
 
 namespace Lalalili\SurveyCore\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Lalalili\AudienceCore\Concerns\LogsModelActivity;
 
 /**
@@ -15,6 +17,7 @@ use Lalalili\AudienceCore\Concerns\LogsModelActivity;
  * @property string|null $description
  * @property array<string, mixed> $action_json
  * @property bool $is_active
+ * @property-read Collection<int, SurveyTriggerActionAttempt> $attempts
  */
 class SurveyTriggerActionPreset extends Model
 {
@@ -34,5 +37,16 @@ class SurveyTriggerActionPreset extends Model
             'action_json' => 'array',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * @return HasMany<SurveyTriggerActionAttempt, $this>
+     */
+    public function attempts(): HasMany
+    {
+        return $this->hasMany(
+            SurveyTriggerActionAttempt::class,
+            'survey_trigger_action_preset_id',
+        );
     }
 }
