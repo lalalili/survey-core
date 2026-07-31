@@ -7,6 +7,7 @@ use Lalalili\SurveyCore\Actions\Triggers\BuildDmsRequestParameters;
 use Lalalili\SurveyCore\Actions\Triggers\DispatchDmsSoapTriggerAction;
 use Lalalili\SurveyCore\Actions\Triggers\DispatchManualDmsTestAction;
 use Lalalili\SurveyCore\Actions\Triggers\DmsTicketNumberAllocator;
+use Lalalili\SurveyCore\Contracts\DmsEmployeeCodeResolver;
 use Lalalili\SurveyCore\Enums\DmsExecutionMode;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Enums\SurveyTriggerActionAttemptStatus;
@@ -167,6 +168,30 @@ it('uses category-specific open question and description templates and normalize
         ->and($parameters['acb_dealercode'])->toBe('LC')
         ->and($parameters['acb_deptcode'])->toBe('09S00')
         ->and($parameters['description'])->toStartWith('銷售滿意度｜2026-07-31 10:30:00');
+});
+
+it('uses the host resolved employee code for automatic DMS requests', function (): void {
+    [$dispatch, $response] = dmsDispatchFixture('CSI');
+    $response->setRelation('answers', collect());
+    app()->instance(DmsEmployeeCodeResolver::class, new class implements DmsEmployeeCodeResolver
+    {
+        public function resolve(SurveyResponse $response, array $action): ?string
+        {
+            return '  LC0218  ';
+        }
+    });
+
+    $parameters = app(BuildDmsRequestParameters::class)->fromResponse(
+        $response,
+        $dispatch,
+        [
+            ...dmsAutomaticAction(),
+            'employee_code' => 'legacy-fallback',
+        ],
+        'preset:manager',
+    );
+
+    expect($parameters['acb_empcode'])->toBe('LC0218');
 });
 
 it('uses category-specific descriptions and the singular fallback for manual samples', function (): void {

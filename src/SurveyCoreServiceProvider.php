@@ -19,6 +19,7 @@ use Lalalili\SurveyCore\Console\Commands\PruneSurveyTriggerActionAttemptsCommand
 use Lalalili\SurveyCore\Console\Commands\RunTriggerRulesCommand;
 use Lalalili\SurveyCore\Console\Commands\SurveyScheduleCommand;
 use Lalalili\SurveyCore\Contracts\PersonalizationResolver;
+use Lalalili\SurveyCore\Contracts\DmsEmployeeCodeResolver;
 use Lalalili\SurveyCore\Events\SurveySubmitted;
 use Lalalili\SurveyCore\Events\SurveyTokenResolved;
 use Lalalili\SurveyCore\Integrations\EmailCampaign\SurveyVariableProvider;
@@ -30,6 +31,7 @@ use Lalalili\SurveyCore\Services\Exports\CsvSurveyExportDriver;
 use Lalalili\SurveyCore\Services\Exports\SurveyExportManager;
 use Lalalili\SurveyCore\Services\Exports\XlsxSurveyExportDriver;
 use Lalalili\SurveyCore\Support\EmailCampaignIntegration;
+use Lalalili\SurveyCore\Support\NullDmsEmployeeCodeResolver;
 use Lalalili\SurveyCore\Support\SurveyFileUploadToken;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -162,6 +164,8 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
 
     public function registeringPackage(): void
     {
+        $this->app->bindIf(DmsEmployeeCodeResolver::class, NullDmsEmployeeCodeResolver::class);
+
         // Personalization resolver — swappable via config
         $this->app->bind(PersonalizationResolver::class, function ($app) {
             return $app->make(config('survey-core.personalization.resolver'));

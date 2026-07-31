@@ -3,6 +3,7 @@
 namespace Lalalili\SurveyCore\Actions\Triggers;
 
 use Illuminate\Support\Carbon;
+use Lalalili\SurveyCore\Contracts\DmsEmployeeCodeResolver;
 use Lalalili\SurveyCore\Exceptions\DmsConfigurationException;
 use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Models\SurveyTriggerDispatch;
@@ -11,6 +12,7 @@ final class BuildDmsRequestParameters
 {
     public function __construct(
         private readonly DmsTicketNumberAllocator $ticketNumbers,
+        private readonly DmsEmployeeCodeResolver $employeeCodes,
     ) {}
 
     /**
@@ -39,6 +41,11 @@ final class BuildDmsRequestParameters
         );
         $action['description_template'] = data_get($action, "description_templates.{$category}")
             ?? ($action['description_template'] ?? '');
+        $resolvedEmployeeCode = $this->employeeCodes->resolve($response, $action);
+
+        if (filled($resolvedEmployeeCode)) {
+            $action['employee_code'] = trim((string) $resolvedEmployeeCode);
+        }
 
         return $this->parameters(
             action: $action,
