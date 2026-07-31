@@ -12,6 +12,20 @@ use Lalalili\SurveyCore\Models\SurveyPage;
  *
  * Returns null if the survey has no pages or no jump logic (all pages considered visited).
  * Returns a list<int> of survey_page.id values that were reached.
+ *
+ * 兩種跳題來源：
+ *
+ * 1. **選項跳題**（`survey_fields.options_json[].action`）——single_choice 與 select
+ *    支援，建立器右側面板可設定，公開填答頁與建立器預覽都已實作。
+ * 2. **頁面層規則**（`survey_pages.settings_json['jump_rules']`）——本類別與公開填答頁
+ *    （`scripts.blade.php` 的 `PAGE_JUMP_MAP` / `resolveNextPageKey`）都完整支援，
+ *    schema 往返也有處理，**但建立器沒有提供任何編輯介面**，因此正常流程不會產生
+ *    這種資料（2026-08-01 實查：22 個頁面全為空）。
+ *
+ *    這是已知且刻意的現況，不是待辦：設計者目前只透過選項跳題設定流程。要開放
+ *    頁面層規則得先補建立器 UI（可複用 builder-ui-core 的 RuleTreeBuilder），
+ *    預覽端再跟上。在那之前，此處的 jump_rules 分支只對直接寫入 DB 或以 API
+ *    灌入 schema 的資料生效。
  */
 final class JumpLogicResolver
 {
