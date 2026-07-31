@@ -2,6 +2,36 @@
 
 All notable changes to `lalalili/survey-core` will be documented in this file.
 
+## [1.4.0] - 2026-08-01
+
+### Fixed
+
+公開填答頁的顯示條件求值與伺服器端 `ConditionGroupEvaluator` 不一致，導致部分
+條件在受訪者端靜默失效（不會有任何錯誤訊息）。全部改為對齊權威實作：
+
+- **條件值為數字時不再永遠不成立。** 先前用嚴格相等 `current === expected` 比對，
+  但送出的答案永遠是字串，條件值卻常在 schema 裡存成數字（評分、線性刻度、NPS），
+  於是這類顯示條件從未成立、被控制的題目永遠不顯示。這是本次影響最大的一項。
+- **支援 `greater_than_or_equal` / `less_than_or_equal`（含 `>=`、`<=`）。**
+  先前這些運算子會掉進最後的 `valueMatches` 而被當成 `equals` 比較。
+- **`contains` 不再把陣列 join 後當字串比對。** 先前 `['a','b']` 會誤中 `'a,b'`。
+- **`is_empty` 改為先 trim。** 純空白字串先前被當成已作答。
+- 條件群組遞迴加上與後端相同的深度上限，避免畸形資料造成無限遞迴。
+
+### Changed
+
+- 顯示條件求值抽成 `survey/partials/condition-evaluator` partial，由
+  `scripts.blade.php` 以 Blade include 引入。純 JavaScript、無 Blade 語法，
+  維持公開填答頁零 build step 與 CDN 模式相容。
+
+### Added
+
+- `tests/Fixtures/condition-consistency.json`：跨實作共用 fixture，同時餵給
+  `tests/Feature/ConditionConsistencyTest.php`（PHP，斷言權威行為）與
+  `tests/js/conditionConsistency.test.js`（公開頁，把 partial 當純 JS 求值）。
+  兩邊日後再度分歧會被這組測試擋下。
+- CI 新增 JS tests job。
+
 ## [1.1.1] - 2026-07-28
 
 ### Changed

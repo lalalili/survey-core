@@ -31,11 +31,7 @@
     {
       "name": "equals 比對數值型的條件值",
       "group": { "logic": "and", "conditions": [{ "field_key": "score", "op": "equals", "value": 0 }] },
-      "expected": true,
-      "client_divergence": {
-        "actual": false,
-        "why": "PHP 以 (string) 轉型後比對；公開頁用 current === expected 嚴格相等。DOM 取值永遠是字串，條件值若在 schema 裡存成數字（評分、線性刻度常見）就永遠不成立。"
-      }
+      "expected": true
     },
     {
       "name": "equals 未命中",
@@ -65,11 +61,7 @@
     {
       "name": "contains 不該把陣列拼接後的字串當成子字串",
       "group": { "logic": "and", "conditions": [{ "field_key": "tags", "op": "contains", "value": "a,b" }] },
-      "expected": false,
-      "client_divergence": {
-        "actual": true,
-        "why": "PHP 對陣列只做成員比對；公開頁多了 String(current).includes(expected) 後援，陣列被 join 成 'a,b' 因而誤中。"
-      }
+      "expected": false
     },
     {
       "name": "not_contains 在已作答題目上成立",
@@ -84,11 +76,7 @@
     {
       "name": "is_empty 對純空白字串成立",
       "group": { "logic": "and", "conditions": [{ "field_key": "whitespace", "op": "is_empty", "value": null }] },
-      "expected": true,
-      "client_divergence": {
-        "actual": false,
-        "why": "PHP 用 blank()，會先 trim 再判斷；公開頁只比對 === '' ，純空白字串因此被當成已作答。"
-      }
+      "expected": true
     },
     {
       "name": "is_not_empty 對已作答題目成立",
@@ -113,11 +101,7 @@
     {
       "name": "greater_than_or_equal 受支援",
       "group": { "logic": "and", "conditions": [{ "field_key": "score", "op": "greater_than_or_equal", "value": -5 }] },
-      "expected": true,
-      "client_divergence": {
-        "actual": false,
-        "why": "PHP 支援 greater_than_or_equal / less_than_or_equal / >= / <=；公開頁沒有這些分支，會掉進最後的 valueMatches 當成 equals 比較。"
-      }
+      "expected": true
     },
     {
       "name": "between 在範圍內成立",
