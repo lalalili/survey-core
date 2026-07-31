@@ -53,7 +53,10 @@ it('sends raw SOAP XML once and stores a redacted encrypted audit attempt', func
     )
         && $request->hasHeader('SOAPAction', 'urn:test#ws_setTicket')
         && str_contains($request->body(), '<sKey xsi:type="xsd:string">qa-secret</sKey>')
-        && str_contains($request->body(), '測試 &lt;客戶&gt;'));
+        && str_contains($request->body(), '測試 &lt;客戶&gt;')
+        && str_contains($request->body(), '<description xsi:type="xsd:string">CSI｜請主動聯絡</description>')
+        && str_contains($request->body(), '<category xsi:type="urn:ArrayOf_TicketCategory" SOAP-ENC:arrayType="urn:TicketCategory[1]">')
+        && str_contains($request->body(), '<item xsi:type="urn:TicketCategory">'));
 });
 
 it('records connection errors without an automatic HTTP retry', function (): void {
@@ -166,6 +169,42 @@ it('uses category-specific open question and description templates and normalize
         ->and($parameters['description'])->toStartWith('銷售滿意度｜2026-07-31 10:30:00');
 });
 
+it('uses category-specific descriptions and the singular fallback for manual samples', function (): void {
+    $builder = app(BuildDmsRequestParameters::class);
+    $action = [
+        'profile' => 'qa',
+        'description_template' => 'fallback｜{{survey_category}}｜{{open_answer}}',
+        'description_templates' => [
+            'CSI' => '服務｜{{survey_category}}｜{{open_answer}}',
+            'SSI' => '銷售｜{{survey_category}}｜{{open_answer}}',
+            'IQS' => '品質｜{{survey_category}}｜{{open_answer}}',
+        ],
+    ];
+
+    foreach ([
+        'CSI' => '服務｜CSI｜請主動聯絡',
+        'SSI' => '銷售｜SSI｜請主動聯絡',
+        'IQS' => '品質｜IQS｜請主動聯絡',
+    ] as $category => $expectedDescription) {
+        $parameters = $builder->fromManualSample([
+            ...dmsSample(),
+            'ticketno' => "{$category}20260731000001",
+            'category' => strtolower($category),
+        ], $action);
+
+        expect($parameters['description'])->toBe($expectedDescription);
+    }
+
+    unset($action['description_templates']['IQS']);
+    $fallback = $builder->fromManualSample([
+        ...dmsSample(),
+        'ticketno' => 'IQS20260731000002',
+        'category' => 'IQS',
+    ], $action);
+
+    expect($fallback['description'])->toBe('fallback｜IQS｜請主動聯絡');
+});
+
 it('creates an independent dispatch for each action on the same response', function (): void {
     config()->set('external-communications.enabled', true);
     Http::fake([
@@ -259,7 +298,9 @@ function dmsExecutionPreset(): SurveyTriggerActionPreset
             'open_method_id' => 'I',
             'category_path' => '電車保母 > 專案',
             'employee_code' => 'LC0218',
-            'description_template' => '{{survey_category}}｜{{open_answer}}',
+            'description_templates' => [
+                'CSI' => '{{survey_category}}｜{{open_answer}}',
+            ],
             'success_error_codes' => ['0'],
         ],
     ]);

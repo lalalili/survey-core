@@ -12,6 +12,8 @@ final class BuildDmsSoapEnvelope
 
     private const XSD_NAMESPACE = 'http://www.w3.org/2001/XMLSchema';
 
+    private const SOAP_ENCODING_NAMESPACE = 'http://schemas.xmlsoap.org/soap/encoding/';
+
     private const DMS_NAMESPACE = 'urn:ws_CRMTicket';
 
     /**
@@ -26,6 +28,7 @@ final class BuildDmsSoapEnvelope
         $writer->writeAttribute('xmlns:xsi', self::XSI_NAMESPACE);
         $writer->writeAttribute('xmlns:xsd', self::XSD_NAMESPACE);
         $writer->writeAttribute('xmlns:urn', self::DMS_NAMESPACE);
+        $writer->writeAttribute('xmlns:SOAP-ENC', self::SOAP_ENCODING_NAMESPACE);
         $writer->startElementNs('soapenv', 'Header', null);
         $writer->endElement();
         $writer->startElementNs('soapenv', 'Body', null);
@@ -78,16 +81,25 @@ final class BuildDmsSoapEnvelope
      */
     private function writeTicketCategories(XMLWriter $writer, array $categories): void
     {
-        foreach ($categories as $category) {
-            if (! is_array($category)) {
-                continue;
-            }
+        $categories = array_values(array_filter($categories, 'is_array'));
 
-            $writer->startElement('TicketCategory');
+        $writer->startElement('category');
+        $writer->writeAttributeNs('xsi', 'type', null, 'urn:ArrayOf_TicketCategory');
+        $writer->writeAttributeNs(
+            'SOAP-ENC',
+            'arrayType',
+            null,
+            'urn:TicketCategory['.count($categories).']',
+        );
+
+        foreach ($categories as $category) {
+            $writer->startElement('item');
             $writer->writeAttributeNs('xsi', 'type', null, 'urn:TicketCategory');
             $this->writeTypedString($writer, 'seq', (string) ($category['seq'] ?? '1'));
             $this->writeTypedString($writer, 'categorypath', (string) ($category['categorypath'] ?? ''));
             $writer->endElement();
         }
+
+        $writer->endElement();
     }
 }

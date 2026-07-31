@@ -49,9 +49,24 @@ final class ParseDmsSoapResponse
 
         $errorCode = trim((string) $xpath->evaluate('string(//*[local-name()="error_code"][1])'));
         $errorMessage = trim((string) $xpath->evaluate('string(//*[local-name()="error_msg"][1])'));
+        $returnValue = trim((string) $xpath->evaluate(
+            'string(//*[local-name()="ws_setTicketResponse"]/*[local-name()="return"][1]/*[local-name()="return"][1])',
+        ));
         $parsed = ['error_code' => $errorCode, 'error_msg' => $errorMessage];
 
+        if ($returnValue !== '') {
+            $parsed = ['return' => $returnValue, ...$parsed];
+        }
+
         if ($successCodes !== [] && in_array($errorCode, $successCodes, true)) {
+            return new DmsSoapResponseResult(
+                SurveyTriggerActionAttemptStatus::Success,
+                $parsed,
+                null,
+            );
+        }
+
+        if (strtoupper($returnValue) === 'Y' && $errorCode === '' && $errorMessage === '') {
             return new DmsSoapResponseResult(
                 SurveyTriggerActionAttemptStatus::Success,
                 $parsed,

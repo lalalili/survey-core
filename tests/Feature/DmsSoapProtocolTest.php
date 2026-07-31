@@ -22,7 +22,8 @@ it('builds a SOAP 1.1 envelope from structured parameters and escapes values', f
         ->toContain('<urn:ws_setTicket')
         ->toContain('<ticketno xsi:type="xsd:string">SSI20260731000001</ticketno>')
         ->toContain('客戶 &lt;不滿意&gt; &amp; 請聯絡')
-        ->toContain('<TicketCategory xsi:type="urn:TicketCategory">')
+        ->toContain('<category xsi:type="urn:ArrayOf_TicketCategory" SOAP-ENC:arrayType="urn:TicketCategory[1]">')
+        ->toContain('<item xsi:type="urn:TicketCategory">')
         ->and($builder->redactKey($xml))
         ->toContain('<sKey xsi:type="xsd:string">[REDACTED]</sKey>')
         ->not->toContain('secret&lt;&amp;');
@@ -32,6 +33,9 @@ it('classifies SOAP success business errors faults and unconfirmed responses', f
     $parser = app(ParseDmsSoapResponse::class);
 
     $success = $parser->execute(dmsResponseXml('0', ''), 200, ['0']);
+    $accepted = $parser->execute(dmsAcceptedResponseXml('Y'), 200, []);
+    $acceptedWithError = $parser->execute(dmsAcceptedResponseXml('Y', 'E102', '分類錯誤'), 200, []);
+    $rejectedWithoutError = $parser->execute(dmsAcceptedResponseXml('N'), 200, []);
     $businessError = $parser->execute(dmsResponseXml('E101', '車牌不存在'), 200, ['0']);
     $pending = $parser->execute(dmsResponseXml('', ''), 200, []);
     $confirmedEmptySuccess = $parser->execute(dmsResponseXml('', ''), 200, [], true);
@@ -43,6 +47,11 @@ it('classifies SOAP success business errors faults and unconfirmed responses', f
     $httpError = $parser->execute('<html>bad gateway</html>', 502, ['0']);
 
     expect($success->status)->toBe(SurveyTriggerActionAttemptStatus::Success)
+        ->and($accepted->status)->toBe(SurveyTriggerActionAttemptStatus::Success)
+        ->and($accepted->parsed)->toBe(['return' => 'Y', 'error_code' => '', 'error_msg' => ''])
+        ->and($acceptedWithError->status)->toBe(SurveyTriggerActionAttemptStatus::BusinessError)
+        ->and($acceptedWithError->error)->toBe('分類錯誤')
+        ->and($rejectedWithoutError->status)->toBe(SurveyTriggerActionAttemptStatus::PendingReview)
         ->and($businessError->status)->toBe(SurveyTriggerActionAttemptStatus::BusinessError)
         ->and($businessError->error)->toBe('車牌不存在')
         ->and($pending->status)->toBe(SurveyTriggerActionAttemptStatus::PendingReview)
@@ -119,6 +128,27 @@ function dmsResponseXml(string $errorCode, string $errorMessage): string
       <soap:Body>
         <ws_setTicketResponse xmlns="urn:ws_CRMTicket">
           <return>
+            <error_code>{$errorCode}</error_code>
+            <error_msg>{$errorMessage}</error_msg>
+          </return>
+        </ws_setTicketResponse>
+      </soap:Body>
+    </soap:Envelope>
+    XML;
+}
+
+function dmsAcceptedResponseXml(
+    string $returnValue,
+    string $errorCode = '',
+    string $errorMessage = '',
+): string
+{
+    return <<<XML
+    <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+      <soap:Body>
+        <ws_setTicketResponse xmlns="urn:ws_CRMTicket">
+          <return>
+            <return>{$returnValue}</return>
             <error_code>{$errorCode}</error_code>
             <error_msg>{$errorMessage}</error_msg>
           </return>

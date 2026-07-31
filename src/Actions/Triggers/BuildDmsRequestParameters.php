@@ -69,6 +69,8 @@ final class BuildDmsRequestParameters
         $category = strtoupper((string) ($sample['category'] ?? ''));
         $submittedAt = Carbon::parse((string) ($sample['submitted_at'] ?? now()));
         $ticketNo = trim((string) ($sample['ticketno'] ?? ''));
+        $action['description_template'] = data_get($action, "description_templates.{$category}")
+            ?? ($action['description_template'] ?? '');
 
         if ($ticketNo === '') {
             $ticketNo = $this->ticketNumbers->execute($profile, $category, $submittedAt);
