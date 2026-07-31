@@ -1,6 +1,7 @@
 {
     "name": "@lalalili/survey-core-browser-tests",
     "private": true,
+    "packageManager": "npm@11.12.1",
     "scripts": {
         "playwright:install": "playwright install chromium",
         "test": "vitest run"
