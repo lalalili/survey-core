@@ -1,0 +1,199 @@
+{
+  "_comment": [
+    "顯示條件求值的跨實作一致性 fixture。同一份餵給兩邊：",
+    "  PHP    : Lalalili\\SurveyCore\\Support\\ConditionGroupEvaluator::passes()  ← 權威實作",
+    "  公開頁 : survey/partials/condition-evaluator.blade.php 的 conditionGroupPasses",
+    "",
+    "公開填答頁那份是受訪者實際執行的程式，分歧的後果直接落在填答結果上。",
+    "expected = PHP 的結果（權威）。",
+    "若某案例的公開頁結果與 PHP 不同，就在該案例加上 client_divergence，",
+    "記下目前實際的回傳值與原因。JS 測試會 pin 住那個值——",
+    "一旦有人把公開頁修對，測試就會失敗，提醒他移除這個標記。",
+    "",
+    "建立器預覽另有一份同源 fixture 在 lalalili/survey-filament 的",
+    "tests/Fixtures/preview-condition-consistency.json。"
+  ],
+  "answers": {
+    "plan": { "type": "single_choice", "value": "pro" },
+    "note": { "type": "short_text", "value": "" },
+    "text": { "type": "short_text", "value": "hello world" },
+    "score": { "type": "number", "value": "0" },
+    "tags": { "type": "multiple_choice", "value": ["a", "b"] },
+    "unanswered": { "type": "short_text", "value": null },
+    "whitespace": { "type": "short_text", "value": "   " }
+  },
+  "cases": [
+    {
+      "name": "equals 命中",
+      "group": { "logic": "and", "conditions": [{ "field_key": "plan", "op": "equals", "value": "pro" }] },
+      "expected": true
+    },
+    {
+      "name": "equals 比對數值型的條件值",
+      "group": { "logic": "and", "conditions": [{ "field_key": "score", "op": "equals", "value": 0 }] },
+      "expected": true,
+      "client_divergence": {
+        "actual": false,
+        "why": "PHP 以 (string) 轉型後比對；公開頁用 current === expected 嚴格相等。DOM 取值永遠是字串，條件值若在 schema 裡存成數字（評分、線性刻度常見）就永遠不成立。"
+      }
+    },
+    {
+      "name": "equals 未命中",
+      "group": { "logic": "and", "conditions": [{ "field_key": "plan", "op": "equals", "value": "basic" }] },
+      "expected": false
+    },
+    {
+      "name": "not_equals 在已作答題目上成立",
+      "group": { "logic": "and", "conditions": [{ "field_key": "plan", "op": "not_equals", "value": "basic" }] },
+      "expected": true
+    },
+    {
+      "name": "not_equals 在未作答題目上不成立",
+      "group": { "logic": "and", "conditions": [{ "field_key": "unanswered", "op": "not_equals", "value": "x" }] },
+      "expected": false
+    },
+    {
+      "name": "contains 命中陣列成員",
+      "group": { "logic": "and", "conditions": [{ "field_key": "tags", "op": "contains", "value": "a" }] },
+      "expected": true
+    },
+    {
+      "name": "contains 命中字串子字串",
+      "group": { "logic": "and", "conditions": [{ "field_key": "text", "op": "contains", "value": "world" }] },
+      "expected": true
+    },
+    {
+      "name": "contains 不該把陣列拼接後的字串當成子字串",
+      "group": { "logic": "and", "conditions": [{ "field_key": "tags", "op": "contains", "value": "a,b" }] },
+      "expected": false,
+      "client_divergence": {
+        "actual": true,
+        "why": "PHP 對陣列只做成員比對；公開頁多了 String(current).includes(expected) 後援，陣列被 join 成 'a,b' 因而誤中。"
+      }
+    },
+    {
+      "name": "not_contains 在已作答題目上成立",
+      "group": { "logic": "and", "conditions": [{ "field_key": "tags", "op": "not_contains", "value": "z" }] },
+      "expected": true
+    },
+    {
+      "name": "is_empty 對空字串成立",
+      "group": { "logic": "and", "conditions": [{ "field_key": "note", "op": "is_empty", "value": null }] },
+      "expected": true
+    },
+    {
+      "name": "is_empty 對純空白字串成立",
+      "group": { "logic": "and", "conditions": [{ "field_key": "whitespace", "op": "is_empty", "value": null }] },
+      "expected": true,
+      "client_divergence": {
+        "actual": false,
+        "why": "PHP 用 blank()，會先 trim 再判斷；公開頁只比對 === '' ，純空白字串因此被當成已作答。"
+      }
+    },
+    {
+      "name": "is_not_empty 對已作答題目成立",
+      "group": { "logic": "and", "conditions": [{ "field_key": "plan", "op": "is_not_empty", "value": null }] },
+      "expected": true
+    },
+    {
+      "name": "greater_than 對數值答案成立",
+      "group": { "logic": "and", "conditions": [{ "field_key": "score", "op": "greater_than", "value": -1 }] },
+      "expected": true
+    },
+    {
+      "name": "greater_than 對未作答不成立",
+      "group": { "logic": "and", "conditions": [{ "field_key": "unanswered", "op": "greater_than", "value": -1 }] },
+      "expected": false
+    },
+    {
+      "name": "greater_than 對非數值答案不成立",
+      "group": { "logic": "and", "conditions": [{ "field_key": "plan", "op": "greater_than", "value": 1 }] },
+      "expected": false
+    },
+    {
+      "name": "greater_than_or_equal 受支援",
+      "group": { "logic": "and", "conditions": [{ "field_key": "score", "op": "greater_than_or_equal", "value": -5 }] },
+      "expected": true,
+      "client_divergence": {
+        "actual": false,
+        "why": "PHP 支援 greater_than_or_equal / less_than_or_equal / >= / <=；公開頁沒有這些分支，會掉進最後的 valueMatches 當成 equals 比較。"
+      }
+    },
+    {
+      "name": "between 在範圍內成立",
+      "group": { "logic": "and", "conditions": [{ "field_key": "score", "op": "between", "value": { "min": -1, "max": 1 } }] },
+      "expected": true
+    },
+    {
+      "name": "between 的 value 非範圍物件時不成立",
+      "group": { "logic": "and", "conditions": [{ "field_key": "score", "op": "between", "value": 5 }] },
+      "expected": false
+    },
+    {
+      "name": "and 全部成立",
+      "group": {
+        "logic": "and",
+        "conditions": [
+          { "field_key": "plan", "op": "equals", "value": "pro" },
+          { "field_key": "tags", "op": "contains", "value": "b" }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "and 其中一項不成立",
+      "group": {
+        "logic": "and",
+        "conditions": [
+          { "field_key": "plan", "op": "equals", "value": "pro" },
+          { "field_key": "tags", "op": "contains", "value": "z" }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "or 只要一項成立",
+      "group": {
+        "logic": "or",
+        "conditions": [
+          { "field_key": "plan", "op": "equals", "value": "basic" },
+          { "field_key": "tags", "op": "contains", "value": "b" }
+        ]
+      },
+      "expected": true
+    },
+    {
+      "name": "or 全部不成立",
+      "group": {
+        "logic": "or",
+        "conditions": [
+          { "field_key": "plan", "op": "equals", "value": "basic" },
+          { "field_key": "tags", "op": "contains", "value": "z" }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "巢狀條件群組",
+      "group": {
+        "logic": "and",
+        "conditions": [
+          { "field_key": "plan", "op": "equals", "value": "pro" },
+          {
+            "logic": "or",
+            "conditions": [
+              { "field_key": "tags", "op": "contains", "value": "y" },
+              { "field_key": "tags", "op": "contains", "value": "z" }
+            ]
+          }
+        ]
+      },
+      "expected": false
+    },
+    {
+      "name": "空的 conditions 視為顯示",
+      "group": { "logic": "and", "conditions": [] },
+      "expected": true
+    }
+  ]
+}

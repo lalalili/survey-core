@@ -11,3 +11,27 @@ jobs:
       php-extensions: 'dom, mbstring, pdo_sqlite, sockets, zip'
       run-browser: true
       run-validate: false
+
+  # 公開填答頁的顯示條件求值有一份 JavaScript 實作（condition-evaluator partial），
+  # 與 PHP 權威實作 ConditionGroupEvaluator 的一致性由 vitest 把關。
+  js:
+    name: JS tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Tests
+        run: pnpm vitest run
