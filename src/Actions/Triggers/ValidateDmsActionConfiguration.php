@@ -57,10 +57,15 @@ final class ValidateDmsActionConfiguration
             }
         }
 
-        foreach (['open_method_id', 'category_path', 'employee_code'] as $parameter) {
+        foreach (['open_method_id', 'employee_code'] as $parameter) {
             if (blank($action[$parameter] ?? null)) {
                 throw new DmsConfigurationException("DMS parameter [{$parameter}] is required.");
             }
+        }
+
+        if (blank($action['category_path'] ?? null)
+            && blank($action['category_paths'] ?? null)) {
+            throw new DmsConfigurationException('DMS parameter [category_path] is required.');
         }
 
         if (blank($action['open_question_key'] ?? null)

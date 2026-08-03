@@ -13,6 +13,7 @@ use Lalalili\SurveyCore\Actions\Triggers\ExpandPresetsAction;
 use Lalalili\SurveyCore\Actions\Triggers\ResolveActionPayloadAction;
 use Lalalili\SurveyCore\Enums\DmsExecutionMode;
 use Lalalili\SurveyCore\Enums\TriggerDispatchStatus;
+use Lalalili\SurveyCore\Exceptions\DmsConfigurationException;
 use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Models\SurveyTriggerDispatch;
 use Lalalili\SurveyCore\Models\SurveyTriggerRule;
@@ -98,7 +99,23 @@ class RunSurveyTriggerJob implements ShouldQueue
                     continue;
                 }
 
-                $parameters = $dmsParameters->fromResponse($response, $dispatch, $action, $actionKey);
+                try {
+                    $parameters = $dmsParameters->fromResponse($response, $dispatch, $action, $actionKey);
+                } catch (DmsConfigurationException $exception) {
+                    // 例如據點未設定案件權責人員：留下稽核列讓後台看得見，
+                    // 並繼續處理同一填答的其他動作，不讓整個 job 失敗。
+                    $dmsDispatcher->recordConfigurationError(
+                        action: $action,
+                        parameters: [],
+                        actionKey: $actionKey,
+                        error: $exception->getMessage(),
+                        dispatch: $dispatch,
+                        presetId: isset($action['_preset_id']) ? (int) $action['_preset_id'] : null,
+                    );
+
+                    continue;
+                }
+
                 $dmsDispatcher->execute(
                     action: $action,
                     parameters: $parameters,

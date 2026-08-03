@@ -6,6 +6,7 @@ enum SurveyTriggerActionAttemptStatus: string
 {
     case PendingReview = 'pending_review';
     case Skipped = 'skipped';
+    case ConfigurationError = 'configuration_error';
     case Success = 'success';
     case BusinessError = 'business_error';
     case SoapFault = 'soap_fault';

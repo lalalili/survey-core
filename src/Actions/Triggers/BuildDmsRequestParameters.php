@@ -39,8 +39,7 @@ final class BuildDmsRequestParameters
             data_get($action, "open_question_keys.{$category}")
             ?? ($action['open_question_key'] ?? '')
         );
-        $action['description_template'] = data_get($action, "description_templates.{$category}")
-            ?? ($action['description_template'] ?? '');
+        $action = $this->applyCategoryDefaults($action, $category);
         $resolvedEmployeeCode = $this->employeeCodes->resolve($response, $action);
 
         if (filled($resolvedEmployeeCode)) {
@@ -76,8 +75,7 @@ final class BuildDmsRequestParameters
         $category = strtoupper((string) ($sample['category'] ?? ''));
         $submittedAt = Carbon::parse((string) ($sample['submitted_at'] ?? now()));
         $ticketNo = trim((string) ($sample['ticketno'] ?? ''));
-        $action['description_template'] = data_get($action, "description_templates.{$category}")
-            ?? ($action['description_template'] ?? '');
+        $action = $this->applyCategoryDefaults($action, $category);
 
         if ($ticketNo === '') {
             $ticketNo = $this->ticketNumbers->execute($profile, $category, $submittedAt);
@@ -98,6 +96,22 @@ final class BuildDmsRequestParameters
             openAnswer: (string) ($sample['open_answer'] ?? ''),
             deliveryDate: $sample['delivery_date'] ?? null,
         );
+    }
+
+    /**
+     * 將「依問卷類別」的設定收斂成單數鍵，找不到類別設定時退回單數鍵（向下相容）。
+     *
+     * @param  array<string, mixed>  $action
+     * @return array<string, mixed>
+     */
+    private function applyCategoryDefaults(array $action, string $category): array
+    {
+        $action['description_template'] = data_get($action, "description_templates.{$category}")
+            ?? ($action['description_template'] ?? '');
+        $action['category_path'] = data_get($action, "category_paths.{$category}")
+            ?? ($action['category_path'] ?? '');
+
+        return $action;
     }
 
     /**
@@ -129,6 +143,7 @@ final class BuildDmsRequestParameters
             (string) ($action['description_template'] ?? ''),
             [
                 'survey_category' => $category,
+                'survey_category_label' => $this->categoryLabel($category, $action),
                 'submitted_at' => $submittedAt->format('Y-m-d H:i:s'),
                 'delivery_date' => (string) $deliveryDate,
                 'open_answer' => $openAnswer,
@@ -137,11 +152,11 @@ final class BuildDmsRequestParameters
 
         return array_filter([
             'ticketno' => $ticketNo,
-            'tickettypeid' => (string) ($action['ticket_type_id'] ?? 'CST-GENERAL'),
+            'tickettypeid' => (string) ($action['ticket_type_id'] ?? 'CST-FOLLOWUP'),
             'gradeid' => (string) ($action['grade_id'] ?? 'B'),
             'opendealercode' => (string) ($action['open_dealer_code'] ?? 'LUXGEN'),
             'opendeptcode' => (string) ($action['open_department_code'] ?? 'R0100'),
-            'openmethodid' => (string) ($action['open_method_id'] ?? ''),
+            'openmethodid' => (string) ($action['open_method_id'] ?? 'I'),
             'description' => $description,
             'customername' => $customerName,
             'genderid' => $gender,
@@ -160,6 +175,23 @@ final class BuildDmsRequestParameters
                 'categorypath' => (string) ($action['category_path'] ?? ''),
             ]],
         ], fn (mixed $value): bool => ! is_string($value) || $value !== '');
+    }
+
+    /**
+     * DMS 案由說明第一行使用的中文回饋名稱，可由設定覆寫。
+     *
+     * @param  array<string, mixed>  $action
+     */
+    private function categoryLabel(string $category, array $action): string
+    {
+        $labels = [
+            'CSI' => '服務滿意度回饋',
+            'SSI' => '銷售滿意度回饋',
+            'IQS' => '車輛使用體驗回饋',
+            ...(is_array($action['category_labels'] ?? null) ? $action['category_labels'] : []),
+        ];
+
+        return (string) ($labels[$category] ?? $category);
     }
 
     /**

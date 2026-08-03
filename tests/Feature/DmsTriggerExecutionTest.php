@@ -7,6 +7,7 @@ use Lalalili\SurveyCore\Actions\Triggers\BuildDmsRequestParameters;
 use Lalalili\SurveyCore\Actions\Triggers\DispatchDmsSoapTriggerAction;
 use Lalalili\SurveyCore\Actions\Triggers\DispatchManualDmsTestAction;
 use Lalalili\SurveyCore\Actions\Triggers\DmsTicketNumberAllocator;
+use Lalalili\SurveyCore\Contracts\DmsCaseRecorder;
 use Lalalili\SurveyCore\Contracts\DmsEmployeeCodeResolver;
 use Lalalili\SurveyCore\Enums\DmsExecutionMode;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
@@ -228,6 +229,145 @@ it('uses category-specific descriptions and the singular fallback for manual sam
     ], $action);
 
     expect($fallback['description'])->toBe('fallback｜IQS｜請主動聯絡');
+});
+
+it('uses category-specific case category paths with a singular fallback', function (): void {
+    $builder = app(BuildDmsRequestParameters::class);
+    $action = [
+        'profile' => 'qa',
+        'description_template' => '{{survey_category}}',
+        'category_path' => '車主自選 > 其他',
+        'category_paths' => [
+            'CSI' => '車主自選 > 車輛/零件品質',
+            'SSI' => '車主自選 > 銷售服務',
+        ],
+    ];
+
+    $csi = $builder->fromManualSample([...dmsSample(), 'ticketno' => 'CSI20260731000001'], $action);
+    $iqs = $builder->fromManualSample([
+        ...dmsSample(),
+        'ticketno' => 'IQS20260731000001',
+        'category' => 'IQS',
+    ], $action);
+
+    expect($csi['TicketCategory'][0]['categorypath'])->toBe('車主自選 > 車輛/零件品質')
+        ->and($iqs['TicketCategory'][0]['categorypath'])->toBe('車主自選 > 其他');
+});
+
+it('defaults to the documented follow-up ticket type, open method, and category label', function (): void {
+    $parameters = app(BuildDmsRequestParameters::class)->fromManualSample(
+        [...dmsSample(), 'ticketno' => 'CSI20260731000001'],
+        [
+            'profile' => 'qa',
+            'description_template' => '{{survey_category_label}}',
+        ],
+    );
+
+    expect($parameters['tickettypeid'])->toBe('CST-FOLLOWUP')
+        ->and($parameters['openmethodid'])->toBe('I')
+        ->and($parameters['description'])->toBe('服務滿意度回饋');
+});
+
+it('records a configuration error attempt and keeps other actions running', function (): void {
+    config()->set('external-communications.enabled', true);
+    Http::preventStrayRequests();
+    Http::fake(['https://hooks.test/other' => Http::response(['ok' => true])]);
+    app()->instance(DmsEmployeeCodeResolver::class, new class implements DmsEmployeeCodeResolver
+    {
+        public function resolve(SurveyResponse $response, array $action): ?string
+        {
+            throw new DmsConfigurationException('據點「台中」尚未設定服務據點主管及員工編號。');
+        }
+    });
+
+    $survey = Survey::create([
+        'title' => 'DMS survey',
+        'status' => SurveyStatus::Published,
+        'category' => 'CSI',
+    ]);
+    $rule = SurveyTriggerRule::create([
+        'survey_id' => $survey->id,
+        'name' => 'DMS rule',
+        'is_active' => true,
+        'rule_tree_json' => ['op' => 'AND', 'children' => []],
+        'actions_json' => [
+            dmsAutomaticAction(),
+            [
+                'type' => 'http_post',
+                'endpoint' => 'https://hooks.test/other',
+                'payload_template' => ['response_id' => '{{response.id}}'],
+            ],
+        ],
+    ]);
+    $response = SurveyResponse::create([
+        'survey_id' => $survey->id,
+        'submitted_at' => '2026-07-31 10:30:00',
+        'is_test' => false,
+    ]);
+
+    app()->call([new RunSurveyTriggerJob($rule->id, $response->id), 'handle']);
+
+    $attempt = SurveyTriggerActionAttempt::query()->sole();
+
+    expect($attempt->status)->toBe(SurveyTriggerActionAttemptStatus::ConfigurationError)
+        ->and($attempt->error)->toContain('尚未設定服務據點主管')
+        ->and($attempt->dispatch->status)->toBe(TriggerDispatchStatus::Failed);
+    // 其他動作不受 DMS 設定錯誤牽連。
+    Http::assertSentCount(1);
+});
+
+it('records a configuration error attempt when the action is not fully confirmed', function (): void {
+    config()->set('external-communications.enabled', true);
+    Http::preventStrayRequests();
+    [$dispatch] = dmsDispatchFixture();
+    $action = dmsAutomaticAction();
+    $action['parameter_confirmations']['response_semantics'] = 'tested';
+
+    $attempt = app(DispatchDmsSoapTriggerAction::class)->execute(
+        action: $action,
+        parameters: ['ticketno' => 'CSI20260731000001'],
+        mode: DmsExecutionMode::Automatic,
+        actionKey: 'preset:9',
+        dispatch: $dispatch,
+    );
+
+    expect($attempt->status)->toBe(SurveyTriggerActionAttemptStatus::ConfigurationError)
+        ->and($attempt->error)->toContain('response_semantics')
+        ->and($dispatch->refresh()->status)->toBe(TriggerDispatchStatus::Failed);
+    Http::assertNothingSent();
+});
+
+it('records the DMS case only for successful automatic dispatches', function (): void {
+    config()->set('external-communications.enabled', true);
+    Http::preventStrayRequests();
+    Http::fake([
+        'http://dms-production.test/ws' => Http::response(dmsExecutionResponse('0', ''), 200),
+        'http://dms-qa.test/ws' => Http::response(dmsExecutionResponse('0', ''), 200),
+    ]);
+    $recorder = new class implements DmsCaseRecorder
+    {
+        /** @var list<string> */
+        public array $recorded = [];
+
+        public function record(SurveyResponse $response, SurveyTriggerActionAttempt $attempt): void
+        {
+            $this->recorded[] = (string) $attempt->ticket_no;
+        }
+    };
+    app()->instance(DmsCaseRecorder::class, $recorder);
+    [$dispatch] = dmsDispatchFixture();
+
+    app(DispatchDmsSoapTriggerAction::class)->execute(
+        action: dmsAutomaticAction(),
+        parameters: ['ticketno' => 'CSI20260731000001'],
+        mode: DmsExecutionMode::Automatic,
+        actionKey: 'preset:9',
+        dispatch: $dispatch,
+    );
+    // QA 手動測試沒有 dispatch，不應寫入案件。
+    app(DispatchManualDmsTestAction::class)->execute(dmsExecutionPreset(), dmsSample());
+
+    expect($recorder->recorded)->toBe(['CSI20260731000001']);
 });
 
 it('creates an independent dispatch for each action on the same response', function (): void {

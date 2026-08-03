@@ -4,10 +4,12 @@ namespace Lalalili\SurveyCore\Actions\Triggers;
 
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Lalalili\SurveyCore\Contracts\DmsCaseRecorder;
 use Lalalili\SurveyCore\Enums\DmsExecutionMode;
 use Lalalili\SurveyCore\Enums\SurveyTriggerActionAttemptStatus;
 use Lalalili\SurveyCore\Enums\TriggerDispatchStatus;
 use Lalalili\SurveyCore\Exceptions\DmsConfigurationException;
+use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Models\SurveyTriggerActionAttempt;
 use Lalalili\SurveyCore\Models\SurveyTriggerDispatch;
 use Throwable;
@@ -18,6 +20,7 @@ final class DispatchDmsSoapTriggerAction
         private readonly ValidateDmsActionConfiguration $validateConfiguration,
         private readonly BuildDmsSoapEnvelope $envelopes,
         private readonly ParseDmsSoapResponse $responses,
+        private readonly DmsCaseRecorder $caseRecorder,
     ) {}
 
     /**
@@ -45,7 +48,24 @@ final class DispatchDmsSoapTriggerAction
             );
         }
 
-        $this->validateConfiguration->execute($action, $mode);
+        try {
+            $this->validateConfiguration->execute($action, $mode);
+        } catch (DmsConfigurationException $exception) {
+            // 自動觸發沒有人在旁邊看例外，必須留下後台看得到的稽核列，否則案件會默默不見。
+            if ($mode === DmsExecutionMode::Automatic) {
+                return $this->recordConfigurationError(
+                    $action,
+                    $parameters,
+                    $actionKey,
+                    $exception->getMessage(),
+                    $dispatch,
+                    $presetId,
+                    $initiatedBy,
+                );
+            }
+
+            throw $exception;
+        }
 
         if ($mode === DmsExecutionMode::ManualQa
             && ! (bool) config('survey-core.triggers.dms.manual_test_enabled', false)) {
@@ -105,6 +125,7 @@ final class DispatchDmsSoapTriggerAction
             ]);
 
             $this->updateDispatch($dispatch, $result->status, $result->parsed, $result->error);
+            $this->recordCase($dispatch, $attempt->refresh());
         } catch (ConnectionException $exception) {
             $attempt->update([
                 'status' => SurveyTriggerActionAttemptStatus::ConnectionError,
@@ -148,9 +169,65 @@ final class DispatchDmsSoapTriggerAction
         ?int $presetId,
         ?int $initiatedBy,
     ): SurveyTriggerActionAttempt {
+        return $this->recordUnsentAttempt(
+            $action,
+            $parameters,
+            $actionKey,
+            SurveyTriggerActionAttemptStatus::Skipped,
+            TriggerDispatchStatus::Skipped,
+            'DMS action disabled by external communications setting.',
+            $dispatch,
+            $presetId,
+            $initiatedBy,
+        );
+    }
+
+    /**
+     * 記錄一次「因設定不完整而根本沒送出」的嘗試。設定類錯誤若只丟例外，
+     * 後台會完全看不到案件失敗，因此一律落成稽核列。
+     *
+     * @param  array<string, mixed>  $action
+     * @param  array<string, mixed>  $parameters
+     */
+    public function recordConfigurationError(
+        array $action,
+        array $parameters,
+        string $actionKey,
+        string $error,
+        ?SurveyTriggerDispatch $dispatch = null,
+        ?int $presetId = null,
+        ?int $initiatedBy = null,
+    ): SurveyTriggerActionAttempt {
+        return $this->recordUnsentAttempt(
+            $action,
+            $parameters,
+            $actionKey,
+            SurveyTriggerActionAttemptStatus::ConfigurationError,
+            TriggerDispatchStatus::Failed,
+            $error,
+            $dispatch,
+            $presetId,
+            $initiatedBy,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $action
+     * @param  array<string, mixed>  $parameters
+     */
+    private function recordUnsentAttempt(
+        array $action,
+        array $parameters,
+        string $actionKey,
+        SurveyTriggerActionAttemptStatus $status,
+        TriggerDispatchStatus $dispatchStatus,
+        string $error,
+        ?SurveyTriggerDispatch $dispatch,
+        ?int $presetId,
+        ?int $initiatedBy,
+    ): SurveyTriggerActionAttempt {
         $profile = (string) ($action['profile'] ?? 'production');
         $endpoint = (string) config("survey-core.triggers.dms.profiles.{$profile}.endpoint", '');
-        $error = 'DMS action disabled by external communications setting.';
 
         $attempt = SurveyTriggerActionAttempt::create([
             'survey_trigger_action_preset_id' => $presetId,
@@ -159,7 +236,7 @@ final class DispatchDmsSoapTriggerAction
             'action_type' => 'dms_soap',
             'mode' => DmsExecutionMode::Automatic->value,
             'profile' => $profile,
-            'status' => SurveyTriggerActionAttemptStatus::Skipped,
+            'status' => $status,
             'ticket_no' => $parameters['ticketno'] ?? null,
             'endpoint' => filled($endpoint) ? $endpoint : '[disabled]',
             'request_parameters' => $parameters,
@@ -169,7 +246,7 @@ final class DispatchDmsSoapTriggerAction
         ]);
 
         $dispatch?->update([
-            'status' => TriggerDispatchStatus::Skipped,
+            'status' => $dispatchStatus,
             'error' => $error,
             'dispatched_at' => now(),
         ]);
@@ -199,6 +276,25 @@ final class DispatchDmsSoapTriggerAction
         return $profile === 'production'
             && ($action['empty_response_is_success'] ?? false) === true
             && data_get($action, 'parameter_confirmations.response_semantics') === 'confirmed';
+    }
+
+    /**
+     * 立案成功後交由宿主應用記錄案件（QA 手動測試沒有 dispatch，因此不會寫入）。
+     */
+    private function recordCase(?SurveyTriggerDispatch $dispatch, SurveyTriggerActionAttempt $attempt): void
+    {
+        if (! $dispatch instanceof SurveyTriggerDispatch
+            || $attempt->status !== SurveyTriggerActionAttemptStatus::Success) {
+            return;
+        }
+
+        $response = $dispatch->response;
+
+        if (! $response instanceof SurveyResponse) {
+            return;
+        }
+
+        $this->caseRecorder->record($response, $attempt);
     }
 
     /**
