@@ -9,7 +9,6 @@ use Lalalili\SurveyCore\Enums\DmsExecutionMode;
 use Lalalili\SurveyCore\Enums\SurveyTriggerActionAttemptStatus;
 use Lalalili\SurveyCore\Enums\TriggerDispatchStatus;
 use Lalalili\SurveyCore\Exceptions\DmsConfigurationException;
-use Lalalili\SurveyCore\Models\SurveyResponse;
 use Lalalili\SurveyCore\Models\SurveyTriggerActionAttempt;
 use Lalalili\SurveyCore\Models\SurveyTriggerDispatch;
 use Throwable;
@@ -288,13 +287,7 @@ final class DispatchDmsSoapTriggerAction
             return;
         }
 
-        $response = $dispatch->response;
-
-        if (! $response instanceof SurveyResponse) {
-            return;
-        }
-
-        $this->caseRecorder->record($response, $attempt);
+        $this->caseRecorder->record($dispatch->response, $attempt);
     }
 
     /**
