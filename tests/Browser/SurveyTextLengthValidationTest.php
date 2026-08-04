@@ -7,9 +7,9 @@ use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyField;
 use Lalalili\SurveyCore\Models\SurveyPage;
 
-function browserTextLengthSurvey(): Survey
+function browserTextLengthSurvey(string $frontendMode): Survey
 {
-    config(['survey-core.frontend.css' => 'published']);
+    config(['survey-core.frontend.css' => $frontendMode]);
 
     $survey = Survey::create([
         'title' => '文字字數瀏覽器驗證',
@@ -92,15 +92,18 @@ function browserTextLengthSurvey(): Survey
     return $survey;
 }
 
-it('validates text length during blur, page navigation, and submission', function () {
-    $survey = browserTextLengthSurvey();
+it('validates text length during blur, page navigation, and submission', function (string $frontendMode) {
+    $survey = browserTextLengthSurvey($frontendMode);
     $page = visit(route('survey.show', $survey->public_key));
 
     $page->assertSee('文字字數瀏覽器驗證')
         ->assertNoJavaScriptErrors()
+        ->click('#btn-next')
+        ->assertSeeIn('#field-error-summary', '「一句話心得」為必填，請完成填寫。')
+        ->assertAttribute('input[name="answers[summary]"]', 'aria-invalid', 'true')
         ->fill('input[name="answers[summary]"]', '短')
-        ->click('.survey-title')
-        ->assertSeeIn('#field-error-summary', '「一句話心得」至少需輸入 5 個字。')
+        ->click('#main-content')
+        ->assertSeeIn('#field-error-summary', '「一句話心得」目前輸入 1 個字，還需要 4 個字。')
         ->assertAttribute('input[name="answers[summary]"]', 'aria-invalid', 'true')
         ->fill('input[name="answers[summary]"]', '足夠五個字')
         ->assertSeeNothingIn('#field-error-summary')
@@ -109,7 +112,7 @@ it('validates text length during blur, page navigation, and submission', functio
         ->click('#btn-next')
         ->assertNoJavaScriptErrors()
         ->assertScript('document.activeElement && document.activeElement.getAttribute("name")', 'answers[summary]')
-        ->assertSeeIn('#field-error-summary', '「一句話心得」至少需輸入 5 個字。')
+        ->assertSeeIn('#field-error-summary', '「一句話心得」目前輸入 1 個字，還需要 4 個字。')
         ->assertAttribute('input[name="answers[summary]"]', 'aria-invalid', 'true')
         ->assertVisible('[data-page-key="page_short_text"]')
         ->fill('input[name="answers[summary]"]', '足夠五個字')
@@ -120,11 +123,11 @@ it('validates text length during blur, page navigation, and submission', functio
         ->assertDisabled('textarea[name="answers[hidden_feedback]"]')
         ->fill('textarea[name="answers[feedback]"]', '中文測試abcdefghijk')
         ->click('#submit-btn')
-        ->assertSeeIn('#field-error-feedback', '「完整心得」最多只能輸入 12 個字。')
+        ->assertSeeIn('#field-error-feedback', '「完整心得」目前輸入 15 個字，請刪除 3 個字。')
         ->assertAttribute('textarea[name="answers[feedback]"]', 'aria-invalid', 'true')
         ->fill('textarea[name="answers[feedback]"]', '中文ab🙂')
         ->click('#submit-btn')
-        ->assertSeeIn('#field-error-feedback', '「完整心得」至少需輸入 4 個中文字。')
+        ->assertSeeIn('#field-error-feedback', '「完整心得」目前有 2 個中文字，還需要 2 個中文字。')
         ->assertAttribute('textarea[name="answers[feedback]"]', 'aria-invalid', 'true')
         ->fill('textarea[name="answers[feedback]"]', '中文測試內容')
         ->assertSeeNothingIn('#field-error-feedback')
@@ -149,4 +152,7 @@ JS);
         ->assertVisible('#success-message')
         ->assertSeeIn('#success-text', '感謝您的填寫！')
         ->assertNoJavaScriptErrors();
-});
+})->with([
+    'published' => 'published',
+    'cdn' => 'cdn',
+]);

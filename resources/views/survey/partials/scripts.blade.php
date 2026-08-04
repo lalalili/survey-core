@@ -400,16 +400,22 @@
 
         clearErrors();
         var valid = true;
+        var errors = {};
         pageEl.querySelectorAll(
             'input[required]:not(:disabled), textarea[required]:not(:disabled), select[required]:not(:disabled)'
         ).forEach(function (inp) {
             if (!inp.checkValidity()) {
-                inp.reportValidity();
+                var fieldEl = inp.closest('[data-field-key]');
+                var fieldKey = fieldEl ? fieldEl.getAttribute('data-field-key') : null;
+
+                if (fieldKey && !errors[fieldKey]) {
+                    errors[fieldKey] = [validationMessageForInput(inp)];
+                }
+
                 valid = false;
             }
         });
 
-        var errors = {};
         pageEl.querySelectorAll('[data-field-type="constant_sum"][data-constant-sum-total]').forEach(function (fieldEl) {
             var message = validateConstantSumField(fieldEl);
             if (message) {
@@ -420,8 +426,10 @@
 
         pageEl.querySelectorAll('[data-field-type="short_text"], [data-field-type="long_text"]').forEach(function (fieldEl) {
             var message = validateTextField(fieldEl);
-            if (message) {
-                errors[fieldEl.getAttribute('data-field-key')] = [message];
+            var fieldKey = fieldEl.getAttribute('data-field-key');
+
+            if (message && !errors[fieldKey]) {
+                errors[fieldKey] = [message];
                 valid = false;
             }
         });
@@ -432,6 +440,29 @@
         }
 
         return valid;
+    }
+
+    function validationMessageForInput(input) {
+        var fieldEl = input.closest('[data-field-key]');
+        var fieldLabel = fieldEl ? fieldEl.getAttribute('data-field-label') : '此題';
+
+        if (input.validity.valueMissing) {
+            return '「' + fieldLabel + '」為必填，請完成填寫。';
+        }
+
+        if (input.validity.typeMismatch) {
+            return '「' + fieldLabel + '」請輸入有效的電子信箱。';
+        }
+
+        if (input.validity.patternMismatch && input.type === 'tel') {
+            return '「' + fieldLabel + '」請輸入有效的電話號碼。';
+        }
+
+        if (input.validity.badInput) {
+            return '「' + fieldLabel + '」請輸入有效的數字。';
+        }
+
+        return '「' + fieldLabel + '」格式不正確，請依題目提示填寫。';
     }
 
     var hanCharacterPattern = null;
@@ -460,18 +491,21 @@
 
         if (Number.isFinite(minimumLength) && characterCount < minimumLength) {
             return fieldEl.getAttribute('data-min-length-message')
-                || '「' + fieldLabel + '」至少需輸入 ' + minimumLength + ' 個字。';
+                || '「' + fieldLabel + '」目前輸入 ' + characterCount + ' 個字，還需要 '
+                    + (minimumLength - characterCount) + ' 個字。';
         }
 
         if (Number.isFinite(minimumChineseLength) && minimumChineseLength > 0 && hanCharacterPattern) {
             var chineseCharacterCount = (input.value.match(hanCharacterPattern) || []).length;
             if (chineseCharacterCount < minimumChineseLength) {
-                return '「' + fieldLabel + '」至少需輸入 ' + minimumChineseLength + ' 個中文字。';
+                return '「' + fieldLabel + '」目前有 ' + chineseCharacterCount + ' 個中文字，還需要 '
+                    + (minimumChineseLength - chineseCharacterCount) + ' 個中文字。';
             }
         }
 
         if (Number.isFinite(maximumLength) && characterCount > maximumLength) {
-            return '「' + fieldLabel + '」最多只能輸入 ' + maximumLength + ' 個字。';
+            return '「' + fieldLabel + '」目前輸入 ' + characterCount + ' 個字，請刪除 '
+                + (characterCount - maximumLength) + ' 個字。';
         }
 
         return null;
@@ -1419,7 +1453,7 @@
             var fieldKey = fieldEl.getAttribute('data-field-key');
             var input = fieldEl.querySelector('input:not(:disabled), textarea:not(:disabled)');
             var message = input && !input.checkValidity()
-                ? input.validationMessage
+                ? validationMessageForInput(input)
                 : validateTextField(fieldEl);
 
             if (message) {
@@ -1459,7 +1493,7 @@
             }
 
             if (!target.checkValidity()) {
-                showFieldErrors({ [fieldKey]: [target.validationMessage] });
+                showFieldErrors({ [fieldKey]: [validationMessageForInput(target)] });
             } else {
                 clearFieldError(fieldKey);
             }

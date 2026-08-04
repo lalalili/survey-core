@@ -84,7 +84,7 @@ it('rejects mixed content when text answers contain too few Han characters with 
         );
     } catch (SurveyValidationException $exception) {
         expect($exception->getErrors()['feedback'])
-            ->toContain('「使用心得」至少需輸入 2 個中文字。')
+            ->toContain('「使用心得」目前有 1 個中文字，還需要 1 個中文字。')
             ->not->toContain('不應覆寫此錯誤');
 
         return;
@@ -125,7 +125,7 @@ it('applies minimum total length independently from minimum Chinese length', fun
         );
     } catch (SurveyValidationException $exception) {
         expect($exception->getErrors()['feedback'])
-            ->toContain('「使用心得」至少需輸入 5 個字。')
+            ->toContain('「使用心得」目前輸入 2 個字，還需要 3 個字。')
             ->not->toContain('「使用心得」至少需輸入 2 個中文字。');
 
         return;
@@ -148,7 +148,7 @@ it('applies maximum total length independently when all text limits are configur
         );
     } catch (SurveyValidationException $exception) {
         expect($exception->getErrors()['feedback'])
-            ->toContain('「使用心得」最多只能輸入 4 個字。')
+            ->toContain('「使用心得」目前輸入 5 個字，請刪除 1 個字。')
             ->not->toContain('「使用心得」至少需輸入 2 個字。')
             ->not->toContain('「使用心得」至少需輸入 2 個中文字。');
 
