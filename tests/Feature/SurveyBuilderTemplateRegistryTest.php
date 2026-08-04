@@ -20,6 +20,15 @@ it('provides the MVP survey builder templates', function (): void {
     ]);
 });
 
+it('uses generic names for customer-specific survey examples', function (): void {
+    $templates = app(SurveyBuilderTemplateRegistry::class)->all();
+
+    expect($templates['satisfaction_survey']['name'])->toBe('通用顧客回饋')
+        ->and($templates['after_sales_follow_up']['name'])->toBe('通用售後服務回饋')
+        ->and($templates['satisfaction_survey']['description'])->toBe('通用顧客回饋範本')
+        ->and($templates['after_sales_follow_up']['description'])->toBe('通用售後服務回饋範本');
+});
+
 it('returns builder-valid schemas for every built-in template', function (string $slug): void {
     $schema = app(SurveyBuilderTemplateRegistry::class)->schema($slug);
     $validated = app(ValidateSurveyBuilderSchemaAction::class)->execute($schema);

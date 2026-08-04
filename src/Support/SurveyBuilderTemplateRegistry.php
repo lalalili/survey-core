@@ -26,7 +26,7 @@ class SurveyBuilderTemplateRegistry
             ),
             'satisfaction_survey' => $this->template(
                 slug: 'satisfaction_survey',
-                name: '滿意度調查',
+                name: '通用顧客回饋',
                 category: '顧客回饋',
                 elements: [
                     $this->nps('overall_satisfaction', '整體滿意度'),
@@ -70,7 +70,7 @@ class SurveyBuilderTemplateRegistry
             ),
             'after_sales_follow_up' => $this->template(
                 slug: 'after_sales_follow_up',
-                name: '售後追蹤',
+                name: '通用售後服務回饋',
                 category: '售後服務',
                 elements: [
                     $this->nps('service_recommend_score', '您有多大可能推薦我們的售後服務？'),
