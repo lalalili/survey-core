@@ -87,7 +87,7 @@ it('requires personalization when an audience list is configured', function (): 
 });
 
 it('settingsJsonFromSchema merges with existing settings to preserve unknown keys', function (): void {
-    $support = new SurveyBuilderSurveySettings;
+    $support = new SurveyBuilderSurveySettings();
 
     $existingSettingsJson = [
         'personalization' => ['audience_list_id' => 5, 'required' => true],
@@ -109,7 +109,7 @@ it('settingsJsonFromSchema merges with existing settings to preserve unknown key
 });
 
 it('settingsJsonFromSchema still strips survey column attributes', function (): void {
-    $support = new SurveyBuilderSurveySettings;
+    $support = new SurveyBuilderSurveySettings();
 
     $schema = [
         'settings' => [

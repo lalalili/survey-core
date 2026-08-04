@@ -14,7 +14,8 @@ class BuildSurveyBuilderSchemaAction
 {
     public function __construct(
         private readonly SurveyBuilderSurveySettings $surveySettings,
-    ) {}
+    ) {
+    }
 
     /**
      * @return array<string, mixed>

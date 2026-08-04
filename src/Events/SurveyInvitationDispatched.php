@@ -19,5 +19,6 @@ class SurveyInvitationDispatched
         public readonly SurveyRecipient $recipient,
         public readonly SurveyToken $token,
         public readonly string $surveyUrl,
-    ) {}
+    ) {
+    }
 }

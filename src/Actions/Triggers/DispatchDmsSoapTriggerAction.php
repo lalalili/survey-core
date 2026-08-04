@@ -20,7 +20,8 @@ final class DispatchDmsSoapTriggerAction
         private readonly BuildDmsSoapEnvelope $envelopes,
         private readonly ParseDmsSoapResponse $responses,
         private readonly DmsCaseRecorder $caseRecorder,
-    ) {}
+    ) {
+    }
 
     /**
      * @param  array<string, mixed>  $action

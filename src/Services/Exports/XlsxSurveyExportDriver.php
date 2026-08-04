@@ -18,7 +18,7 @@ class XlsxSurveyExportDriver implements SurveyExportDriver
         $filename = 'survey-responses-'.now()->format('Y-m-d-His').'.xlsx';
 
         return new StreamedResponse(function () use ($rows, $headers) {
-            $writer = new Writer;
+            $writer = new Writer();
             $writer->openToFile('php://output');
 
             $writer->addRow(Row::fromValues($headers));
@@ -43,7 +43,7 @@ class XlsxSurveyExportDriver implements SurveyExportDriver
      */
     public function writeToPath(string $localPath, iterable $rows, array $headers): void
     {
-        $writer = new Writer;
+        $writer = new Writer();
         $writer->openToFile($localPath);
 
         $writer->addRow(Row::fromValues($headers));

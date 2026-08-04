@@ -9,7 +9,9 @@ use Lalalili\SurveyCore\Models\SurveyResponse;
 
 class EvaluateResponseQualityAction
 {
-    public function __construct(private ReviewSurveyResponseAction $reviewSurveyResponse) {}
+    public function __construct(private ReviewSurveyResponseAction $reviewSurveyResponse)
+    {
+    }
 
     /**
      * @param  array{elapsed_ms?: int|null, honeypot_hit?: bool, ip?: string|null, survey_min_ms?: int|null, is_anomaly_duplicate?: bool}  $context

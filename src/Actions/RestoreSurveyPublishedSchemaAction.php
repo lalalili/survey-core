@@ -14,7 +14,8 @@ class RestoreSurveyPublishedSchemaAction
         private readonly SanitizeSurveyBuilderSchemaAction $sanitizeSchema,
         private readonly SyncSurveyResultContextFieldsAction $syncResultContextFields,
         private readonly SurveyBuilderSurveySettings $surveySettings,
-    ) {}
+    ) {
+    }
 
     public function execute(Survey $survey): Survey
     {

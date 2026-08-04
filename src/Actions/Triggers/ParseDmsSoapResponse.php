@@ -26,7 +26,7 @@ final class ParseDmsSoapResponse
             );
         }
 
-        $document = new DOMDocument;
+        $document = new DOMDocument();
 
         if (! @$document->loadXML($body, LIBXML_NONET | LIBXML_NOBLANKS)) {
             return new DmsSoapResponseResult(

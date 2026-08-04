@@ -10,7 +10,8 @@ class CreateBlankSurveyBuilderSurveyAction
 {
     public function __construct(
         private readonly SaveSurveyDraftSchemaAction $saveDraftSchema,
-    ) {}
+    ) {
+    }
 
     public function execute(string $title = '未命名問卷'): Survey
     {

@@ -27,7 +27,8 @@ class ImportSurveyQuestionsFromCsvAction
     public function __construct(
         private readonly BuildSurveyBuilderSchemaAction $buildSchema,
         private readonly SaveSurveyDraftSchemaAction $saveDraftSchema,
-    ) {}
+    ) {
+    }
 
     /**
      * @return int number of questions imported

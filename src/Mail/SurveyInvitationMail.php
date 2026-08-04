@@ -20,7 +20,8 @@ class SurveyInvitationMail extends Mailable implements ShouldQueue
     public function __construct(
         public readonly SurveyRecipient $recipient,
         public readonly string $surveyUrl,
-    ) {}
+    ) {
+    }
 
     public function envelope(): Envelope
     {

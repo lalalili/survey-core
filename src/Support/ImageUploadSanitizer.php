@@ -11,7 +11,8 @@ class ImageUploadSanitizer
 {
     public function __construct(
         private readonly ImageSanitize $imageSanitize,
-    ) {}
+    ) {
+    }
 
     public function sanitize(UploadedFile $file): void
     {

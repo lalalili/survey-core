@@ -176,9 +176,9 @@ class SurveyCoreServiceProvider extends PackageServiceProvider
 
         // Export manager with built-in CSV and XLSX drivers
         $this->app->singleton(SurveyExportManager::class, function () {
-            $manager = new SurveyExportManager;
-            $manager->extend('csv', fn () => new CsvSurveyExportDriver);
-            $manager->extend('xlsx', fn () => new XlsxSurveyExportDriver);
+            $manager = new SurveyExportManager();
+            $manager->extend('csv', fn () => new CsvSurveyExportDriver());
+            $manager->extend('xlsx', fn () => new XlsxSurveyExportDriver());
 
             return $manager;
         });

@@ -11,7 +11,8 @@ final class DispatchManualDmsTestAction
     public function __construct(
         private readonly BuildDmsRequestParameters $parameters,
         private readonly DispatchDmsSoapTriggerAction $dispatcher,
-    ) {}
+    ) {
+    }
 
     /**
      * @param  array<string, mixed>  $sample

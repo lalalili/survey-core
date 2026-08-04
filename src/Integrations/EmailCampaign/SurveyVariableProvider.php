@@ -24,7 +24,9 @@ use RuntimeException;
  */
 class SurveyVariableProvider implements VariableProvider
 {
-    public function __construct(private GenerateSurveyTokenAction $generateToken) {}
+    public function __construct(private GenerateSurveyTokenAction $generateToken)
+    {
+    }
 
     /**
      * @return array<string, scalar|null>

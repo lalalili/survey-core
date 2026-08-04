@@ -8,7 +8,7 @@ use Lalalili\SurveyCore\Support\GoogleDriveClientFactory;
 use Lalalili\SurveyCore\Tests\Fixtures\RecordingDriveClientFactory;
 
 it('uploads response media to drive and records file id and link', function () {
-    $factory = new RecordingDriveClientFactory;
+    $factory = new RecordingDriveClientFactory();
     app()->instance(GoogleDriveClientFactory::class, $factory);
 
     $account = GoogleDriveAccount::create(['google_user_id' => 'sub-1', 'email' => 'a@b.c']);
@@ -47,7 +47,7 @@ it('uploads response media to drive and records file id and link', function () {
 });
 
 it('skips media already uploaded', function () {
-    $factory = new RecordingDriveClientFactory;
+    $factory = new RecordingDriveClientFactory();
     app()->instance(GoogleDriveClientFactory::class, $factory);
 
     $account = GoogleDriveAccount::create(['google_user_id' => 'sub-2', 'email' => 'a@b.c']);
@@ -65,7 +65,7 @@ it('skips media already uploaded', function () {
 });
 
 it('does nothing when the survey is not bound', function () {
-    $factory = new RecordingDriveClientFactory;
+    $factory = new RecordingDriveClientFactory();
     app()->instance(GoogleDriveClientFactory::class, $factory);
 
     $survey = Survey::create(['title' => 'Files', 'status' => 'published']);

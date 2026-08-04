@@ -11,7 +11,9 @@ use Lalalili\SurveyCore\Models\SurveyRecipient;
 
 class SyncAudienceListToSurveyRecipientsAction
 {
-    public function __construct(private readonly GenerateSurveyTokenAction $generateToken) {}
+    public function __construct(private readonly GenerateSurveyTokenAction $generateToken)
+    {
+    }
 
     public function execute(Survey $survey, bool $generateTokens = true): int
     {

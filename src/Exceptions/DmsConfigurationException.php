@@ -4,4 +4,6 @@ namespace Lalalili\SurveyCore\Exceptions;
 
 use RuntimeException;
 
-class DmsConfigurationException extends RuntimeException {}
+class DmsConfigurationException extends RuntimeException
+{
+}

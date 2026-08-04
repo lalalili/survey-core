@@ -12,7 +12,8 @@ class CreateSurveyFromBuilderTemplateAction
     public function __construct(
         private readonly SaveSurveyDraftSchemaAction $saveDraftSchema,
         private readonly SurveyBuilderTemplateRegistry $templates,
-    ) {}
+    ) {
+    }
 
     public function execute(string $templateSlug): Survey
     {

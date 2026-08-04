@@ -157,7 +157,7 @@ it('renders rich welcome and thank-you pages in the published css layout', funct
         ->assertSee('id="success-text" class="survey-rich-content"', false)
         ->assertSee('<p style="text-align: right"><span style="color: #16a34a">填寫完成</span></p>', false);
 
-    $document = new DOMDocument;
+    $document = new DOMDocument();
     $previous = libxml_use_internal_errors(true);
     $document->loadHTML($response->getContent());
     libxml_clear_errors();

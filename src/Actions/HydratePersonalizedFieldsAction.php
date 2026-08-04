@@ -12,7 +12,8 @@ class HydratePersonalizedFieldsAction
 {
     public function __construct(
         private readonly PersonalizationResolver $resolver,
-    ) {}
+    ) {
+    }
 
     /**
      * @param  Collection<int, SurveyField>  $fields

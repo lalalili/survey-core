@@ -12,7 +12,8 @@ class SaveSurveyDraftSchemaAction
         private readonly SanitizeSurveyBuilderSchemaAction $sanitizeSchema,
         private readonly SyncSurveyResultContextFieldsAction $syncResultContextFields,
         private readonly SurveyBuilderSurveySettings $surveySettings,
-    ) {}
+    ) {
+    }
 
     /**
      * @param  array<string, mixed>  $schema

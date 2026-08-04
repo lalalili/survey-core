@@ -11,7 +11,9 @@ use Lalalili\SurveyCore\Support\SurveyReportCacheRevision;
 
 class ReviewSurveyResponseAction
 {
-    public function __construct(private SurveyReportCacheRevision $reportCacheRevision) {}
+    public function __construct(private SurveyReportCacheRevision $reportCacheRevision)
+    {
+    }
 
     public function execute(
         SurveyResponse $response,

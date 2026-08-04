@@ -61,7 +61,7 @@ class ParseCascadeSelectImportAction
      */
     private function readRows(string $path): array
     {
-        $reader = new Reader;
+        $reader = new Reader();
         $reader->open($path);
 
         $rows = [];

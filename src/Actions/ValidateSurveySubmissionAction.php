@@ -18,7 +18,8 @@ class ValidateSurveySubmissionAction
 {
     public function __construct(
         private readonly SurveyFileUploadToken $uploadToken,
-    ) {}
+    ) {
+    }
 
     /**
      * @param  array<string, mixed>  $visibleAnswers

@@ -35,7 +35,7 @@ it('sets viewed_at when token is first resolved', function () {
     expect($token->viewed_at)->toBeNull();
 
     $event = new SurveyTokenResolved($token, $recipient);
-    (new MarkTokenViewed)->handle($event);
+    (new MarkTokenViewed())->handle($event);
 
     $token->refresh();
     expect($token->viewed_at)->not->toBeNull();
@@ -48,7 +48,7 @@ it('does not overwrite viewed_at on subsequent resolutions', function () {
     $token->update(['viewed_at' => $first]);
 
     $event = new SurveyTokenResolved($token->fresh(), $recipient);
-    (new MarkTokenViewed)->handle($event);
+    (new MarkTokenViewed())->handle($event);
 
     $token->refresh();
     expect($token->viewed_at->toIso8601String())->toBe($first->toIso8601String());

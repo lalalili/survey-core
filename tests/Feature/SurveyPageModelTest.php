@@ -113,7 +113,7 @@ it('blocks permanently deleting a survey with published history', function () {
     ]);
 
     expect(fn () => $survey->forceDelete())
-        ->toThrow(\LogicException::class, '已有回覆或發布版本的問卷不可永久刪除');
+        ->toThrow(LogicException::class, '已有回覆或發布版本的問卷不可永久刪除');
     expect(Survey::withTrashed()->whereKey($survey)->exists())->toBeTrue();
 });
 

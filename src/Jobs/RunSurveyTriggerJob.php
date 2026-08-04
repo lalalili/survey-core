@@ -27,7 +27,8 @@ class RunSurveyTriggerJob implements ShouldQueue
     public function __construct(
         public readonly int $triggerRuleId,
         public readonly int $surveyResponseId,
-    ) {}
+    ) {
+    }
 
     public function handle(
         EvaluateAnswerRuleTreeAction $evaluator,

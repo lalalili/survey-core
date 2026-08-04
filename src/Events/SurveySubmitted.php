@@ -15,5 +15,6 @@ class SurveySubmitted
         public readonly SurveyResponse $response,
         public readonly Survey $survey,
         public readonly ?SurveyRecipient $recipient = null,
-    ) {}
+    ) {
+    }
 }

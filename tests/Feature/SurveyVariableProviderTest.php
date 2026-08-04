@@ -1,13 +1,13 @@
 <?php
 
+use Lalalili\AudienceCore\Models\AudienceList;
+use Lalalili\AudienceCore\Models\AudienceListRow;
 use Lalalili\EmailCampaign\Enums\EmailCampaignStatus;
 use Lalalili\EmailCampaign\Models\EmailCampaign;
 use Lalalili\EmailCampaign\Models\EmailCampaignRecipient;
 use Lalalili\SurveyCore\Actions\GenerateSurveyTokenAction;
 use Lalalili\SurveyCore\Enums\SurveyStatus;
 use Lalalili\SurveyCore\Integrations\EmailCampaign\SurveyVariableProvider;
-use Lalalili\AudienceCore\Models\AudienceList;
-use Lalalili\AudienceCore\Models\AudienceListRow;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyRecipient;
 

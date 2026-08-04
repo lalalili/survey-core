@@ -5,11 +5,11 @@ namespace Lalalili\SurveyCore\Actions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Lalalili\SurveyCore\Data\SubmissionPayload;
-use Lalalili\SurveyCore\Jobs\UploadResponseFilesToGoogleDriveJob;
 use Lalalili\SurveyCore\Enums\SurveyResponseCompletionStatus;
 use Lalalili\SurveyCore\Events\SurveySubmitted;
 use Lalalili\SurveyCore\Exceptions\SurveyNotAvailableException;
 use Lalalili\SurveyCore\Exceptions\SurveyValidationException;
+use Lalalili\SurveyCore\Jobs\UploadResponseFilesToGoogleDriveJob;
 use Lalalili\SurveyCore\Models\Survey;
 use Lalalili\SurveyCore\Models\SurveyAnswer;
 use Lalalili\SurveyCore\Models\SurveyCollector;
@@ -30,7 +30,8 @@ class SubmitSurveyResponseAction
         private readonly CalculateSurveyResponseAction $calculateResponse,
         private readonly EvaluateResponseQualityAction $evaluateQuality,
         private readonly SurveyFileUploadToken $uploadToken,
-    ) {}
+    ) {
+    }
 
     /**
      * @param  array{elapsed_ms?: int|null, honeypot_hit?: bool, ip?: string|null}  $qualityContext

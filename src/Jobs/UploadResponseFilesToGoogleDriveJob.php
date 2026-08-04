@@ -22,7 +22,9 @@ class UploadResponseFilesToGoogleDriveJob implements ShouldQueue
     /** @var array<int, int> */
     public array $backoff = [60, 300, 900];
 
-    public function __construct(public readonly int $surveyResponseId) {}
+    public function __construct(public readonly int $surveyResponseId)
+    {
+    }
 
     public function handle(GoogleDriveClientFactory $clients): void
     {

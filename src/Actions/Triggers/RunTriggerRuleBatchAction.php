@@ -22,7 +22,8 @@ class RunTriggerRuleBatchAction
 {
     public function __construct(
         private readonly EvaluateAnswerRuleTreeAction $evaluator,
-    ) {}
+    ) {
+    }
 
     /**
      * @param  int|null  $responseId  指定 → 手動單筆（限該填答）；null → 排程掃描近 N 天未派送的填答。

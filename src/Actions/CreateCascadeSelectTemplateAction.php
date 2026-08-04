@@ -25,7 +25,7 @@ class CreateCascadeSelectTemplateAction
 
     public function writeToPath(string $path): void
     {
-        $writer = new Writer;
+        $writer = new Writer();
         $writer->openToFile($path);
 
         foreach ($this->rows() as $row) {

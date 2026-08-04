@@ -12,7 +12,8 @@ class ImportSurveyBuilderSchemaAction
     public function __construct(
         private readonly SaveSurveyDraftSchemaAction $saveSchema,
         private readonly PublishSurveyAction $publishSurvey,
-    ) {}
+    ) {
+    }
 
     /**
      * @param  array<string, mixed>  $schema

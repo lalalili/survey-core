@@ -13,7 +13,8 @@ final class BuildDmsRequestParameters
     public function __construct(
         private readonly DmsTicketNumberAllocator $ticketNumbers,
         private readonly DmsEmployeeCodeResolver $employeeCodes,
-    ) {}
+    ) {
+    }
 
     /**
      * @param  array<string, mixed>  $action

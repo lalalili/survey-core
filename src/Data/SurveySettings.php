@@ -53,7 +53,8 @@ final class SurveySettings
         // ── Catch-all for future/unknown keys ────────────────────────────────
         /** @var array<string, mixed> */
         public readonly array $extra = [],
-    ) {}
+    ) {
+    }
 
     /**
      * @param  array<string, mixed>  $raw

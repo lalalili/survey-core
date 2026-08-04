@@ -1,11 +1,11 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class () extends Migration {
     public function up(): void
     {
         if (! Schema::hasTable('survey_schema_versions')) {
@@ -140,7 +140,7 @@ return new class extends Migration
 
     /**
      * @param  array<string, mixed>  $survey
-     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $fields
+     * @param  Collection<int, array<string, mixed>>  $fields
      * @return array<string, mixed>
      */
     private function buildLegacySchema(array $survey, $fields): array

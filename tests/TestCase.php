@@ -4,13 +4,13 @@ namespace Lalalili\SurveyCore\Tests;
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Filesystem\Filesystem;
-use Monolog\Handler\NullHandler;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Lalalili\AudienceCore\AudienceCoreServiceProvider;
 use Lalalili\EmailCampaign\EmailCampaignServiceProvider;
 use Lalalili\PackageTestingSupport\PackageTestCase;
 use Lalalili\SurveyCore\SurveyCoreServiceProvider;
+use Monolog\Handler\NullHandler;
 use Spatie\Activitylog\ActivitylogServiceProvider;
 use Spatie\MediaLibrary\MediaLibraryServiceProvider;
 

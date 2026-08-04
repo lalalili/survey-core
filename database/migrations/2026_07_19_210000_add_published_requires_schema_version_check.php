@@ -16,8 +16,7 @@ use Illuminate\Support\Facades\DB;
  * 僅 sqlsrv 建立：sqlite（單元測試）不支援以 ALTER TABLE 新增約束，
  * 該環境的保護改由 SurveyScheduleCommandTest 等測試涵蓋。
  */
-return new class extends Migration
-{
+return new class () extends Migration {
     private const CONSTRAINT = 'surveys_published_requires_schema_version';
 
     public function up(): void

@@ -19,7 +19,8 @@ class ExportSurveyResponsesAction
 {
     public function __construct(
         private readonly SurveyExportManager $exportManager,
-    ) {}
+    ) {
+    }
 
     /**
      * 匯出問卷回覆（串流下載）。

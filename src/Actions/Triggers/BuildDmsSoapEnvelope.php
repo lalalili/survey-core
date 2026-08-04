@@ -21,7 +21,7 @@ final class BuildDmsSoapEnvelope
      */
     public function execute(string $key, array $parameters): string
     {
-        $writer = new XMLWriter;
+        $writer = new XMLWriter();
         $writer->openMemory();
         $writer->startDocument('1.0', 'UTF-8');
         $writer->startElementNs('soapenv', 'Envelope', self::SOAP_NAMESPACE);

@@ -174,8 +174,7 @@ it('uses category-specific open question and description templates and normalize
 it('uses the host resolved employee code for automatic DMS requests', function (): void {
     [$dispatch, $response] = dmsDispatchFixture('CSI');
     $response->setRelation('answers', collect());
-    app()->instance(DmsEmployeeCodeResolver::class, new class implements DmsEmployeeCodeResolver
-    {
+    app()->instance(DmsEmployeeCodeResolver::class, new class () implements DmsEmployeeCodeResolver {
         public function resolve(SurveyResponse $response, array $action): ?string
         {
             return '  LC0218  ';
@@ -272,8 +271,7 @@ it('records a configuration error attempt and keeps other actions running', func
     config()->set('external-communications.enabled', true);
     Http::preventStrayRequests();
     Http::fake(['https://hooks.test/other' => Http::response(['ok' => true])]);
-    app()->instance(DmsEmployeeCodeResolver::class, new class implements DmsEmployeeCodeResolver
-    {
+    app()->instance(DmsEmployeeCodeResolver::class, new class () implements DmsEmployeeCodeResolver {
         public function resolve(SurveyResponse $response, array $action): ?string
         {
             throw new DmsConfigurationException('據點「台中」尚未設定服務據點主管及員工編號。');
@@ -344,8 +342,7 @@ it('records the DMS case only for successful automatic dispatches', function ():
         'http://dms-production.test/ws' => Http::response(dmsExecutionResponse('0', ''), 200),
         'http://dms-qa.test/ws' => Http::response(dmsExecutionResponse('0', ''), 200),
     ]);
-    $recorder = new class implements DmsCaseRecorder
-    {
+    $recorder = new class () implements DmsCaseRecorder {
         /** @var list<string> */
         public array $recorded = [];
 

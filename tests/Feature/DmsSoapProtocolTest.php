@@ -141,8 +141,7 @@ function dmsAcceptedResponseXml(
     string $returnValue,
     string $errorCode = '',
     string $errorMessage = '',
-): string
-{
+): string {
     return <<<XML
     <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
       <soap:Body>

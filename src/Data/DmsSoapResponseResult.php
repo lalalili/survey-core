@@ -13,5 +13,6 @@ final readonly class DmsSoapResponseResult
         public SurveyTriggerActionAttemptStatus $status,
         public array $parsed,
         public ?string $error,
-    ) {}
+    ) {
+    }
 }

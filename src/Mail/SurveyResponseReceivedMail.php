@@ -21,7 +21,8 @@ class SurveyResponseReceivedMail extends Mailable implements ShouldQueue
     public function __construct(
         public readonly Survey $survey,
         public readonly SurveyResponse $response,
-    ) {}
+    ) {
+    }
 
     public function envelope(): Envelope
     {

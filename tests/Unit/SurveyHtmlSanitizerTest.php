@@ -4,7 +4,7 @@ use Lalalili\SurveyCore\Support\SurveyHtmlSanitizer;
 
 function sanitize(string $html): string
 {
-    return (new SurveyHtmlSanitizer)->clean($html) ?? '';
+    return (new SurveyHtmlSanitizer())->clean($html) ?? '';
 }
 
 // ── existing behaviour ──────────────────────────────────────────────────────

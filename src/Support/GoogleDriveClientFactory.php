@@ -24,7 +24,7 @@ class GoogleDriveClientFactory
 
     public function baseClient(): Client
     {
-        $client = new Client;
+        $client = new Client();
         $client->setClientId((string) config('survey-core.google_drive.client_id'));
         $client->setClientSecret((string) config('survey-core.google_drive.client_secret'));
         $client->setRedirectUri((string) config('survey-core.google_drive.redirect_uri'));

@@ -4,6 +4,7 @@ namespace Lalalili\SurveyCore\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $name
  * @property string|null $access_token
  * @property string|null $refresh_token
- * @property \Illuminate\Support\Carbon|null $token_expires_at
+ * @property Carbon|null $token_expires_at
  * @property array<int, string>|null $scopes
  */
 class GoogleDriveAccount extends Model

@@ -10,7 +10,7 @@ use Lalalili\SurveyCore\Models\SurveyRecipient;
 use Lalalili\SurveyCore\Models\SurveyToken;
 
 beforeEach(function () {
-    $this->action = new ResolveSurveyTokenAction;
+    $this->action = new ResolveSurveyTokenAction();
 
     $this->survey = Survey::create([
         'title' => 'Test Survey',
@@ -41,7 +41,7 @@ it('resolves a valid token and returns recipient payload', function () {
 });
 
 it('casts SQL Server foreign key strings before validating token ownership', function () {
-    $token = new SurveyToken;
+    $token = new SurveyToken();
     $token->setRawAttributes([
         'survey_id' => (string) $this->survey->id,
         'survey_recipient_id' => (string) $this->recipient->id,

@@ -11,9 +11,9 @@ it('creates a valid xlsx cascade select template that can be imported', function
     $xlsxPath = $path.'.xlsx';
     rename($path, $xlsxPath);
 
-    (new CreateCascadeSelectTemplateAction)->writeToPath($xlsxPath);
+    (new CreateCascadeSelectTemplateAction())->writeToPath($xlsxPath);
 
-    $payload = (new ParseCascadeSelectImportAction)->execute($xlsxPath);
+    $payload = (new ParseCascadeSelectImportAction())->execute($xlsxPath);
 
     expect($payload['levels'])
         ->toHaveCount(2)

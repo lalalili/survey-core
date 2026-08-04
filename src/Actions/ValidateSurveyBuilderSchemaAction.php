@@ -331,9 +331,6 @@ class ValidateSurveyBuilderSchemaAction
         }
     }
 
-    /**
-     * @param  mixed  $cascadeData
-     */
     private function hasCascadeFirstLevelOptions(mixed $cascadeData): bool
     {
         if (! is_array($cascadeData)) {

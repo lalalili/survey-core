@@ -24,7 +24,8 @@ class PublishSurveyAction
         private readonly CreateSurveySchemaVersionAction $createSchemaVersion,
         private readonly SurveyBuilderSurveySettings $surveySettings,
         private readonly SurveyReportCacheRevision $reportCacheRevision,
-    ) {}
+    ) {
+    }
 
     public function execute(Survey $survey): Survey
     {

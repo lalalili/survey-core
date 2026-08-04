@@ -899,7 +899,7 @@ class ComputeSurveyAnalyticsAction
                 fn (SurveyField $field): bool => $field->field_key === $answer->fieldKey(),
             ))
             ->map(function (SurveyAnswer $answer): SurveyField {
-                $field = new SurveyField;
+                $field = new SurveyField();
                 $field->forceFill([
                     'id' => $answer->survey_field_id,
                     'field_key' => $answer->fieldKey(),
