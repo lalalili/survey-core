@@ -1,6 +1,9 @@
 <?php
 
+use Illuminate\Database\MySqlConnection;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Lalalili\SurveyCore\Enums\SurveyTriggerActionAttemptStatus;
 use Lalalili\SurveyCore\Models\SurveyTriggerActionAttempt;
 
@@ -37,6 +40,36 @@ function createTriggerActionAttempt(array $attributes = []): SurveyTriggerAction
 
     return $attempt->refresh();
 }
+
+it('uses explicit short foreign key names for MySQL compatibility', function (): void {
+    $createTableCallback = null;
+
+    Schema::shouldReceive('create')
+        ->once()
+        ->with('survey_trigger_action_attempts', \Mockery::on(
+            function (\Closure $callback) use (&$createTableCallback): bool {
+                $createTableCallback = $callback;
+
+                return true;
+            },
+        ));
+
+    $migration = require __DIR__.'/../../database/migrations/2026_07_31_000002_create_survey_trigger_action_attempts_table.php';
+    $migration->up();
+
+    $connection = new MySqlConnection(null);
+    $connection->useDefaultSchemaGrammar();
+
+    $blueprint = new Blueprint($connection, 'survey_trigger_action_attempts', $createTableCallback);
+    $foreignKeyStatements = array_values(array_filter(
+        $blueprint->toSql(),
+        fn (string $statement): bool => str_contains($statement, 'add constraint'),
+    ));
+
+    expect($foreignKeyStatements)->toHaveCount(2)
+        ->and($foreignKeyStatements[0])->toContain('survey_trigger_action_attempts_preset_fk')
+        ->and($foreignKeyStatements[1])->toContain('survey_trigger_action_attempts_dispatch_fk');
+});
 
 it('encrypts trigger action request and response details at rest', function (): void {
     $attempt = createTriggerActionAttempt();

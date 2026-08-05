@@ -11,11 +11,17 @@ return new class () extends Migration {
             $table->id();
             $table->foreignId('survey_trigger_action_preset_id')
                 ->nullable()
-                ->constrained('survey_trigger_action_presets')
+                ->constrained(
+                    table: 'survey_trigger_action_presets',
+                    indexName: 'survey_trigger_action_attempts_preset_fk',
+                )
                 ->nullOnDelete();
             $table->foreignId('survey_trigger_dispatch_id')
                 ->nullable()
-                ->constrained(config('survey-core.table_names.survey_trigger_dispatches', 'survey_trigger_dispatches'))
+                ->constrained(
+                    table: config('survey-core.table_names.survey_trigger_dispatches', 'survey_trigger_dispatches'),
+                    indexName: 'survey_trigger_action_attempts_dispatch_fk',
+                )
                 ->nullOnDelete();
             $table->string('action_key');
             $table->string('action_type');
