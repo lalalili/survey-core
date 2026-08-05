@@ -220,7 +220,7 @@ it('blocks publishing when list profile does not match the survey category', fun
     $survey->update(['draft_schema' => resultContextSchema($list)]);
 
     expect(fn () => app(PublishSurveyAction::class)->execute($survey->refresh()))
-        ->toThrow(SurveyNotAvailableException::class, '個性化名單的資料設定檔必須與問卷分類 CSI 相同。');
+        ->toThrow(SurveyNotAvailableException::class, '個性化名單的對應問卷分類必須與問卷分類 CSI 相同。');
 });
 
 it('blocks publishing invalid mappings and non-date delivery columns', function (array $mappingOverrides, string $message) {

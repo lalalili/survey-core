@@ -34,7 +34,7 @@ class ValidateSurveyResultContextForPublishAction
 
         $schemaProfile = strtoupper(trim((string) ($audienceList->schema_profile ?? '')));
         if ($schemaProfile !== $category) {
-            $this->fail("個性化名單的資料設定檔必須與問卷分類 {$category} 相同。 ");
+            $this->fail("個性化名單的對應問卷分類必須與問卷分類 {$category} 相同。");
         }
 
         $rawColumns = $audienceList->getAttribute('columns_json');
